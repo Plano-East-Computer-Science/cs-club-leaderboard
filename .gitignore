@@ -1,0 +1,10 @@
+node_modules/
+dist/
+data/
+.wrangler/
+*.db
+*.db-shm
+*.db-wal
+.env
+.dev.vars
+.DS_Store

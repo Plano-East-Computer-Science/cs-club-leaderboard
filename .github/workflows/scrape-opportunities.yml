@@ -1,0 +1,44 @@
+# Weekly opportunity scrape.
+#
+# Runs here rather than on the site because a free Cloudflare Worker gets 10ms
+# of CPU per request, and parsing a few hundred kilobytes of HTML needs far more
+# than that. GitHub Actions has no such limit.
+#
+# Everything found lands in the site's Pending queue. Nothing appears publicly
+# until an officer approves it in the admin panel.
+#
+# Setup (Settings -> Secrets and variables -> Actions):
+#   SITE_URL           https://your-domain.org        (a variable, not a secret)
+#   INGEST_TOKEN       same value as the Worker secret (a secret)
+#   FIRECRAWL_API_KEY  optional (a secret)
+
+name: Scrape opportunities
+
+on:
+  schedule:
+    # Sundays at 08:00 UTC (early Sunday morning US Central).
+    - cron: '0 8 * * 0'
+  # Lets an officer run it on demand from the Actions tab.
+  workflow_dispatch:
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Scrape and push to the site
+        env:
+          SITE_URL: ${{ vars.SITE_URL }}
+          INGEST_TOKEN: ${{ secrets.INGEST_TOKEN }}
+          FIRECRAWL_API_KEY: ${{ secrets.FIRECRAWL_API_KEY }}
+        run: npm run ingest

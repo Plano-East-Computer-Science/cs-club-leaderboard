@@ -1,0 +1,34 @@
+{
+  "name": "cs-club-leaderboard",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Plano East Senior High School CS Club leaderboard and STEM opportunity board",
+  "scripts": {
+    "build": "vite build",
+    "dev": "npm run build && wrangler dev",
+    "deploy": "npm run build && wrangler deploy",
+    "build:seed": "node scripts/build-seed-sql.mjs",
+    "db:schema": "wrangler d1 execute cs-club --remote --file worker/schema.sql",
+    "db:seed": "wrangler d1 execute cs-club --remote --file worker/seed.sql",
+    "db:schema:local": "wrangler d1 execute cs-club --local --file worker/schema.sql",
+    "db:seed:local": "wrangler d1 execute cs-club --local --file worker/seed.sql",
+    "ingest": "node ingest/run.js",
+    "test": "node --disable-warning=ExperimentalWarning test/selftest.js"
+  },
+  "dependencies": {
+    "hono": "^4.13.3"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.1.11",
+    "@vitejs/plugin-react": "^4.6.0",
+    "cheerio": "^1.0.0",
+    "framer-motion": "^12.23.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-router-dom": "^7.6.3",
+    "tailwindcss": "^4.1.11",
+    "vite": "^6.3.5",
+    "wrangler": "^4.124.0"
+  }
+}

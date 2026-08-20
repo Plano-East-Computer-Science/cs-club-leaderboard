@@ -1,0 +1,44 @@
+# Cloudflare Workers configuration.
+#
+# One Worker serves both the built React app and the JSON API on the same
+# domain, so there is no CORS to configure and no second service to keep alive.
+#
+# Workers do not sleep, so there is no cold start -- the leaderboard is
+# immediate whenever a student opens it.
+#
+# See DEPLOY.md for the full setup walkthrough.
+
+name = "cs-club-leaderboard"
+main = "worker/index.js"
+compatibility_date = "2026-08-01"
+
+# The built React app. Cloudflare serves any request that matches a file in
+# dist/ directly from its edge; anything else falls through to the Worker,
+# which routes /api/* and serves index.html for client-side routes.
+[assets]
+directory = "./dist"
+binding = "ASSETS"
+# Both set to "none" so Cloudflare's asset router only ever serves an exact file
+# match and hands everything else to the Worker. Without this it rewrites and
+# redirects unknown paths itself, which sent /admin and /student/1 to the
+# homepage and broke every shared link. The Worker does the SPA fallback.
+html_handling = "none"
+not_found_handling = "none"
+
+# The database. D1 is SQLite, which is why none of the SQL had to change.
+#
+# After running `npx wrangler d1 create cs-club`, paste the database_id it
+# prints in below. It is not a secret -- it is safe to commit.
+[[d1_databases]]
+binding = "DB"
+database_name = "cs-club"
+database_id = "REPLACE_WITH_ID_FROM_WRANGLER_D1_CREATE"
+
+[vars]
+# Link shown in the admin panel's Pending tab, pointing at the scraper workflow.
+ACTIONS_URL = "https://github.com/Plano-East-Computer-Science/cs-club-leaderboard/actions/workflows/scrape-opportunities.yml"
+
+# Secrets are NOT set here -- they would end up in git. Set them with:
+#   npx wrangler secret put ADMIN_PASSWORD
+#   npx wrangler secret put SESSION_SECRET
+#   npx wrangler secret put INGEST_TOKEN
