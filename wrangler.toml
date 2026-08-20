@@ -32,7 +32,7 @@ not_found_handling = "none"
 [[d1_databases]]
 binding = "DB"
 database_name = "cs-club"
-database_id = "REPLACE_WITH_ID_FROM_WRANGLER_D1_CREATE"
+database_id = "989d6dab-3748-4868-a089-865af1e2a112"
 
 [vars]
 # Link shown in the admin panel's Pending tab, pointing at the scraper workflow.
