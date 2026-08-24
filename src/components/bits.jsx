@@ -202,3 +202,75 @@ export function Empty({ title, children }) {
     </div>
   );
 }
+
+/* ------------------------------- rich text ------------------------------- */
+
+/**
+ * Renders settings text with "## heading", "- bullet", and paragraphs -- enough
+ * for club copy, and cheaper than a markdown dependency. Text is rendered as
+ * plain strings, never as HTML, so nothing typed into the admin panel can
+ * inject markup. Shared by every page that renders editable prose (About,
+ * Join, puzzle answers).
+ */
+export function RichText({ text = '' }) {
+  const blocks = [];
+  let list = null;
+
+  const flush = () => {
+    if (list) {
+      blocks.push({ kind: 'list', items: list });
+      list = null;
+    }
+  };
+
+  for (const raw of text.split('\n')) {
+    const line = raw.trim();
+    if (!line) {
+      flush();
+      continue;
+    }
+    if (line.startsWith('## ')) {
+      flush();
+      blocks.push({ kind: 'h2', text: line.slice(3) });
+    } else if (line.startsWith('- ')) {
+      (list ??= []).push(line.slice(2));
+    } else {
+      flush();
+      blocks.push({ kind: 'p', text: line });
+    }
+  }
+  flush();
+
+  return (
+    <div className="grid gap-4">
+      {blocks.map((b, i) => {
+        if (b.kind === 'h2') {
+          return (
+            <h2 key={i} className="display mt-6 text-xl font-bold" style={{ color: 'var(--ink)' }}>
+              {b.text}
+            </h2>
+          );
+        }
+        if (b.kind === 'list') {
+          return (
+            <ul key={i} className="grid gap-1.5">
+              {b.items.map((item, j) => (
+                <li key={j} className="flex gap-3 text-[0.92rem]" style={{ color: 'var(--ink-soft)' }}>
+                  <span className="mono shrink-0" style={{ color: 'var(--flag)' }} aria-hidden="true">
+                    ▸
+                  </span>
+                  {item}
+                </li>
+              ))}
+            </ul>
+          );
+        }
+        return (
+          <p key={i} className="text-[0.95rem] leading-relaxed" style={{ color: 'var(--ink-soft)' }}>
+            {b.text}
+          </p>
+        );
+      })}
+    </div>
+  );
+}

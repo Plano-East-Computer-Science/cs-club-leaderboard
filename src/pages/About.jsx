@@ -1,71 +1,46 @@
+import { useEffect, useState } from 'react';
 import { TIERS } from '../lib/tiers.js';
+import { api } from '../lib/api.js';
+import { RichText, Spinner } from '../components/bits.jsx';
 
-/**
- * Renders the About text from settings. Supports "## heading", "- bullet", and
- * paragraphs -- enough for club copy, and cheaper than a markdown dependency.
- * Text is rendered as plain strings, never as HTML, so nothing typed into the
- * admin panel can inject markup.
- */
-function RichText({ text = '' }) {
-  const blocks = [];
-  let list = null;
+const COMMITTEE_LABEL = { main: 'Main CS Club', cyber: 'Cybersecurity Committee' };
 
-  const flush = () => {
-    if (list) {
-      blocks.push({ kind: 'list', items: list });
-      list = null;
-    }
-  };
+function Officers() {
+  const [officers, setOfficers] = useState(null);
 
-  for (const raw of text.split('\n')) {
-    const line = raw.trim();
-    if (!line) {
-      flush();
-      continue;
-    }
-    if (line.startsWith('## ')) {
-      flush();
-      blocks.push({ kind: 'h2', text: line.slice(3) });
-    } else if (line.startsWith('- ')) {
-      (list ??= []).push(line.slice(2));
-    } else {
-      flush();
-      blocks.push({ kind: 'p', text: line });
-    }
-  }
-  flush();
+  useEffect(() => {
+    api.get('/officers').then((d) => setOfficers(d.officers)).catch(() => setOfficers([]));
+  }, []);
+
+  if (officers === null) return <Spinner label="Loading officers" />;
+  if (!officers.length) return null;
 
   return (
-    <div className="grid gap-4">
-      {blocks.map((b, i) => {
-        if (b.kind === 'h2') {
-          return (
-            <h2 key={i} className="display mt-6 text-xl font-bold" style={{ color: 'var(--ink)' }}>
-              {b.text}
-            </h2>
-          );
-        }
-        if (b.kind === 'list') {
-          return (
-            <ul key={i} className="grid gap-1.5">
-              {b.items.map((item, j) => (
-                <li key={j} className="flex gap-3 text-[0.92rem]" style={{ color: 'var(--ink-soft)' }}>
-                  <span className="mono shrink-0" style={{ color: 'var(--flag)' }} aria-hidden="true">
-                    ▸
-                  </span>
-                  {item}
-                </li>
-              ))}
-            </ul>
-          );
-        }
-        return (
-          <p key={i} className="text-[0.95rem] leading-relaxed" style={{ color: 'var(--ink-soft)' }}>
-            {b.text}
-          </p>
-        );
-      })}
-    </div>
+    <section>
+      <h2 className="display mb-4 text-xl font-bold" style={{ color: 'var(--ink)' }}>
+        The officers
+      </h2>
+      <ul className="grid gap-3 sm:grid-cols-2">
+        {officers.map((o) => (
+          <li key={o.id} className="card p-4">
+            <p className="text-sm font-semibold" style={{ color: 'var(--ink)' }}>
+              {o.name}
+            </p>
+            <p className="mono mt-0.5 text-[0.7rem]" style={{ color: 'var(--flag)' }}>
+              {o.role}
+            </p>
+            {o.note && (
+              <p className="mt-1.5 text-[0.8rem]" style={{ color: 'var(--ink-soft)' }}>
+                {o.note}
+              </p>
+            )}
+            <p className="mono mt-2 text-[0.65rem]" style={{ color: 'var(--ink-faint)' }}>
+              {COMMITTEE_LABEL[o.committee] ?? o.committee}
+            </p>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 
@@ -80,9 +55,12 @@ export default function About({ settings }) {
       </header>
 
       <div className="grid gap-8 lg:grid-cols-[1fr_18rem] lg:items-start">
-        <article className="card p-6 sm:p-8">
-          <RichText text={settings.about_body || ''} />
-        </article>
+        <div className="grid gap-8">
+          <article className="card p-6 sm:p-8">
+            <RichText text={settings.about_body || ''} />
+          </article>
+          <Officers />
+        </div>
 
         <aside className="grid gap-6">
           <div className="card p-5">

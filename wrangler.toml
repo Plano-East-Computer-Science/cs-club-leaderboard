@@ -24,6 +24,14 @@ binding = "ASSETS"
 # homepage and broke every shared link. The Worker does the SPA fallback.
 html_handling = "none"
 not_found_handling = "none"
+# The asset router treats a request whose path LOOKS like a file (has an
+# extension, e.g. /api/deadlines.ics) as "must be a real asset or 404" and
+# never falls through to the Worker for it -- not_found_handling does not
+# override this. run_worker_first makes /api/* the Worker's unconditionally,
+# regardless of what the path looks like. Caught when the ICS calendar feed
+# 404'd in production despite working locally and every other /api/* route
+# working fine (none of those happened to have a dotted extension).
+run_worker_first = ["/api/*"]
 
 # The database. D1 is SQLite, which is why none of the SQL had to change.
 #

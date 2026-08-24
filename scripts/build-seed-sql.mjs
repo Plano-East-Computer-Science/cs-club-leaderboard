@@ -11,7 +11,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { BADGES, DEMO_STUDENTS, OPPORTUNITIES, SETTINGS } from '../shared/seed-data.js';
+import {
+  BADGES, DEMO_STUDENTS, OPPORTUNITIES, SETTINGS,
+  OFFICERS, CURRICULUM, COMPETITIONS, PUZZLES,
+} from '../shared/seed-data.js';
 import { milesFromSchool, fingerprintOf } from '../worker/geo.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -71,6 +74,48 @@ for (const o of OPPORTUNITIES) {
         `'seed'`, `'live'`, q(fingerprintOf(o)),
       ].join(', ') +
       ');'
+  );
+}
+
+// Officers, curriculum, and competitions have no UNIQUE constraint in the
+// schema (there is no natural business key that couldn't legitimately repeat),
+// so idempotency is done the same way as point_events: a WHERE NOT EXISTS
+// guard on the fields that make a row "the same seeded row" on re-run.
+
+lines.push('', '-- Officers');
+for (const o of OFFICERS) {
+  lines.push(
+    `INSERT INTO officers (name, role, note, committee, sort_order) ` +
+      `SELECT ${q(o.name)}, ${q(o.role)}, ${q(o.note)}, ${q(o.committee)}, ${n(o.sort_order)} ` +
+      `WHERE NOT EXISTS (SELECT 1 FROM officers WHERE name = ${q(o.name)});`
+  );
+}
+
+lines.push('', '-- Curriculum roadmap');
+for (const t of CURRICULUM) {
+  lines.push(
+    `INSERT INTO curriculum_topics (track, title, sort_order) ` +
+      `SELECT ${q(t.track)}, ${q(t.title)}, ${n(t.sort_order)} ` +
+      `WHERE NOT EXISTS (SELECT 1 FROM curriculum_topics WHERE track = ${q(t.track)} AND title = ${q(t.title)});`
+  );
+}
+
+lines.push('', '-- Competitions');
+for (const comp of COMPETITIONS) {
+  lines.push(
+    `INSERT INTO competitions (name, description, result, event_date, url, status, sort_order) ` +
+      `SELECT ${q(comp.name)}, ${q(comp.description)}, ${q(comp.result)}, ${n(comp.event_date)}, ` +
+      `${q(comp.url)}, ${q(comp.status)}, ${n(comp.sort_order)} ` +
+      `WHERE NOT EXISTS (SELECT 1 FROM competitions WHERE name = ${q(comp.name)});`
+  );
+}
+
+lines.push('', '-- Puzzle Archive');
+for (const p of PUZZLES) {
+  lines.push(
+    `INSERT INTO puzzles (title, prompt, answer, source, posted_at, revealed) ` +
+      `SELECT ${q(p.title)}, ${q(p.prompt)}, ${q(p.answer)}, ${q(p.source)}, ${q(p.posted_at)}, ${p.revealed ? 1 : 0} ` +
+      `WHERE NOT EXISTS (SELECT 1 FROM puzzles WHERE title = ${q(p.title)});`
   );
 }
 

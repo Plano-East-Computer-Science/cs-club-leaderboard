@@ -2,8 +2,12 @@
  * Read-only API. Everything here is safe for anyone on the internet to call.
  */
 import { Hono } from 'hono';
-import { getLeaderboard, getStudent, listOpportunities, getAllSettings } from '../db.js';
+import {
+  getLeaderboard, getStudent, listOpportunities, getAllSettings,
+  getOfficers, getCurriculum, getCompetitions, getPuzzles,
+} from '../db.js';
 import { RADIUS_MILES, SCHOOL } from '../geo.js';
+import { opportunitiesToICS } from '../ics.js';
 
 export const publicRouter = new Hono();
 
@@ -25,6 +29,45 @@ publicRouter.get('/opportunities', async (c) => {
   });
 });
 
+publicRouter.get('/officers', async (c) => {
+  return c.json({ officers: await getOfficers(c.env.DB) });
+});
+
+publicRouter.get('/curriculum', async (c) => {
+  return c.json({ topics: await getCurriculum(c.env.DB) });
+});
+
+publicRouter.get('/competitions', async (c) => {
+  return c.json({ competitions: await getCompetitions(c.env.DB) });
+});
+
+publicRouter.get('/puzzles', async (c) => {
+  return c.json({ puzzles: await getPuzzles(c.env.DB) });
+});
+
+/**
+ * A live iCalendar feed of every live opportunity's deadline. A student
+ * subscribes to this URL once (Google Calendar: Other calendars -> From URL),
+ * and it silently reflects the real, officer-approved opportunity list
+ * forever after -- there is no second copy of deadline data to keep in sync.
+ */
+publicRouter.get('/deadlines.ics', async (c) => {
+  const opportunities = (await listOpportunities(c.env.DB, { status: 'live' })).filter(
+    (o) => o.deadline
+  );
+  const ics = opportunitiesToICS(opportunities, { domain: new URL(c.req.url).hostname });
+  return new Response(ics, {
+    headers: {
+      'Content-Type': 'text/calendar; charset=utf-8',
+      'Content-Disposition': 'inline; filename="cs-club-deadlines.ics"',
+      // Subscribed calendars are polled by the client on their own schedule
+      // (often hourly), so this is just a courtesy against pathological
+      // re-fetching, not the source of the refresh cadence.
+      'Cache-Control': 'public, max-age=1800',
+    },
+  });
+});
+
 /**
  * Only the settings the public site actually renders. An explicit list rather
  * than "everything", so an operational setting added later (scrape targets,
@@ -35,6 +78,8 @@ const PUBLIC_SETTINGS = [
   'prize_title', 'prize_blurb',
   'about_heading', 'about_body',
   'discord_url', 'email',
+  'join_intro', 'join_consent_url', 'join_classroom_code', 'join_meeting_info',
+  'meetings_calendar_embed_url', 'meetings_calendar_subscribe_url',
 ];
 
 publicRouter.get('/site', async (c) => {

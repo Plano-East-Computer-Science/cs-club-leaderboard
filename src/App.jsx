@@ -4,6 +4,11 @@ import { BrowserRouter, Routes, Route, NavLink, Link, useLocation } from 'react-
 import Leaderboard from './pages/Leaderboard.jsx';
 import Student from './pages/Student.jsx';
 import Opportunities from './pages/Opportunities.jsx';
+import CalendarPage from './pages/Calendar.jsx';
+import Curriculum from './pages/Curriculum.jsx';
+import Competitions from './pages/Competitions.jsx';
+import Puzzles from './pages/Puzzles.jsx';
+import Join from './pages/Join.jsx';
 import About from './pages/About.jsx';
 import Admin from './pages/Admin.jsx';
 import { api } from './lib/api.js';
@@ -27,7 +32,12 @@ function useSettings() {
 const NAV = [
   { to: '/', label: 'Standings', end: true },
   { to: '/opportunities', label: 'Opportunities' },
+  { to: '/calendar', label: 'Calendar' },
+  { to: '/curriculum', label: 'Curriculum' },
+  { to: '/competitions', label: 'Competitions' },
+  { to: '/puzzles', label: 'Puzzles' },
   { to: '/about', label: 'About' },
+  { to: '/join', label: 'Join' },
 ];
 
 function Masthead({ settings }) {
@@ -53,13 +63,17 @@ function Masthead({ settings }) {
           </span>
         </Link>
 
-        <nav className="ml-auto hidden items-center gap-1 sm:flex">
+        {/* Seven public routes plus Admin no longer fit comfortably at the old
+            "sm" breakpoint, so the horizontal bar only takes over at "lg" --
+            everything narrower than that gets the hamburger menu below,
+            which was already built to show the full NAV list. */}
+        <nav className="ml-auto hidden items-center gap-1 lg:flex">
           {NAV.map((n) => (
             <NavLink
               key={n.to}
               to={n.to}
               end={n.end}
-              className="mono rounded px-3 py-1.5 text-xs font-semibold no-underline transition-colors"
+              className="mono rounded px-2.5 py-1.5 text-xs font-semibold no-underline transition-colors"
               style={({ isActive }) => ({
                 color: isActive ? 'var(--ink)' : 'var(--ink-faint)',
                 background: isActive ? 'var(--paper-2)' : 'transparent',
@@ -77,18 +91,26 @@ function Masthead({ settings }) {
           </Link>
         </nav>
 
-        <button
-          className="btn btn-ghost ml-auto sm:hidden"
-          onClick={() => setOpen((v) => !v)}
-          aria-expanded={open}
-          aria-label="Menu"
-        >
-          {open ? 'Close' : 'Menu'}
-        </button>
+        {/* `.btn` sets display: inline-flex unconditionally, which beats a
+            same-specificity `lg:hidden` on the button itself at the widths
+            where it should disappear -- CSS gives the later-in-stylesheet
+            rule the win once both are "in effect", regardless of the media
+            query. Putting the responsive visibility on a plain wrapper with
+            no competing display rule sidesteps the fight entirely. */}
+        <span className="ml-auto lg:hidden">
+          <button
+            className="btn btn-ghost"
+            onClick={() => setOpen((v) => !v)}
+            aria-expanded={open}
+            aria-label="Menu"
+          >
+            {open ? 'Close' : 'Menu'}
+          </button>
+        </span>
       </div>
 
       {open && (
-        <nav className="grid gap-1 border-t px-4 py-3 sm:hidden">
+        <nav className="grid gap-1 border-t px-4 py-3 lg:hidden">
           {[...NAV, { to: '/admin', label: 'Admin' }].map((n) => (
             <NavLink
               key={n.to}
@@ -151,6 +173,11 @@ function Shell() {
           <Route path="/" element={<Leaderboard settings={settings} />} />
           <Route path="/student/:id" element={<Student />} />
           <Route path="/opportunities" element={<Opportunities />} />
+          <Route path="/calendar" element={<CalendarPage settings={settings} />} />
+          <Route path="/curriculum" element={<Curriculum />} />
+          <Route path="/competitions" element={<Competitions />} />
+          <Route path="/puzzles" element={<Puzzles />} />
+          <Route path="/join" element={<Join settings={settings} />} />
           <Route path="/about" element={<About settings={settings} />} />
           <Route path="/admin" element={<Admin />} />
           <Route

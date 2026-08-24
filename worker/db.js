@@ -100,6 +100,18 @@ export function listOpportunities(db, { status = 'live' } = {}) {
       );
 }
 
+/* ---------------------------- club info pages ---------------------------- */
+
+export const getOfficers = (db) => all(db, 'SELECT * FROM officers ORDER BY sort_order, id');
+export const getCurriculum = (db) => all(db, 'SELECT * FROM curriculum_topics ORDER BY track, sort_order, id');
+export const getCompetitions = (db) => all(db, 'SELECT * FROM competitions ORDER BY sort_order, id');
+
+/** Public puzzle list never leaks an unrevealed answer, even to a curious network tab. */
+export async function getPuzzles(db) {
+  const rows = await all(db, 'SELECT * FROM puzzles ORDER BY posted_at DESC, id DESC');
+  return rows.map((p) => (p.revealed ? p : { ...p, answer: '' }));
+}
+
 /* --------------------------------- settings -------------------------------- */
 
 export async function getSetting(db, key, fallback = '') {
@@ -130,6 +142,10 @@ const BACKUP_TABLES = [
   'student_badges',
   'opportunities',
   'settings',
+  'officers',
+  'curriculum_topics',
+  'competitions',
+  'puzzles',
 ];
 
 export async function exportBackup(db) {

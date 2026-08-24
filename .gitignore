@@ -8,3 +8,9 @@ data/
 .env
 .dev.vars
 .DS_Store
+
+# Throwaway redesign demo. Never commit.
+demo/
+
+# Local MCP tool config.
+.serena/

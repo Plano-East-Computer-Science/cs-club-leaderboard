@@ -9,6 +9,10 @@ const TABS = [
   { id: 'badges', label: 'Badges' },
   { id: 'opportunities', label: 'Opportunities' },
   { id: 'queue', label: 'Pending' },
+  { id: 'officers', label: 'Officers' },
+  { id: 'curriculum', label: 'Curriculum' },
+  { id: 'competitions', label: 'Competitions' },
+  { id: 'puzzles', label: 'Puzzles' },
   { id: 'text', label: 'Page text' },
   { id: 'backup', label: 'Backup' },
 ];
@@ -88,6 +92,10 @@ export default function Admin() {
       {tab === 'badges' && <BadgesTab say={say} />}
       {tab === 'opportunities' && <OpportunitiesTab say={say} />}
       {tab === 'queue' && <QueueTab say={say} actionsUrl={actionsUrl} />}
+      {tab === 'officers' && <OfficersTab say={say} />}
+      {tab === 'curriculum' && <CurriculumTab say={say} />}
+      {tab === 'competitions' && <CompetitionsTab say={say} />}
+      {tab === 'puzzles' && <PuzzlesTab say={say} />}
       {tab === 'text' && <TextTab say={say} />}
       {tab === 'backup' && <BackupTab say={say} />}
     </div>
@@ -968,6 +976,327 @@ function QueueTab({ say, actionsUrl }) {
   );
 }
 
+/* -------------------------------- officers -------------------------------- */
+
+const BLANK_OFFICER = { name: '', role: '', note: '', committee: 'main', sort_order: 0 };
+
+function OfficersTab({ say }) {
+  const [officers, setOfficers] = useState(null);
+  const [form, setForm] = useState(BLANK_OFFICER);
+
+  const load = useCallback(() => {
+    api.get('/admin/officers').then((d) => setOfficers(d.officers)).catch((e) => say(e.message, 'bad'));
+  }, [say]);
+  useEffect(load, [load]);
+  const act = useAction(say, load);
+
+  if (!officers) return <Spinner />;
+
+  return (
+    <div className="grid gap-6 lg:grid-cols-[20rem_1fr] lg:items-start">
+      <Section title="Add an officer" hint="Shown on the About page.">
+        <form
+          className="grid gap-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            act(() => api.post('/admin/officers', form), `Added ${form.name}.`, () =>
+              setForm({ ...BLANK_OFFICER, sort_order: officers.length })
+            );
+          }}
+        >
+          <Field label="Name">
+            <input className="field" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
+          </Field>
+          <Field label="Role">
+            <input className="field" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })} placeholder="President" />
+          </Field>
+          <Field label="Note">
+            <input className="field" value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} placeholder="Main CS Club" />
+          </Field>
+          <Field label="Committee">
+            <select className="field" value={form.committee} onChange={(e) => setForm({ ...form, committee: e.target.value })}>
+              <option value="main">Main CS Club</option>
+              <option value="cyber">Cybersecurity Committee</option>
+            </select>
+          </Field>
+          <button className="btn btn-primary">Add officer</button>
+        </form>
+      </Section>
+
+      <Section title={`Officers (${officers.length})`}>
+        {officers.length === 0 ? (
+          <p className="text-sm" style={{ color: 'var(--ink-soft)' }}>No officers listed yet.</p>
+        ) : (
+          <ul className="grid gap-2">
+            {officers.map((o) => (
+              <li key={o.id} className="flex flex-wrap items-center gap-3 rounded border p-3">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold">{o.name}</p>
+                  <p className="mono text-[0.65rem]" style={{ color: 'var(--ink-faint)' }}>
+                    {o.role}{o.note && ` · ${o.note}`} · {o.committee === 'cyber' ? 'Cyber' : 'Main'}
+                  </p>
+                </div>
+                <button
+                  className="btn btn-danger"
+                  onClick={() => act(() => api.del(`/admin/officers/${o.id}`), `Removed ${o.name}.`)}
+                >
+                  Remove
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Section>
+    </div>
+  );
+}
+
+/* ------------------------------- curriculum ------------------------------- */
+
+function CurriculumTab({ say }) {
+  const [topics, setTopics] = useState(null);
+  const [form, setForm] = useState({ track: 'fall', title: '' });
+
+  const load = useCallback(() => {
+    api.get('/admin/curriculum').then((d) => setTopics(d.topics)).catch((e) => say(e.message, 'bad'));
+  }, [say]);
+  useEffect(load, [load]);
+  const act = useAction(say, load);
+
+  if (!topics) return <Spinner />;
+
+  return (
+    <div className="grid gap-6 lg:grid-cols-[20rem_1fr] lg:items-start">
+      <Section title="Add a topic" hint="Check topics off as covered from the list once they've actually been taught.">
+        <form
+          className="grid gap-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const sort_order = topics.filter((t) => t.track === form.track).length;
+            act(() => api.post('/admin/curriculum', { ...form, sort_order }), `Added "${form.title}".`, () =>
+              setForm({ ...form, title: '' })
+            );
+          }}
+        >
+          <Field label="Track">
+            <select className="field" value={form.track} onChange={(e) => setForm({ ...form, track: e.target.value })}>
+              <option value="fall">Fall — Beginner</option>
+              <option value="spring">Spring — Advanced</option>
+            </select>
+          </Field>
+          <Field label="Topic">
+            <input className="field" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required />
+          </Field>
+          <button className="btn btn-primary">Add topic</button>
+        </form>
+      </Section>
+
+      <Section title={`Curriculum (${topics.length} topics)`}>
+        {topics.length === 0 ? (
+          <p className="text-sm" style={{ color: 'var(--ink-soft)' }}>No topics posted yet.</p>
+        ) : (
+          <ul className="grid gap-1.5">
+            {topics.map((t) => (
+              <li key={t.id} className="flex items-center gap-3 rounded border p-2.5">
+                <label className="flex flex-1 cursor-pointer items-center gap-2.5">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(t.covered)}
+                    onChange={(e) => act(() => api.patch(`/admin/curriculum/${t.id}`, { covered: e.target.checked }))}
+                  />
+                  <span className="min-w-0 flex-1 text-sm" style={{ color: t.covered ? 'var(--ink-faint)' : 'var(--ink)' }}>
+                    {t.title}
+                  </span>
+                </label>
+                <span className="mono text-[0.65rem]" style={{ color: 'var(--ink-faint)' }}>
+                  {t.track}
+                </span>
+                <button
+                  className="btn btn-danger"
+                  onClick={() => act(() => api.del(`/admin/curriculum/${t.id}`), 'Removed.')}
+                >
+                  Remove
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Section>
+    </div>
+  );
+}
+
+/* ------------------------------ competitions ------------------------------ */
+
+const BLANK_COMPETITION = {
+  name: '', description: '', result: '', event_date: '', url: '', status: 'upcoming', sort_order: 0,
+};
+
+function CompetitionsTab({ say }) {
+  const [competitions, setCompetitions] = useState(null);
+  const [form, setForm] = useState(BLANK_COMPETITION);
+
+  const load = useCallback(() => {
+    api.get('/admin/competitions').then((d) => setCompetitions(d.competitions)).catch((e) => say(e.message, 'bad'));
+  }, [say]);
+  useEffect(load, [load]);
+  const act = useAction(say, load);
+
+  if (!competitions) return <Spinner />;
+
+  return (
+    <div className="grid gap-6 lg:grid-cols-[22rem_1fr] lg:items-start">
+      <Section title="Add a competition">
+        <form
+          className="grid gap-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            act(
+              () => api.post('/admin/competitions', { ...form, sort_order: competitions.length }),
+              `Added "${form.name}".`,
+              () => setForm(BLANK_COMPETITION)
+            );
+          }}
+        >
+          <Field label="Name">
+            <input className="field" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
+          </Field>
+          <Field label="Description">
+            <textarea className="field" rows={2} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+          </Field>
+          <Field label="Result" hint="Leave blank until there is one.">
+            <input className="field" value={form.result} onChange={(e) => setForm({ ...form, result: e.target.value })} placeholder="2nd place, 2025-26" />
+          </Field>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="Date" hint="Leave blank if TBD.">
+              <input className="field" type="date" value={form.event_date} onChange={(e) => setForm({ ...form, event_date: e.target.value })} />
+            </Field>
+            <Field label="Status">
+              <select className="field" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
+                <option value="upcoming">Upcoming / ongoing</option>
+                <option value="past">Past</option>
+              </select>
+            </Field>
+          </div>
+          <Field label="Link" hint="Optional.">
+            <input className="field" type="url" value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} placeholder="https://" />
+          </Field>
+          <button className="btn btn-primary">Add competition</button>
+        </form>
+      </Section>
+
+      <Section title={`Competitions (${competitions.length})`}>
+        {competitions.length === 0 ? (
+          <p className="text-sm" style={{ color: 'var(--ink-soft)' }}>None posted yet.</p>
+        ) : (
+          <ul className="grid gap-2">
+            {competitions.map((c) => (
+              <li key={c.id} className="flex flex-wrap items-center gap-3 rounded border p-3">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold">{c.name}</p>
+                  <p className="mono text-[0.65rem]" style={{ color: 'var(--ink-faint)' }}>
+                    {c.result || 'No result yet'}{c.event_date && ` · ${formatDate(c.event_date)}`}
+                  </p>
+                </div>
+                <button
+                  className="btn btn-danger"
+                  onClick={() => act(() => api.del(`/admin/competitions/${c.id}`), `Removed ${c.name}.`)}
+                >
+                  Remove
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Section>
+    </div>
+  );
+}
+
+/* --------------------------------- puzzles --------------------------------- */
+
+const BLANK_PUZZLE = { title: '', prompt: '', answer: '', source: 'club', posted_at: '', revealed: true };
+
+function PuzzlesTab({ say }) {
+  const [puzzles, setPuzzles] = useState(null);
+  const [form, setForm] = useState(BLANK_PUZZLE);
+
+  const load = useCallback(() => {
+    api.get('/admin/puzzles').then((d) => setPuzzles(d.puzzles)).catch((e) => say(e.message, 'bad'));
+  }, [say]);
+  useEffect(load, [load]);
+  const act = useAction(say, load);
+
+  if (!puzzles) return <Spinner />;
+
+  return (
+    <div className="grid gap-6 lg:grid-cols-[24rem_1fr] lg:items-start">
+      <Section title="Add a puzzle" hint="Leave the answer blank and 'revealed' off to post this week's opener without spoiling it, then come back and fill in the answer after the meeting.">
+        <form
+          className="grid gap-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            act(() => api.post('/admin/puzzles', form), `Added "${form.title}".`, () => setForm(BLANK_PUZZLE));
+          }}
+        >
+          <Field label="Title">
+            <input className="field" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required />
+          </Field>
+          <Field label="Prompt">
+            <textarea className="field" rows={2} value={form.prompt} onChange={(e) => setForm({ ...form, prompt: e.target.value })} required />
+          </Field>
+          <Field label="Answer" hint="Shown on the site only when Revealed is checked.">
+            <textarea className="field" rows={4} value={form.answer} onChange={(e) => setForm({ ...form, answer: e.target.value })} />
+          </Field>
+          <Field label="Date">
+            <input className="field" type="date" value={form.posted_at} onChange={(e) => setForm({ ...form, posted_at: e.target.value })} />
+          </Field>
+          <label className="mono flex items-center gap-2 text-xs" style={{ color: 'var(--ink-soft)' }}>
+            <input type="checkbox" checked={form.revealed} onChange={(e) => setForm({ ...form, revealed: e.target.checked })} />
+            Revealed (visible to students)
+          </label>
+          <button className="btn btn-primary">Add puzzle</button>
+        </form>
+      </Section>
+
+      <Section title={`Puzzle archive (${puzzles.length})`}>
+        {puzzles.length === 0 ? (
+          <p className="text-sm" style={{ color: 'var(--ink-soft)' }}>None posted yet.</p>
+        ) : (
+          <ul className="grid gap-2">
+            {puzzles.map((p) => (
+              <li key={p.id} className="rounded border p-3">
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold">{p.title}</p>
+                    <p className="mono text-[0.65rem]" style={{ color: 'var(--ink-faint)' }}>
+                      {formatDate(p.posted_at)} · {p.revealed ? 'revealed' : 'hidden until revealed'}
+                    </p>
+                  </div>
+                  {!p.revealed && (
+                    <button
+                      className="btn btn-ghost"
+                      onClick={() => act(() => api.patch(`/admin/puzzles/${p.id}`, { revealed: true }), 'Answer revealed.')}
+                    >
+                      Reveal answer
+                    </button>
+                  )}
+                  <button
+                    className="btn btn-danger"
+                    onClick={() => act(() => api.del(`/admin/puzzles/${p.id}`), `Removed ${p.title}.`)}
+                  >
+                    Remove
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Section>
+    </div>
+  );
+}
+
 /* ------------------------------- page text ------------------------------- */
 
 const TEXT_FIELDS = [
@@ -980,6 +1309,12 @@ const TEXT_FIELDS = [
   ['about_body', 'About page text', 'textarea'],
   ['discord_url', 'Discord invite link', 'input'],
   ['email', 'Contact email', 'input'],
+  ['join_intro', 'Join page intro', 'textarea'],
+  ['join_consent_url', 'Parent consent form link', 'input'],
+  ['join_classroom_code', 'Google Classroom code', 'input'],
+  ['join_meeting_info', 'Meeting day, time, and room', 'textarea'],
+  ['meetings_calendar_embed_url', 'Meetings calendar embed URL', 'input'],
+  ['meetings_calendar_subscribe_url', 'Meetings calendar subscribe (ICS) URL', 'input'],
   ['firecrawl_urls', 'Firecrawl pages to scrape', 'textarea'],
 ];
 
@@ -1010,7 +1345,11 @@ function TextTab({ say }) {
             hint={
               key === 'firecrawl_urls'
                 ? 'One URL per line. The weekly scraper reads these, and only uses them if a Firecrawl key is configured.'
-                : undefined
+                : key === 'meetings_calendar_embed_url'
+                  ? "From Google Calendar: Settings → your calendar → Integrate calendar → copy the URL inside src=\"...\" from the embed code. The calendar must be set to public first."
+                  : key === 'meetings_calendar_subscribe_url'
+                    ? 'Same settings page, further down: "Public URL to this calendar." Lets a student add it to their own calendar, not just view it here.'
+                    : undefined
             }
           >
             {kind === 'textarea' ? (

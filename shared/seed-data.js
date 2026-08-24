@@ -308,6 +308,76 @@ export const OPPORTUNITIES = [
   },
 ];
 
+/**
+ * Officers, from the Fall 2026 intro deck (slide 4). Real names, real roles --
+ * nothing here is placeholder.
+ */
+export const OFFICERS = [
+  { name: 'Elliott Harper', role: 'President', note: 'Also an officer on the Cybersecurity Committee', committee: 'main', sort_order: 0 },
+  { name: 'Sujay Gonchigar', role: 'Vice President', note: 'Main CS Club', committee: 'main', sort_order: 1 },
+  { name: 'Keshav Anand', role: 'Lead Officer, Cybersecurity', note: 'Runs the Cyber Committee', committee: 'cyber', sort_order: 2 },
+  { name: 'Cody Trainer', role: 'Officer', note: 'Main CS Club', committee: 'main', sort_order: 3 },
+  { name: 'Marcus Benett Zaens', role: 'Officer', note: 'Main CS Club', committee: 'main', sort_order: 4 },
+  { name: 'Zubair Ahmed', role: 'Officer', note: 'Main CS Club', committee: 'main', sort_order: 5 },
+];
+
+/** The Java track roadmap, from the intro deck (slide 7). */
+export const CURRICULUM = [
+  { track: 'fall', title: 'Print statements and data types', sort_order: 0 },
+  { track: 'fall', title: 'Conditionals and loops', sort_order: 1 },
+  { track: 'fall', title: 'Arrays and strings', sort_order: 2 },
+  { track: 'fall', title: 'Object-oriented programming', sort_order: 3 },
+  { track: 'fall', title: 'Recursion', sort_order: 4 },
+  { track: 'spring', title: 'Searching and sorting', sort_order: 0 },
+  { track: 'spring', title: 'Time complexity analysis', sort_order: 1 },
+  { track: 'spring', title: 'Data structures', sort_order: 2 },
+  { track: 'spring', title: 'Graphs and BFS', sort_order: 3 },
+  { track: 'spring', title: 'Dynamic programming', sort_order: 4 },
+];
+
+/** The club's own competitions, from the intro deck (slides 12-13). */
+export const COMPETITIONS = [
+  {
+    name: 'UIL Computer Science',
+    description: 'District, region, state. A written test plus a team programming round.',
+    result: '', event_date: null, url: '', status: 'upcoming', sort_order: 0,
+  },
+  {
+    name: 'HP CodeWars',
+    description: 'One day, dozens of problems, hundreds of students in one room.',
+    result: '', event_date: null, url: '', status: 'upcoming', sort_order: 1,
+  },
+  {
+    name: 'Lockheed Martin AI Quest',
+    description: 'AI Quest and related challenges, run by Lockheed Martin.',
+    result: '2nd place, 2025-26 season', event_date: null, url: '', status: 'upcoming', sort_order: 2,
+  },
+];
+
+/**
+ * The first entry in the Puzzle Archive -- the actual opener from the intro
+ * meeting (slide 8). The answer is the standard textbook solution to this
+ * classic puzzle, written fresh here rather than copied from anywhere.
+ */
+export const PUZZLES = [
+  {
+    title: 'The Twelve Coins',
+    prompt: 'You have 12 coins. One is lighter. Find it in three weighings.',
+    answer: [
+      'Weighing 1: split the 12 coins into three groups of 4 -- A, B, C. Weigh A against B.',
+      '  - If they balance, the light coin is among the 4 in C.',
+      '  - If they do not, the light coin is in whichever group of 4 was lighter (the side that went up).',
+      '',
+      'Weighing 2: take those 4 suspect coins and split them into two pairs. Weigh pair 1 against pair 2. The light coin is in whichever pair is lighter.',
+      '',
+      'Weighing 3: weigh the two coins in that pair against each other. The lighter one is the answer.',
+    ].join('\n'),
+    source: 'meeting opener',
+    posted_at: '2026-08-18',
+    revealed: true,
+  },
+];
+
 export const SETTINGS = {
   club_name: 'Plano East CS Club',
   school_name: 'Plano East Senior High School',
@@ -334,10 +404,24 @@ export const SETTINGS = {
     '',
     '## Meetings',
     'Check the club Discord and the school announcements for the current meeting time and room.',
-    '',
-    '## Officers',
-    'Add your officer list here from the admin panel.',
   ].join('\n'),
   discord_url: '',
   email: '',
+
+  // The Join page. join_classroom_code and join_meeting_info are deliberately
+  // blank -- the deck itself says the Classroom code is "coming soon", and the
+  // meeting day is unconfirmed (the deck says Thursday, the attendance form
+  // asks about Wednesday conflicts). Fill both in from Admin -> Page text
+  // once they're settled rather than guessing here.
+  join_intro:
+    'No experience needed. Beginners and returning competitors are both covered -- see the Curriculum page for what that looks like week to week.',
+  join_consent_url: 'https://myforms.pisd.edu/Forms/ParentClubConsent',
+  join_classroom_code: '',
+  join_meeting_info: '',
+
+  // The meetings calendar. Both blank until an officer creates a public
+  // Google Calendar and pastes in its two URLs from Admin -> Page text --
+  // see LEARN-DATABASE.md or the Calendar page's own empty-state for how.
+  meetings_calendar_embed_url: '',
+  meetings_calendar_subscribe_url: '',
 };

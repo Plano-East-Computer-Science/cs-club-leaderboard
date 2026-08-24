@@ -15,6 +15,7 @@ import { fileURLToPath } from 'node:url';
 import { makeTestDb } from './d1-shim.js';
 import {
   getLeaderboard, getStudent, addPointEvent, listOpportunities,
+  getOfficers, getCurriculum, getCompetitions, getPuzzles,
   getSetting, setSetting, getAllSettings, exportBackup, restoreBackup,
 } from '../worker/db.js';
 import {
@@ -24,7 +25,8 @@ import {
   signSession, verifySession, checkPassword, checkIngestToken, safeEqual,
 } from '../worker/auth.js';
 import { parseDevpostDeadline } from '../ingest/sources.js';
-import { OPPORTUNITIES } from '../shared/seed-data.js';
+import { OPPORTUNITIES, OFFICERS, CURRICULUM, COMPETITIONS, PUZZLES } from '../shared/seed-data.js';
+import { opportunitiesToICS } from '../worker/ics.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SCHEMA = fs.readFileSync(path.join(ROOT, 'worker', 'schema.sql'), 'utf8');
@@ -329,6 +331,175 @@ test('devpost deadline strings become ISO dates', () => {
   assert.equal(parseDevpostDeadline('Jan 05, 2027'), '2027-01-05');
   assert.equal(parseDevpostDeadline('sometime soon'), null);
   assert.equal(parseDevpostDeadline(null), null);
+});
+
+/* ----------------------------- club info pages ---------------------------- */
+
+test('officers come back sorted by sort_order', async () => {
+  const db = makeTestDb(SCHEMA);
+  await db.prepare("INSERT INTO officers (name, role, sort_order) VALUES ('B', 'Officer', 1)").run();
+  await db.prepare("INSERT INTO officers (name, role, sort_order) VALUES ('A', 'President', 0)").run();
+  const officers = await getOfficers(db);
+  assert.deepEqual(officers.map((o) => o.name), ['A', 'B']);
+});
+
+test('curriculum topics are grouped by track and ordered within it', async () => {
+  const db = makeTestDb(SCHEMA);
+  await db.prepare("INSERT INTO curriculum_topics (track, title, sort_order) VALUES ('spring', 'Graphs', 0)").run();
+  await db.prepare("INSERT INTO curriculum_topics (track, title, sort_order) VALUES ('fall', 'Loops', 0)").run();
+  const topics = await getCurriculum(db);
+  assert.deepEqual(topics.map((t) => t.track), ['fall', 'spring']);
+});
+
+test('toggling a topic covered is a plain boolean flip, not a re-insert', async () => {
+  const db = makeTestDb(SCHEMA);
+  const info = await db
+    .prepare("INSERT INTO curriculum_topics (track, title) VALUES ('fall', 'Recursion')")
+    .run();
+  const id = info.meta.last_row_id;
+  await db.prepare('UPDATE curriculum_topics SET covered = 1 WHERE id = ?').bind(id).run();
+  const topics = await getCurriculum(db);
+  assert.equal(topics.length, 1);
+  assert.equal(topics[0].covered, 1);
+});
+
+test('competitions come back in sort order', async () => {
+  const db = makeTestDb(SCHEMA);
+  await db.prepare("INSERT INTO competitions (name, sort_order) VALUES ('UIL', 0)").run();
+  await db.prepare("INSERT INTO competitions (name, sort_order) VALUES ('HP CodeWars', 1)").run();
+  const list = await getCompetitions(db);
+  assert.deepEqual(list.map((c) => c.name), ['UIL', 'HP CodeWars']);
+});
+
+test('an unrevealed puzzle never leaks its answer through the public read', async () => {
+  const db = makeTestDb(SCHEMA);
+  await db
+    .prepare(
+      "INSERT INTO puzzles (title, prompt, answer, revealed) VALUES ('This week', 'Solve it', 'the secret answer', 0)"
+    )
+    .run();
+  const [puzzle] = await getPuzzles(db);
+  assert.equal(puzzle.answer, '');
+  assert.equal(puzzle.revealed, 0);
+});
+
+test('a revealed puzzle shows its answer', async () => {
+  const db = makeTestDb(SCHEMA);
+  await db
+    .prepare("INSERT INTO puzzles (title, prompt, answer, revealed) VALUES ('Archived', 'Solve it', 'the answer', 1)")
+    .run();
+  const [puzzle] = await getPuzzles(db);
+  assert.equal(puzzle.answer, 'the answer');
+});
+
+test('officers, curriculum, competitions, and puzzles are included in a backup', async () => {
+  const db = makeTestDb(SCHEMA);
+  await db.prepare("INSERT INTO officers (name, role) VALUES ('Test Officer', 'President')").run();
+  await db.prepare("INSERT INTO curriculum_topics (track, title) VALUES ('fall', 'Loops')").run();
+  await db.prepare("INSERT INTO competitions (name) VALUES ('UIL')").run();
+  await db.prepare("INSERT INTO puzzles (title, prompt) VALUES ('Test', 'Solve it')").run();
+
+  const backup = JSON.parse(JSON.stringify(await exportBackup(db)));
+  const target = makeTestDb(SCHEMA);
+  await restoreBackup(target, backup);
+
+  assert.equal((await getOfficers(target)).length, 1);
+  assert.equal((await getCurriculum(target)).length, 1);
+  assert.equal((await getCompetitions(target)).length, 1);
+  const puzzles = await all_puzzles(target);
+  assert.equal(puzzles.length, 1);
+});
+
+async function all_puzzles(db) {
+  return (await db.prepare('SELECT * FROM puzzles').all()).results;
+}
+
+test('the generated seed loads the real officers, curriculum, and competitions once each', async () => {
+  const db = makeTestDb(SCHEMA);
+  const sql = fs.readFileSync(SEED_SQL, 'utf8');
+  db.exec(sql);
+  db.exec(sql); // re-running must not duplicate anything
+
+  assert.equal((await getOfficers(db)).length, OFFICERS.length);
+  assert.equal((await getCurriculum(db)).length, CURRICULUM.length);
+  assert.equal((await getCompetitions(db)).length, COMPETITIONS.length);
+  assert.equal((await getPuzzles(db)).length, PUZZLES.length);
+});
+
+/* ------------------------------- ICS feed -------------------------------- */
+
+test('a basic ICS feed has the required calendar wrapper and one VEVENT per opportunity', () => {
+  const ics = opportunitiesToICS([
+    { id: 1, title: 'USACO', org: 'USACO', url: 'https://usaco.org', deadline: '2026-09-01' },
+    { id: 2, title: 'CAC', org: 'Congress', url: 'https://cac.gov', deadline: '2026-10-15' },
+  ]);
+  assert.match(ics, /^BEGIN:VCALENDAR\r\n/);
+  assert.match(ics, /\r\nEND:VCALENDAR\r\n$/);
+  assert.equal((ics.match(/BEGIN:VEVENT/g) || []).length, 2);
+  assert.equal((ics.match(/END:VEVENT/g) || []).length, 2);
+  assert.match(ics, /VERSION:2\.0/);
+});
+
+test('an all-day deadline is DTSTART;VALUE=DATE with DTEND the following day', () => {
+  const ics = opportunitiesToICS([{ id: 1, title: 'X', deadline: '2026-02-28' }]);
+  assert.match(ics, /DTSTART;VALUE=DATE:20260228/);
+  assert.match(ics, /DTEND;VALUE=DATE:20260301/); // crosses a month boundary correctly
+});
+
+test('the UID is stable across two calls for the same opportunity', () => {
+  const opp = { id: 42, title: 'X', deadline: '2026-01-01' };
+  const a = opportunitiesToICS([opp], { domain: 'example.org' });
+  const b = opportunitiesToICS([opp], { domain: 'example.org' });
+  const uid = (s) => s.match(/UID:([^\r\n]+)/)[1];
+  assert.equal(uid(a), uid(b));
+  assert.equal(uid(a), 'opp-42@example.org');
+});
+
+test('commas, semicolons, backslashes, and newlines are escaped in text fields', () => {
+  const ics = opportunitiesToICS([
+    { id: 1, title: 'Fair; Science, Tech\\Eng\nRound 2', org: '', deadline: '2026-01-01' },
+  ]);
+  // Raw control characters must never appear unescaped in a text value.
+  assert.match(ics, /SUMMARY:Deadline: Fair\\; Science\\, Tech\\\\Eng\\nRound 2/);
+});
+
+test('a long description is folded at 75 octets with a leading-space continuation', () => {
+  const longOrg = 'A'.repeat(120);
+  const ics = opportunitiesToICS([{ id: 1, title: 'X', org: longOrg, deadline: '2026-01-01' }]);
+  const lines = ics.split('\r\n');
+  const descLines = [];
+  let capturing = false;
+  for (const l of lines) {
+    if (l.startsWith('DESCRIPTION:')) capturing = true;
+    else if (capturing && !l.startsWith(' ')) break;
+    if (capturing) descLines.push(l);
+  }
+  assert.ok(descLines.length > 1, 'a 120-char line should have folded into more than one line');
+  assert.ok(descLines[1].startsWith(' '), 'continuation line must start with a single space');
+  // No line (the fold width, not the string length) may exceed 75 octets.
+  for (const l of lines) {
+    assert.ok(new TextEncoder().encode(l).length <= 75, `line exceeded 75 octets: ${l.slice(0, 20)}...`);
+  }
+});
+
+test('folding never splits inside a multi-byte UTF-8 character', () => {
+  // Emoji are 4 bytes in UTF-8; repeating one past the fold width forces a
+  // split decision right at a multi-byte boundary.
+  const ics = opportunitiesToICS([{ id: 1, title: '🎉'.repeat(30), deadline: '2026-01-01' }]);
+  // If a split landed mid-character, decoding would have produced U+FFFD.
+  assert.ok(!ics.includes('�'), 'a multi-byte character was split mid-sequence');
+});
+
+test('opportunities with no URL still produce a valid event, just without a URL line', () => {
+  const ics = opportunitiesToICS([{ id: 1, title: 'No link', org: 'Somewhere', deadline: '2026-01-01' }]);
+  assert.match(ics, /BEGIN:VEVENT/);
+  assert.doesNotMatch(ics, /\r\nURL:/);
+});
+
+test('an empty list produces a structurally valid, empty calendar', () => {
+  const ics = opportunitiesToICS([]);
+  assert.match(ics, /^BEGIN:VCALENDAR\r\n[\s\S]*\r\nEND:VCALENDAR\r\n$/);
+  assert.doesNotMatch(ics, /VEVENT/);
 });
 
 /* --------------------------------- run ---------------------------------- */

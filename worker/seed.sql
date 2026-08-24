@@ -98,6 +98,40 @@ INSERT OR IGNORE INTO opportunities (title, org, description, url, type, cost, f
 INSERT OR IGNORE INTO opportunities (title, org, description, url, type, cost, format, location, lat, lng, distance_mi, age_min, age_max, source, status, fingerprint) VALUES ('Research Science Institute (RSI)', 'Center for Excellence in Education & MIT', 'Free six-week summer research program for rising seniors, widely regarded as the most selective STEM summer program in the United States. Fully funded.', 'https://www.cee.org/programs/research-science-institute', 'internship', 'free', 'residential', 'MIT, Cambridge, MA', NULL, NULL, NULL, 16, 18, 'seed', 'live', 'cee.org|research science institute (rsi)');
 INSERT OR IGNORE INTO opportunities (title, org, description, url, type, cost, format, location, lat, lng, distance_mi, age_min, age_max, source, status, fingerprint) VALUES ('Summer Science Program (SSP)', 'Summer Science Program', 'Residential research program in astrophysics, biochemistry, or genomics where teams complete an original research project. Need-blind admission with generous financial aid.', 'https://summerscience.org/', 'program', 'paid', 'residential', 'Various university campuses, USA', NULL, NULL, NULL, 15, 18, 'seed', 'live', 'summerscience.org|summer science program (ssp)');
 
+-- Officers
+INSERT INTO officers (name, role, note, committee, sort_order) SELECT 'Elliott Harper', 'President', 'Also an officer on the Cybersecurity Committee', 'main', 0 WHERE NOT EXISTS (SELECT 1 FROM officers WHERE name = 'Elliott Harper');
+INSERT INTO officers (name, role, note, committee, sort_order) SELECT 'Sujay Gonchigar', 'Vice President', 'Main CS Club', 'main', 1 WHERE NOT EXISTS (SELECT 1 FROM officers WHERE name = 'Sujay Gonchigar');
+INSERT INTO officers (name, role, note, committee, sort_order) SELECT 'Keshav Anand', 'Lead Officer, Cybersecurity', 'Runs the Cyber Committee', 'cyber', 2 WHERE NOT EXISTS (SELECT 1 FROM officers WHERE name = 'Keshav Anand');
+INSERT INTO officers (name, role, note, committee, sort_order) SELECT 'Cody Trainer', 'Officer', 'Main CS Club', 'main', 3 WHERE NOT EXISTS (SELECT 1 FROM officers WHERE name = 'Cody Trainer');
+INSERT INTO officers (name, role, note, committee, sort_order) SELECT 'Marcus Benett Zaens', 'Officer', 'Main CS Club', 'main', 4 WHERE NOT EXISTS (SELECT 1 FROM officers WHERE name = 'Marcus Benett Zaens');
+INSERT INTO officers (name, role, note, committee, sort_order) SELECT 'Zubair Ahmed', 'Officer', 'Main CS Club', 'main', 5 WHERE NOT EXISTS (SELECT 1 FROM officers WHERE name = 'Zubair Ahmed');
+
+-- Curriculum roadmap
+INSERT INTO curriculum_topics (track, title, sort_order) SELECT 'fall', 'Print statements and data types', 0 WHERE NOT EXISTS (SELECT 1 FROM curriculum_topics WHERE track = 'fall' AND title = 'Print statements and data types');
+INSERT INTO curriculum_topics (track, title, sort_order) SELECT 'fall', 'Conditionals and loops', 1 WHERE NOT EXISTS (SELECT 1 FROM curriculum_topics WHERE track = 'fall' AND title = 'Conditionals and loops');
+INSERT INTO curriculum_topics (track, title, sort_order) SELECT 'fall', 'Arrays and strings', 2 WHERE NOT EXISTS (SELECT 1 FROM curriculum_topics WHERE track = 'fall' AND title = 'Arrays and strings');
+INSERT INTO curriculum_topics (track, title, sort_order) SELECT 'fall', 'Object-oriented programming', 3 WHERE NOT EXISTS (SELECT 1 FROM curriculum_topics WHERE track = 'fall' AND title = 'Object-oriented programming');
+INSERT INTO curriculum_topics (track, title, sort_order) SELECT 'fall', 'Recursion', 4 WHERE NOT EXISTS (SELECT 1 FROM curriculum_topics WHERE track = 'fall' AND title = 'Recursion');
+INSERT INTO curriculum_topics (track, title, sort_order) SELECT 'spring', 'Searching and sorting', 0 WHERE NOT EXISTS (SELECT 1 FROM curriculum_topics WHERE track = 'spring' AND title = 'Searching and sorting');
+INSERT INTO curriculum_topics (track, title, sort_order) SELECT 'spring', 'Time complexity analysis', 1 WHERE NOT EXISTS (SELECT 1 FROM curriculum_topics WHERE track = 'spring' AND title = 'Time complexity analysis');
+INSERT INTO curriculum_topics (track, title, sort_order) SELECT 'spring', 'Data structures', 2 WHERE NOT EXISTS (SELECT 1 FROM curriculum_topics WHERE track = 'spring' AND title = 'Data structures');
+INSERT INTO curriculum_topics (track, title, sort_order) SELECT 'spring', 'Graphs and BFS', 3 WHERE NOT EXISTS (SELECT 1 FROM curriculum_topics WHERE track = 'spring' AND title = 'Graphs and BFS');
+INSERT INTO curriculum_topics (track, title, sort_order) SELECT 'spring', 'Dynamic programming', 4 WHERE NOT EXISTS (SELECT 1 FROM curriculum_topics WHERE track = 'spring' AND title = 'Dynamic programming');
+
+-- Competitions
+INSERT INTO competitions (name, description, result, event_date, url, status, sort_order) SELECT 'UIL Computer Science', 'District, region, state. A written test plus a team programming round.', '', NULL, '', 'upcoming', 0 WHERE NOT EXISTS (SELECT 1 FROM competitions WHERE name = 'UIL Computer Science');
+INSERT INTO competitions (name, description, result, event_date, url, status, sort_order) SELECT 'HP CodeWars', 'One day, dozens of problems, hundreds of students in one room.', '', NULL, '', 'upcoming', 1 WHERE NOT EXISTS (SELECT 1 FROM competitions WHERE name = 'HP CodeWars');
+INSERT INTO competitions (name, description, result, event_date, url, status, sort_order) SELECT 'Lockheed Martin AI Quest', 'AI Quest and related challenges, run by Lockheed Martin.', '2nd place, 2025-26 season', NULL, '', 'upcoming', 2 WHERE NOT EXISTS (SELECT 1 FROM competitions WHERE name = 'Lockheed Martin AI Quest');
+
+-- Puzzle Archive
+INSERT INTO puzzles (title, prompt, answer, source, posted_at, revealed) SELECT 'The Twelve Coins', 'You have 12 coins. One is lighter. Find it in three weighings.', 'Weighing 1: split the 12 coins into three groups of 4 -- A, B, C. Weigh A against B.
+  - If they balance, the light coin is among the 4 in C.
+  - If they do not, the light coin is in whichever group of 4 was lighter (the side that went up).
+
+Weighing 2: take those 4 suspect coins and split them into two pairs. Weigh pair 1 against pair 2. The light coin is in whichever pair is lighter.
+
+Weighing 3: weigh the two coins in that pair against each other. The lighter one is the answer.', 'meeting opener', '2026-08-18', 1 WHERE NOT EXISTS (SELECT 1 FROM puzzles WHERE title = 'The Twelve Coins');
+
 -- Editable page text
 INSERT OR IGNORE INTO settings (key, value) VALUES ('club_name', 'Plano East CS Club');
 INSERT OR IGNORE INTO settings (key, value) VALUES ('school_name', 'Plano East Senior High School');
@@ -121,9 +155,12 @@ Points are awarded by club officers for anything that moves you or the club forw
 The member in first place at the end of the year wins a pair of Meta Ray-Bans.
 
 ## Meetings
-Check the club Discord and the school announcements for the current meeting time and room.
-
-## Officers
-Add your officer list here from the admin panel.');
+Check the club Discord and the school announcements for the current meeting time and room.');
 INSERT OR IGNORE INTO settings (key, value) VALUES ('discord_url', '');
 INSERT OR IGNORE INTO settings (key, value) VALUES ('email', '');
+INSERT OR IGNORE INTO settings (key, value) VALUES ('join_intro', 'No experience needed. Beginners and returning competitors are both covered -- see the Curriculum page for what that looks like week to week.');
+INSERT OR IGNORE INTO settings (key, value) VALUES ('join_consent_url', 'https://myforms.pisd.edu/Forms/ParentClubConsent');
+INSERT OR IGNORE INTO settings (key, value) VALUES ('join_classroom_code', '');
+INSERT OR IGNORE INTO settings (key, value) VALUES ('join_meeting_info', '');
+INSERT OR IGNORE INTO settings (key, value) VALUES ('meetings_calendar_embed_url', '');
+INSERT OR IGNORE INTO settings (key, value) VALUES ('meetings_calendar_subscribe_url', '');

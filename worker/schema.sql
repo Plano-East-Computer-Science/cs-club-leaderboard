@@ -69,3 +69,50 @@ CREATE TABLE IF NOT EXISTS settings (
   key   TEXT PRIMARY KEY,
   value TEXT NOT NULL
 );
+
+-- Who runs the club. Shown on the About page.
+CREATE TABLE IF NOT EXISTS officers (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  name       TEXT    NOT NULL,
+  role       TEXT    NOT NULL DEFAULT '',
+  note       TEXT    NOT NULL DEFAULT '',
+  committee  TEXT    NOT NULL DEFAULT 'main',  -- main | cyber
+  sort_order INTEGER NOT NULL DEFAULT 0
+);
+
+-- The Java curriculum roadmap. `covered` lets officers check off what has
+-- actually been taught, so the page reflects the real year, not just the plan.
+CREATE TABLE IF NOT EXISTS curriculum_topics (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  track      TEXT    NOT NULL DEFAULT 'fall',  -- fall | spring
+  title      TEXT    NOT NULL,
+  covered    INTEGER NOT NULL DEFAULT 0,
+  sort_order INTEGER NOT NULL DEFAULT 0
+);
+
+-- The club's own competitions (UIL, HP CodeWars, Lockheed, ...) and results.
+-- Distinct from `opportunities`, which is external programs a student applies
+-- to individually -- these are the club's own team track record.
+CREATE TABLE IF NOT EXISTS competitions (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  name        TEXT    NOT NULL,
+  description TEXT    NOT NULL DEFAULT '',
+  result      TEXT    NOT NULL DEFAULT '',
+  event_date  TEXT,
+  url         TEXT    NOT NULL DEFAULT '',
+  status      TEXT    NOT NULL DEFAULT 'upcoming',  -- upcoming | past
+  sort_order  INTEGER NOT NULL DEFAULT 0
+);
+
+-- Archive of meeting-opener puzzles. `revealed` gates whether the answer is
+-- shown -- an officer can post a puzzle for the current week with the answer
+-- withheld, then reveal it once the meeting has happened.
+CREATE TABLE IF NOT EXISTS puzzles (
+  id        INTEGER PRIMARY KEY AUTOINCREMENT,
+  title     TEXT    NOT NULL,
+  prompt    TEXT    NOT NULL,
+  answer    TEXT    NOT NULL DEFAULT '',
+  source    TEXT    NOT NULL DEFAULT 'club',
+  posted_at TEXT    NOT NULL DEFAULT (date('now')),
+  revealed  INTEGER NOT NULL DEFAULT 1
+);
