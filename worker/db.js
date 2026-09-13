@@ -137,72 +137,49 @@ export async function setCurrentPuzzle(db, id) {
   ]);
 }
 
-/* --------------------------------- members --------------------------------- */
+/* ------------------------------- subscribers ------------------------------- */
 
-export const getMemberById = (db, id) =>
-  first(db, 'SELECT * FROM members WHERE id = ?', id);
+export const getSubscriberByEmail = (db, email) =>
+  first(db, 'SELECT * FROM subscribers WHERE email = ?', String(email).trim().toLowerCase());
 
-export const getMemberByFeedToken = (db, token) =>
-  first(db, 'SELECT * FROM members WHERE feed_token = ?', token);
-
-export const listMembers = (db) =>
-  all(
-    db,
-    `SELECT m.*, s.name AS student_name
-     FROM members m LEFT JOIN students s ON s.id = m.student_id
-     ORDER BY m.created_at DESC`
-  );
+export const listSubscribers = (db) =>
+  all(db, 'SELECT * FROM subscribers ORDER BY confirmed DESC, created_at DESC');
 
 /**
- * Finds or creates the member for a verified school email, and records the
- * login. Tokens are generated once, on first sight, and never rotated here --
- * rotating a feed token would silently break a subscribed calendar.
+ * Adds an address, unconfirmed. If it already exists the row is returned as
+ * is -- tokens are never regenerated, because a confirmation link that was
+ * already sent must keep working.
  */
-export async function upsertMember(db, { school_email, full_name, tokenFactory }) {
-  const email = String(school_email).trim().toLowerCase();
-  const existing = await first(db, 'SELECT * FROM members WHERE school_email = ?', email);
-
-  if (existing) {
-    await run(db, "UPDATE members SET last_login_at = datetime('now') WHERE id = ?", existing.id);
-    return { ...existing, last_login_at: new Date().toISOString() };
-  }
-
+export async function addSubscriber(db, email, tokenFactory) {
+  const normalized = String(email).trim().toLowerCase();
+  const existing = await getSubscriberByEmail(db, normalized);
+  if (existing) return existing;
   const info = await run(
     db,
-    `INSERT INTO members (school_email, full_name, unsubscribe_token, feed_token, last_login_at)
-     VALUES (?, ?, ?, ?, datetime('now'))`,
-    email,
-    full_name ?? '',
+    'INSERT INTO subscribers (email, confirm_token, unsubscribe_token) VALUES (?, ?, ?)',
+    normalized,
     tokenFactory(),
     tokenFactory()
   );
-  return getMemberById(db, info.meta?.last_row_id);
+  return first(db, 'SELECT * FROM subscribers WHERE id = ?', info.meta?.last_row_id);
 }
 
-export function setMemberPrefs(db, id, { personal_email, email_opt_in }) {
-  return run(
-    db,
-    'UPDATE members SET personal_email = ?, email_opt_in = ? WHERE id = ?',
-    String(personal_email ?? '').trim(),
-    email_opt_in ? 1 : 0,
-    id
-  );
+export const markConfirmSent = (db, id) =>
+  run(db, "UPDATE subscribers SET confirm_sent_at = datetime('now') WHERE id = ?", id);
+
+/** Returns true when a row was confirmed, false for an unknown token. */
+export async function confirmSubscriber(db, token) {
+  const info = await run(db, 'UPDATE subscribers SET confirmed = 1 WHERE confirm_token = ?', token);
+  return (info.meta?.changes ?? 0) > 0;
 }
 
-export function unsubscribeByToken(db, token) {
-  return run(db, 'UPDATE members SET email_opt_in = 0 WHERE unsubscribe_token = ?', token);
-}
+export const unsubscribeByToken = (db, token) =>
+  run(db, 'UPDATE subscribers SET confirmed = 0 WHERE unsubscribe_token = ?', token);
+
+export const deleteSubscriber = (db, id) => run(db, 'DELETE FROM subscribers WHERE id = ?', id);
 
 export const listDigestRecipients = (db) =>
-  all(
-    db,
-    "SELECT * FROM members WHERE email_opt_in = 1 AND TRIM(personal_email) <> ''"
-  );
-
-/** Links a member to their leaderboard row, or clears the link with null. */
-export function linkMemberToStudent(db, id, studentId) {
-  return run(db, 'UPDATE members SET student_id = ? WHERE id = ?', studentId ?? null, id);
-}
+  all(db, 'SELECT * FROM subscribers WHERE confirmed = 1');
 
 /* --------------------------------- digest ---------------------------------- */
 
@@ -281,11 +258,18 @@ const BACKUP_TABLES = [
   'curriculum_topics',
   'competitions',
   'puzzles',
-  // Members carry student email addresses. They are in the backup so a restore
-  // is complete, which also means a downloaded backup file contains minors'
-  // contact details -- keep it off shared drives.
-  'members',
+  // Email addresses. In the backup so a restore is complete, which also means
+  // a downloaded backup file contains contact details -- keep it off shared
+  // drives.
+  'subscribers',
 ];
+
+/**
+ * A backup must at least carry these to be worth restoring. Newer tables may
+ * be absent from an older backup file and are simply treated as empty, so a
+ * backup taken last month is still restorable after a feature adds a table.
+ */
+const REQUIRED_BACKUP_TABLES = ['students', 'point_events'];
 
 export async function exportBackup(db) {
   const data = {};
@@ -304,9 +288,14 @@ export async function restoreBackup(db, backup) {
   if (!backup || typeof backup !== 'object' || !backup.data) {
     throw new Error('Not a valid backup file: missing "data".');
   }
-  for (const t of BACKUP_TABLES) {
+  for (const t of REQUIRED_BACKUP_TABLES) {
     if (!Array.isArray(backup.data[t])) {
       throw new Error(`Not a valid backup file: "${t}" is missing or not a list.`);
+    }
+  }
+  for (const t of BACKUP_TABLES) {
+    if (t in backup.data && !Array.isArray(backup.data[t])) {
+      throw new Error(`Not a valid backup file: "${t}" is not a list.`);
     }
   }
 
@@ -315,7 +304,7 @@ export async function restoreBackup(db, backup) {
     statements.push(db.prepare(`DELETE FROM ${t}`));
   }
   for (const t of BACKUP_TABLES) {
-    for (const row of backup.data[t]) {
+    for (const row of backup.data[t] ?? []) {
       const cols = Object.keys(row);
       if (!cols.length) continue;
       statements.push(

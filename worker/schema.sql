@@ -123,28 +123,22 @@ CREATE TABLE IF NOT EXISTS puzzles (
   is_current INTEGER NOT NULL DEFAULT 0
 );
 
--- Anyone who has signed in with a district Google account.
+-- Who gets the weekly club email.
 --
--- Deliberately separate from `students`: any Plano ISD student may sign in and
--- read the site, but only roster members appear on the leaderboard. An officer
--- links the two by setting student_id, and a member with no link is simply a
--- signed-in reader.
+-- Nobody signs in to this site, so a subscription is proven by email instead:
+-- a row starts unconfirmed, and the address becomes a recipient only after its
+-- owner clicks the link we sent it. That is what stops a stranger from signing
+-- up someone else. The two tokens are random and independent, so neither can
+-- be guessed from the other.
 --
--- school_email is the identity and is always stored lowercased.
--- personal_email is where digests go, and is opt-in -- the district filters
--- external mail to student accounts, so club mail must not be sent there.
-CREATE TABLE IF NOT EXISTS members (
+-- Addresses are personal (Gmail and the like), never @mypisd.net: the district
+-- filters external senders to student accounts, so club mail would vanish.
+CREATE TABLE IF NOT EXISTS subscribers (
   id                INTEGER PRIMARY KEY AUTOINCREMENT,
-  school_email      TEXT    NOT NULL UNIQUE,
-  student_id        INTEGER REFERENCES students(id) ON DELETE SET NULL,
-  full_name         TEXT    NOT NULL DEFAULT '',
-  personal_email    TEXT    NOT NULL DEFAULT '',
-  email_opt_in      INTEGER NOT NULL DEFAULT 0,
-  -- One-click unsubscribe, and the key for a personal calendar feed. Both are
-  -- random per member so neither can be guessed from the other.
+  email             TEXT    NOT NULL UNIQUE,
+  confirmed         INTEGER NOT NULL DEFAULT 0,
+  confirm_token     TEXT    NOT NULL,
   unsubscribe_token TEXT    NOT NULL,
-  feed_token        TEXT    NOT NULL,
-  created_at        TEXT    NOT NULL DEFAULT (datetime('now')),
-  last_login_at     TEXT
+  confirm_sent_at   TEXT,
+  created_at        TEXT    NOT NULL DEFAULT (datetime('now'))
 );
-CREATE INDEX IF NOT EXISTS idx_members_feed ON members(feed_token);

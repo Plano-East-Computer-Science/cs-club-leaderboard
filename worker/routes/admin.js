@@ -12,7 +12,7 @@ import {
   getLeaderboard, addPointEvent, listOpportunities,
   getOfficers, getCurriculum, getCompetitions, getPuzzles,
   getAllSettings, setSetting, exportBackup, restoreBackup,
-  listMembers, linkMemberToStudent, setCurrentPuzzle,
+  listSubscribers, deleteSubscriber, setCurrentPuzzle,
 } from '../db.js';
 import { runDigest } from '../digest.js';
 import {
@@ -498,24 +498,14 @@ adminRouter.delete('/puzzles/:id', async (c) => {
   return c.json({ ok: true });
 });
 
-/* -------------------------------- members -------------------------------- */
+/* ------------------------------- subscribers ------------------------------- */
 
-/**
- * Everyone who has ever signed in. A member is not automatically on the
- * leaderboard -- any district student may sign in, but points belong to roster
- * students, so an officer links the two here.
- */
-adminRouter.get('/members', async (c) => {
-  return c.json({
-    members: await listMembers(c.env.DB),
-    students: await all(c.env.DB, 'SELECT id, name FROM students WHERE active = 1 ORDER BY name'),
-  });
+adminRouter.get('/subscribers', async (c) => {
+  return c.json({ subscribers: await listSubscribers(c.env.DB) });
 });
 
-adminRouter.patch('/members/:id', async (c) => {
-  const body = await c.req.json().catch(() => ({}));
-  const studentId = body.student_id === '' || body.student_id == null ? null : Number(body.student_id);
-  await linkMemberToStudent(c.env.DB, c.req.param('id'), studentId);
+adminRouter.delete('/subscribers/:id', async (c) => {
+  await deleteSubscriber(c.env.DB, c.req.param('id'));
   return c.json({ ok: true });
 });
 

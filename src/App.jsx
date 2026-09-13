@@ -12,10 +12,8 @@ import Cyber from './pages/Cyber.jsx';
 import Join from './pages/Join.jsx';
 import About from './pages/About.jsx';
 import Admin from './pages/Admin.jsx';
-import SignIn, { SignInPrompt } from './pages/SignIn.jsx';
 import { api } from './lib/api.js';
-import { AuthProvider, useAuth } from './lib/auth.jsx';
-import { Spinner } from './components/bits.jsx';
+import { SubscribeBox } from './components/Subscribe.jsx';
 
 const SiteContext = { settings: {} };
 
@@ -33,17 +31,6 @@ function useSettings() {
   return settings;
 }
 
-/**
- * Stands in front of a members-only page. The Worker refuses these routes
- * outright; this only decides whether to show the page or the reason.
- */
-function Gate({ what, children }) {
-  const { loading, authed } = useAuth();
-  if (loading) return <Spinner label="Checking your sign-in" />;
-  if (!authed) return <SignInPrompt what={what} />;
-  return children;
-}
-
 const NAV = [
   { to: '/', label: 'Standings', end: true },
   { to: '/opportunities', label: 'Opportunities' },
@@ -56,23 +43,8 @@ const NAV = [
   { to: '/join', label: 'Join' },
 ];
 
-/** "Sign in" or "Account", depending. Same slot either way. */
-function AccountLink({ className }) {
-  const { authed } = useAuth();
-  return (
-    <Link
-      to="/signin"
-      className={className}
-      style={{ color: 'var(--ink-soft)', borderColor: 'var(--rule)' }}
-    >
-      {authed ? 'Account' : 'Sign in'}
-    </Link>
-  );
-}
-
 function Masthead({ settings }) {
   const [open, setOpen] = useState(false);
-  const { authed: signedIn } = useAuth();
   const { pathname } = useLocation();
   useEffect(() => setOpen(false), [pathname]);
 
@@ -113,10 +85,9 @@ function Masthead({ settings }) {
               {n.label}
             </NavLink>
           ))}
-          <AccountLink className="mono ml-2 rounded border px-3 py-1.5 text-xs font-semibold no-underline" />
           <Link
             to="/admin"
-            className="mono rounded border px-3 py-1.5 text-xs font-semibold no-underline"
+            className="mono ml-2 rounded border px-3 py-1.5 text-xs font-semibold no-underline"
             style={{ color: 'var(--ink-soft)', borderColor: 'var(--rule)' }}
           >
             Admin
@@ -143,7 +114,7 @@ function Masthead({ settings }) {
 
       {open && (
         <nav className="grid gap-1 border-t px-4 py-3 lg:hidden">
-          {[...NAV, { to: '/signin', label: signedIn ? 'Account' : 'Sign in' }, { to: '/admin', label: 'Admin' }].map((n) => (
+          {[...NAV, { to: '/admin', label: 'Admin' }].map((n) => (
             <NavLink
               key={n.to}
               to={n.to}
@@ -174,6 +145,9 @@ function Footer({ settings }) {
           {settings.school_name || 'Plano East Senior High School'}
         </p>
         <p className="mono text-xs">Points update whenever an officer awards them.</p>
+        <div className="basis-full">
+          <SubscribeBox />
+        </div>
         {settings.discord_url && (
           <a
             className="mono text-xs no-underline"
@@ -202,52 +176,16 @@ function Shell() {
       <Masthead settings={settings} />
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6 sm:py-12">
         <Routes>
-          <Route
-            path="/"
-            element={
-              <Gate what="the standings">
-                <Leaderboard settings={settings} />
-              </Gate>
-            }
-          />
-          <Route
-            path="/student/:id"
-            element={
-              <Gate what="member profiles">
-                <Student />
-              </Gate>
-            }
-          />
-          <Route
-            path="/opportunities"
-            element={
-              <Gate what="the opportunity board">
-                <Opportunities />
-              </Gate>
-            }
-          />
-          <Route
-            path="/calendar"
-            element={
-              <Gate what="the calendar">
-                <CalendarPage settings={settings} />
-              </Gate>
-            }
-          />
+          <Route path="/" element={<Leaderboard settings={settings} />} />
+          <Route path="/student/:id" element={<Student />} />
+          <Route path="/opportunities" element={<Opportunities />} />
+          <Route path="/calendar" element={<CalendarPage settings={settings} />} />
           <Route path="/curriculum" element={<Curriculum />} />
           <Route path="/competitions" element={<Competitions />} />
-          <Route
-            path="/puzzles"
-            element={
-              <Gate what="Problem of the Week">
-                <Puzzles />
-              </Gate>
-            }
-          />
+          <Route path="/puzzles" element={<Puzzles />} />
           <Route path="/join" element={<Join settings={settings} />} />
           <Route path="/about" element={<About settings={settings} />} />
           <Route path="/cyber" element={<Cyber settings={settings} />} />
-          <Route path="/signin" element={<SignIn />} />
           <Route path="/admin" element={<Admin />} />
           <Route
             path="*"
@@ -270,9 +208,7 @@ function Shell() {
 export default function App() {
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <Shell />
-      </AuthProvider>
+      <Shell />
     </BrowserRouter>
   );
 }
