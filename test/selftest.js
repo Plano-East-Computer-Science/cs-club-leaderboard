@@ -17,13 +17,18 @@ import {
   getLeaderboard, getStudent, addPointEvent, listOpportunities,
   getOfficers, getCurriculum, getCompetitions, getPuzzles,
   getSetting, setSetting, getAllSettings, exportBackup, restoreBackup,
+  upsertMember, getMemberById, getMemberByFeedToken, setMemberPrefs,
+  unsubscribeByToken, listDigestRecipients, linkMemberToStudent,
+  getCurrentPuzzle, setCurrentPuzzle,
 } from '../worker/db.js';
 import {
   haversineMiles, milesFromSchool, withinRadius, fingerprintOf, RADIUS_MILES,
 } from '../worker/geo.js';
 import {
   signSession, verifySession, checkPassword, checkIngestToken, safeEqual,
+  signMemberSession, verifyMemberSession, isDistrictDomain, randomToken,
 } from '../worker/auth.js';
+import { buildDigest } from '../worker/digest.js';
 import { parseDevpostDeadline } from '../ingest/sources.js';
 import { OPPORTUNITIES, OFFICERS, CURRICULUM, COMPETITIONS, PUZZLES } from '../shared/seed-data.js';
 import { opportunitiesToICS } from '../worker/ics.js';
@@ -222,6 +227,189 @@ test('the ingest token is checked, with or without a Bearer prefix', () => {
   assert.equal(checkIngestToken(ENV, 'Bearer wrong'), false);
   assert.equal(checkIngestToken(ENV, undefined), false);
   assert.equal(checkIngestToken({}, 'Bearer anything'), false);
+});
+
+/* ------------------------------ member access ----------------------------- */
+
+test('only the exact district domain passes, and only from the hd claim', () => {
+  assert.equal(isDistrictDomain('mypisd.net'), true);
+  assert.equal(isDistrictDomain('MyPISD.net'), true);
+  // The trap an email-suffix check would fall into.
+  assert.equal(isDistrictDomain('notmypisd.net'), false);
+  assert.equal(isDistrictDomain('mypisd.net.evil.com'), false);
+  assert.equal(isDistrictDomain('gmail.com'), false);
+  assert.equal(isDistrictDomain(undefined), false);
+  assert.equal(isDistrictDomain(null), false);
+  assert.equal(isDistrictDomain(''), false);
+});
+
+test('a member session round-trips to the member id', async () => {
+  assert.equal(await verifyMemberSession(ENV, await signMemberSession(ENV, 7)), 7);
+});
+
+test('a member session signed with another secret is rejected', async () => {
+  const other = await signMemberSession({ SESSION_SECRET: 'someone-elses-secret' }, 7);
+  assert.equal(await verifyMemberSession(ENV, other), null);
+});
+
+test('an expired member session is rejected', async () => {
+  assert.equal(await verifyMemberSession(ENV, await signMemberSession(ENV, 7, Date.now() - 1000)), null);
+});
+
+test('an admin session is not a member session, and vice versa', async () => {
+  // Same secret, same signer -- the payload shape is what keeps them apart.
+  assert.equal(await verifyMemberSession(ENV, await signSession(ENV)), null);
+  assert.equal(await verifySession(ENV, await signMemberSession(ENV, 7)), false);
+});
+
+test('member session garbage is rejected without throwing', async () => {
+  for (const bad of [null, '', 'abc', 'a.b', undefined, '0:1.deadbeef', '-3:99999999999999.x']) {
+    assert.equal(await verifyMemberSession(ENV, bad), null);
+  }
+});
+
+test('signing in twice is the same member, with the same feed token', async () => {
+  const db = await fresh();
+  const first = await upsertMember(db, { school_email: 'Kid@MyPISD.net', full_name: 'Kid', tokenFactory: randomToken });
+  const again = await upsertMember(db, { school_email: 'kid@mypisd.net', full_name: 'Kid', tokenFactory: randomToken });
+  assert.equal(again.id, first.id);
+  // Rotating this would silently break an already-subscribed calendar.
+  assert.equal(again.feed_token, first.feed_token);
+  assert.equal(first.school_email, 'kid@mypisd.net');
+});
+
+test('the feed token finds its member, and a wrong one finds nobody', async () => {
+  const db = await fresh();
+  const m = await upsertMember(db, { school_email: 'kid@mypisd.net', full_name: '', tokenFactory: randomToken });
+  assert.equal((await getMemberByFeedToken(db, m.feed_token)).id, m.id);
+  assert.ok(!(await getMemberByFeedToken(db, 'not-a-token')));
+  assert.ok(!(await getMemberByFeedToken(db, '')));
+});
+
+test('unsubscribing by token stops the email and nothing else', async () => {
+  const db = await fresh();
+  const m = await upsertMember(db, { school_email: 'kid@mypisd.net', full_name: '', tokenFactory: randomToken });
+  await setMemberPrefs(db, m.id, { personal_email: 'kid@gmail.com', email_opt_in: true });
+  assert.equal((await listDigestRecipients(db)).length, 1);
+
+  await unsubscribeByToken(db, m.unsubscribe_token);
+  assert.equal((await listDigestRecipients(db)).length, 0);
+  const after = await getMemberById(db, m.id);
+  assert.equal(after.personal_email, 'kid@gmail.com');
+  assert.equal(after.school_email, 'kid@mypisd.net');
+});
+
+test('an opted-in member with no personal address gets nothing', async () => {
+  const db = await fresh();
+  const m = await upsertMember(db, { school_email: 'kid@mypisd.net', full_name: '', tokenFactory: randomToken });
+  await db.prepare('UPDATE members SET email_opt_in = 1 WHERE id = ?').bind(m.id).run();
+  assert.equal((await listDigestRecipients(db)).length, 0);
+});
+
+test('a member links to a roster student and back to nobody', async () => {
+  const db = await fresh();
+  const m = await upsertMember(db, { school_email: 'kid@mypisd.net', full_name: '', tokenFactory: randomToken });
+  await linkMemberToStudent(db, m.id, 1);
+  assert.equal((await getMemberById(db, m.id)).student_id, 1);
+  await linkMemberToStudent(db, m.id, null);
+  assert.equal((await getMemberById(db, m.id)).student_id, null);
+});
+
+test('members are in the backup, so a restore does not orphan sign-ins', async () => {
+  const db = await fresh();
+  await upsertMember(db, { school_email: 'kid@mypisd.net', full_name: 'Kid', tokenFactory: randomToken });
+  const backup = await exportBackup(db);
+  assert.equal(backup.data.members.length, 1);
+});
+
+/* --------------------------------- digest --------------------------------- */
+
+test('nothing new means no email at all', async () => {
+  const db = await fresh();
+  assert.equal(await buildDigest(db, new Date().toISOString()), null);
+});
+
+test('a new point award is worth an email', async () => {
+  const db = await fresh();
+  const before = new Date(Date.now() - 60_000).toISOString();
+  await addPointEvent(db, { student_id: 1, delta: 5, reason: 'meeting' });
+  const digest = await buildDigest(db, before);
+  assert.equal(digest.points.length, 1);
+  assert.equal(digest.points[0].name, 'Test Student');
+});
+
+test('upcoming deadlines alone do not trigger an email', async () => {
+  const db = await fresh();
+  await db
+    .prepare(
+      `INSERT INTO opportunities (title, deadline, status, created_at)
+       VALUES ('Old listing, deadline soon', date('now', '+3 days'), 'live', '2000-01-01T00:00:00Z')`
+    )
+    .run();
+  // Same deadlines as last week; nagging weekly is how a sender gets muted.
+  assert.equal(await buildDigest(db, new Date(Date.now() - 60_000).toISOString()), null);
+});
+
+test('a new opportunity brings its close-by deadlines along', async () => {
+  const db = await fresh();
+  await db
+    .prepare(
+      `INSERT INTO opportunities (title, deadline, status) VALUES ('New program', date('now', '+3 days'), 'live')`
+    )
+    .run();
+  await db
+    .prepare(
+      `INSERT INTO opportunities (title, deadline, status) VALUES ('Far off', date('now', '+60 days'), 'live')`
+    )
+    .run();
+  const digest = await buildDigest(db, new Date(Date.now() - 60_000).toISOString());
+  assert.equal(digest.opportunities.length, 2);
+  // Only the one inside the two-week window is listed as closing.
+  assert.equal(digest.deadlines.length, 1);
+  assert.equal(digest.deadlines[0].title, 'New program');
+});
+
+test('a pending opportunity is never emailed out', async () => {
+  const db = await fresh();
+  await db
+    .prepare("INSERT INTO opportunities (title, status) VALUES ('Unreviewed', 'pending')")
+    .run();
+  assert.equal(await buildDigest(db, new Date(Date.now() - 60_000).toISOString()), null);
+});
+
+/* --------------------------- problem of the week --------------------------- */
+
+test('exactly one puzzle is current', async () => {
+  const db = await fresh();
+  for (const t of ['One', 'Two', 'Three']) {
+    await db.prepare("INSERT INTO puzzles (title, prompt, posted_at) VALUES (?, 'p', '2026-01-01')").bind(t).run();
+  }
+  await setCurrentPuzzle(db, 1);
+  await setCurrentPuzzle(db, 3);
+  const rows = (await db.prepare('SELECT id FROM puzzles WHERE is_current = 1').all()).results;
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].id, 3);
+  assert.equal((await getCurrentPuzzle(db)).title, 'Three');
+});
+
+test("the current puzzle's answer is redacted until revealed, but its hints are not", async () => {
+  const db = await fresh();
+  await db
+    .prepare(
+      `INSERT INTO puzzles (title, prompt, answer, hints, posted_at, revealed, is_current)
+       VALUES ('This week', 'p', 'THE ANSWER', 'first nudge
+second nudge', '2026-01-01', 0, 1)`
+    )
+    .run();
+  const current = await getCurrentPuzzle(db);
+  assert.equal(current.answer, '');
+  // Hints exist to help someone stuck this week -- withholding them would
+  // defeat the point.
+  assert.match(current.hints, /first nudge/);
+});
+
+test('no current puzzle is a null, not a crash', async () => {
+  assert.equal(await getCurrentPuzzle(await fresh()), null);
 });
 
 /* ---------------------------- backup / restore ---------------------------- */

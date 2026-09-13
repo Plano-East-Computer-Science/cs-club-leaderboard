@@ -106,11 +106,146 @@ export const getOfficers = (db) => all(db, 'SELECT * FROM officers ORDER BY sort
 export const getCurriculum = (db) => all(db, 'SELECT * FROM curriculum_topics ORDER BY track, sort_order, id');
 export const getCompetitions = (db) => all(db, 'SELECT * FROM competitions ORDER BY sort_order, id');
 
-/** Public puzzle list never leaks an unrevealed answer, even to a curious network tab. */
+/**
+ * Public puzzle list never leaks an unrevealed answer, even to a curious
+ * network tab.
+ *
+ * Hints deliberately ARE sent for an unrevealed puzzle: their whole purpose is
+ * to help someone who is stuck this week. Only the solution is withheld until
+ * an officer reveals it.
+ */
 export async function getPuzzles(db) {
   const rows = await all(db, 'SELECT * FROM puzzles ORDER BY posted_at DESC, id DESC');
   return rows.map((p) => (p.revealed ? p : { ...p, answer: '' }));
 }
+
+/** The one puzzle flagged as this week's, or null. Same answer redaction. */
+export async function getCurrentPuzzle(db) {
+  const row = await first(
+    db,
+    'SELECT * FROM puzzles WHERE is_current = 1 ORDER BY posted_at DESC, id DESC LIMIT 1'
+  );
+  if (!row) return null;
+  return row.revealed ? row : { ...row, answer: '' };
+}
+
+/** Exactly one puzzle is current; setting one clears the rest. */
+export async function setCurrentPuzzle(db, id) {
+  await db.batch([
+    db.prepare('UPDATE puzzles SET is_current = 0 WHERE is_current = 1'),
+    db.prepare('UPDATE puzzles SET is_current = 1 WHERE id = ?').bind(id),
+  ]);
+}
+
+/* --------------------------------- members --------------------------------- */
+
+export const getMemberById = (db, id) =>
+  first(db, 'SELECT * FROM members WHERE id = ?', id);
+
+export const getMemberByFeedToken = (db, token) =>
+  first(db, 'SELECT * FROM members WHERE feed_token = ?', token);
+
+export const listMembers = (db) =>
+  all(
+    db,
+    `SELECT m.*, s.name AS student_name
+     FROM members m LEFT JOIN students s ON s.id = m.student_id
+     ORDER BY m.created_at DESC`
+  );
+
+/**
+ * Finds or creates the member for a verified school email, and records the
+ * login. Tokens are generated once, on first sight, and never rotated here --
+ * rotating a feed token would silently break a subscribed calendar.
+ */
+export async function upsertMember(db, { school_email, full_name, tokenFactory }) {
+  const email = String(school_email).trim().toLowerCase();
+  const existing = await first(db, 'SELECT * FROM members WHERE school_email = ?', email);
+
+  if (existing) {
+    await run(db, "UPDATE members SET last_login_at = datetime('now') WHERE id = ?", existing.id);
+    return { ...existing, last_login_at: new Date().toISOString() };
+  }
+
+  const info = await run(
+    db,
+    `INSERT INTO members (school_email, full_name, unsubscribe_token, feed_token, last_login_at)
+     VALUES (?, ?, ?, ?, datetime('now'))`,
+    email,
+    full_name ?? '',
+    tokenFactory(),
+    tokenFactory()
+  );
+  return getMemberById(db, info.meta?.last_row_id);
+}
+
+export function setMemberPrefs(db, id, { personal_email, email_opt_in }) {
+  return run(
+    db,
+    'UPDATE members SET personal_email = ?, email_opt_in = ? WHERE id = ?',
+    String(personal_email ?? '').trim(),
+    email_opt_in ? 1 : 0,
+    id
+  );
+}
+
+export function unsubscribeByToken(db, token) {
+  return run(db, 'UPDATE members SET email_opt_in = 0 WHERE unsubscribe_token = ?', token);
+}
+
+export const listDigestRecipients = (db) =>
+  all(
+    db,
+    "SELECT * FROM members WHERE email_opt_in = 1 AND TRIM(personal_email) <> ''"
+  );
+
+/** Links a member to their leaderboard row, or clears the link with null. */
+export function linkMemberToStudent(db, id, studentId) {
+  return run(db, 'UPDATE members SET student_id = ? WHERE id = ?', studentId ?? null, id);
+}
+
+/* --------------------------------- digest ---------------------------------- */
+
+/**
+ * The three things the weekly email reports. All read from tables that already
+ * exist -- the digest stores nothing of its own except the timestamp of the
+ * last send, which lives in `settings`.
+ */
+/*
+ * `since` is an ISO timestamp ("...T02:14:00.000Z") while the columns hold
+ * SQLite's own "YYYY-MM-DD HH:MM:SS". A plain string comparison gets that
+ * backwards -- a space sorts before "T", so every row would look older than
+ * any ISO cutoff and the digest would always be empty. datetime() normalises
+ * both sides before comparing.
+ */
+export const pointEventsSince = (db, since) =>
+  all(
+    db,
+    `SELECT e.delta, e.reason, e.created_at, s.name
+     FROM point_events e JOIN students s ON s.id = e.student_id
+     WHERE e.created_at > datetime(?)
+     ORDER BY e.created_at DESC`,
+    since
+  );
+
+export const opportunitiesSince = (db, since) =>
+  all(
+    db,
+    `SELECT id, title, url, type, deadline FROM opportunities
+     WHERE status = 'live' AND created_at > datetime(?)
+     ORDER BY created_at DESC`,
+    since
+  );
+
+export const deadlinesWithin = (db, days) =>
+  all(
+    db,
+    `SELECT id, title, url, deadline FROM opportunities
+     WHERE status = 'live' AND deadline IS NOT NULL
+       AND deadline >= date('now') AND deadline <= date('now', ?)
+     ORDER BY deadline ASC`,
+    `+${Number(days)} days`
+  );
 
 /* --------------------------------- settings -------------------------------- */
 
@@ -146,6 +281,10 @@ const BACKUP_TABLES = [
   'curriculum_topics',
   'competitions',
   'puzzles',
+  // Members carry student email addresses. They are in the backup so a restore
+  // is complete, which also means a downloaded backup file contains minors'
+  // contact details -- keep it off shared drives.
+  'members',
 ];
 
 export async function exportBackup(db) {

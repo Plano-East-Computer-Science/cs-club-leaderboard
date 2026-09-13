@@ -12,7 +12,9 @@ import {
   getLeaderboard, addPointEvent, listOpportunities,
   getOfficers, getCurriculum, getCompetitions, getPuzzles,
   getAllSettings, setSetting, exportBackup, restoreBackup,
+  listMembers, linkMemberToStudent, setCurrentPuzzle,
 } from '../db.js';
+import { runDigest } from '../digest.js';
 import {
   COOKIE, checkPassword, signSession, verifySession, sessionCookieOptions,
 } from '../auth.js';
@@ -461,10 +463,15 @@ adminRouter.post('/puzzles', async (c) => {
   }
   const info = await run(
     c.env.DB,
-    'INSERT INTO puzzles (title, prompt, answer, source, posted_at, revealed) VALUES (?, ?, ?, ?, ?, ?)',
+    `INSERT INTO puzzles (title, prompt, answer, source, posted_at, revealed, hints, difficulty)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     body.title.trim(), body.prompt.trim(), body.answer ?? '', body.source || 'club',
-    body.posted_at || new Date().toISOString().slice(0, 10), body.revealed === false ? 0 : 1
+    body.posted_at || new Date().toISOString().slice(0, 10), body.revealed === false ? 0 : 1,
+    body.hints ?? '', body.difficulty ?? ''
   );
+  // "Make this the current one" is a separate write because exactly one puzzle
+  // may hold the flag, and setting it clears the others.
+  if (body.is_current) await setCurrentPuzzle(c.env.DB, info.meta?.last_row_id);
   return c.json({ id: info.meta?.last_row_id });
 });
 
@@ -476,16 +483,51 @@ adminRouter.patch('/puzzles/:id', async (c) => {
   const merged = { ...current, ...body };
   await run(
     c.env.DB,
-    'UPDATE puzzles SET title = ?, prompt = ?, answer = ?, source = ?, posted_at = ?, revealed = ? WHERE id = ?',
+    `UPDATE puzzles SET title = ?, prompt = ?, answer = ?, source = ?, posted_at = ?,
+       revealed = ?, hints = ?, difficulty = ? WHERE id = ?`,
     merged.title, merged.prompt, merged.answer, merged.source,
-    merged.posted_at, merged.revealed ? 1 : 0, id
+    merged.posted_at, merged.revealed ? 1 : 0, merged.hints ?? '', merged.difficulty ?? '', id
   );
+  if (body.is_current) await setCurrentPuzzle(c.env.DB, id);
+  else if (body.is_current === false) await run(c.env.DB, 'UPDATE puzzles SET is_current = 0 WHERE id = ?', id);
   return c.json({ ok: true });
 });
 
 adminRouter.delete('/puzzles/:id', async (c) => {
   await run(c.env.DB, 'DELETE FROM puzzles WHERE id = ?', c.req.param('id'));
   return c.json({ ok: true });
+});
+
+/* -------------------------------- members -------------------------------- */
+
+/**
+ * Everyone who has ever signed in. A member is not automatically on the
+ * leaderboard -- any district student may sign in, but points belong to roster
+ * students, so an officer links the two here.
+ */
+adminRouter.get('/members', async (c) => {
+  return c.json({
+    members: await listMembers(c.env.DB),
+    students: await all(c.env.DB, 'SELECT id, name FROM students WHERE active = 1 ORDER BY name'),
+  });
+});
+
+adminRouter.patch('/members/:id', async (c) => {
+  const body = await c.req.json().catch(() => ({}));
+  const studentId = body.student_id === '' || body.student_id == null ? null : Number(body.student_id);
+  await linkMemberToStudent(c.env.DB, c.req.param('id'), studentId);
+  return c.json({ ok: true });
+});
+
+/* --------------------------------- digest --------------------------------- */
+
+/**
+ * The weekly email, by hand. `dry` renders it without sending and without
+ * advancing the clock, which is the only way to see what Monday will look like.
+ */
+adminRouter.post('/digest', async (c) => {
+  const body = await c.req.json().catch(() => ({}));
+  return c.json(await runDigest(c.env, { dry: body?.dry !== false }));
 });
 
 /* ------------------------------- settings ------------------------------- */
