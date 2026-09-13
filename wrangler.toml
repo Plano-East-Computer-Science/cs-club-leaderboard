@@ -42,7 +42,22 @@ binding = "DB"
 database_name = "cs-club"
 database_id = "989d6dab-3748-4868-a089-865af1e2a112"
 
+# The weekly digest. Monday 13:00 UTC is 8am Central in winter, 7am in summer --
+# Cloudflare crons are UTC only and do not follow daylight saving. Close enough
+# for a club newsletter; nothing here is time-critical.
+[triggers]
+crons = ["0 13 * * 1"]
+
 [vars]
+# Absolute links in email, where there is no request to read the host from.
+SITE_ORIGIN = "https://peshcompsci.org"
+# Google Sign-In. The client ID is public (it is in every sign-in URL); the
+# matching secret is set with `wrangler secret put GOOGLE_CLIENT_SECRET`.
+# Until this is filled in, nobody can sign in and the members-only pages stay
+# closed. See DEPLOY.md step 4b.
+GOOGLE_CLIENT_ID = "837470015164-blc5l5gjk1jm7sin11nkoketbq5lud6m.apps.googleusercontent.com"
+# The From: address on club email. Must be a domain verified in Resend.
+MAIL_FROM = "club@peshcompsci.org"
 # Link shown in the admin panel's Pending tab, pointing at the scraper workflow.
 ACTIONS_URL = "https://github.com/Plano-East-Computer-Science/cs-club-leaderboard/actions/workflows/scrape-opportunities.yml"
 

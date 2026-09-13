@@ -13,6 +13,7 @@ const TABS = [
   { id: 'curriculum', label: 'Curriculum' },
   { id: 'competitions', label: 'Competitions' },
   { id: 'puzzles', label: 'Puzzles' },
+  { id: 'signins', label: 'Sign-ins' },
   { id: 'text', label: 'Page text' },
   { id: 'backup', label: 'Backup' },
 ];
@@ -96,6 +97,7 @@ export default function Admin() {
       {tab === 'curriculum' && <CurriculumTab say={say} />}
       {tab === 'competitions' && <CompetitionsTab say={say} />}
       {tab === 'puzzles' && <PuzzlesTab say={say} />}
+      {tab === 'signins' && <SignInsTab say={say} />}
       {tab === 'text' && <TextTab say={say} />}
       {tab === 'backup' && <BackupTab say={say} />}
     </div>
@@ -1215,7 +1217,10 @@ function CompetitionsTab({ say }) {
 
 /* --------------------------------- puzzles --------------------------------- */
 
-const BLANK_PUZZLE = { title: '', prompt: '', answer: '', source: 'club', posted_at: '', revealed: true };
+const BLANK_PUZZLE = {
+  title: '', prompt: '', answer: '', source: 'club', posted_at: '', revealed: true,
+  hints: '', difficulty: '', is_current: false,
+};
 
 function PuzzlesTab({ say }) {
   const [puzzles, setPuzzles] = useState(null);
@@ -1248,12 +1253,27 @@ function PuzzlesTab({ say }) {
           <Field label="Answer" hint="Shown on the site only when Revealed is checked.">
             <textarea className="field" rows={4} value={form.answer} onChange={(e) => setForm({ ...form, answer: e.target.value })} />
           </Field>
+          <Field label="Hints" hint="One per line. Students reveal them one at a time, in this order.">
+            <textarea className="field" rows={3} value={form.hints} onChange={(e) => setForm({ ...form, hints: e.target.value })} />
+          </Field>
+          <Field label="Difficulty">
+            <select className="field" value={form.difficulty} onChange={(e) => setForm({ ...form, difficulty: e.target.value })}>
+              <option value="">Unrated</option>
+              <option value="easy">Easy</option>
+              <option value="medium">Medium</option>
+              <option value="hard">Hard</option>
+            </select>
+          </Field>
           <Field label="Date">
             <input className="field" type="date" value={form.posted_at} onChange={(e) => setForm({ ...form, posted_at: e.target.value })} />
           </Field>
           <label className="mono flex items-center gap-2 text-xs" style={{ color: 'var(--ink-soft)' }}>
             <input type="checkbox" checked={form.revealed} onChange={(e) => setForm({ ...form, revealed: e.target.checked })} />
             Revealed (visible to students)
+          </label>
+          <label className="mono flex items-center gap-2 text-xs" style={{ color: 'var(--ink-soft)' }}>
+            <input type="checkbox" checked={form.is_current} onChange={(e) => setForm({ ...form, is_current: e.target.checked })} />
+            Make this the Problem of the Week
           </label>
           <button className="btn btn-primary">Add puzzle</button>
         </form>
@@ -1271,6 +1291,8 @@ function PuzzlesTab({ say }) {
                     <p className="text-sm font-semibold">{p.title}</p>
                     <p className="mono text-[0.65rem]" style={{ color: 'var(--ink-faint)' }}>
                       {formatDate(p.posted_at)} · {p.revealed ? 'revealed' : 'hidden until revealed'}
+                      {p.is_current ? ' · this week' : ''}
+                      {p.difficulty ? ` · ${p.difficulty}` : ''}
                     </p>
                   </div>
                   {!p.revealed && (
@@ -1279,6 +1301,14 @@ function PuzzlesTab({ say }) {
                       onClick={() => act(() => api.patch(`/admin/puzzles/${p.id}`, { revealed: true }), 'Answer revealed.')}
                     >
                       Reveal answer
+                    </button>
+                  )}
+                  {!p.is_current && (
+                    <button
+                      className="btn btn-ghost"
+                      onClick={() => act(() => api.patch(`/admin/puzzles/${p.id}`, { is_current: true }), `"${p.title}" is now this week's.`)}
+                    >
+                      Make current
                     </button>
                   )}
                   <button
@@ -1297,6 +1327,118 @@ function PuzzlesTab({ say }) {
   );
 }
 
+/* -------------------------------- sign-ins ------------------------------- */
+
+/**
+ * Who has signed in with a school account, and the weekly email.
+ *
+ * Signing in does not put anyone on the leaderboard -- any district student can
+ * get in, but points belong to roster students. Linking the two is the job of
+ * the dropdown here.
+ */
+function SignInsTab({ say }) {
+  const [data, setData] = useState(null);
+  const [digest, setDigest] = useState(null);
+  const [busy, setBusy] = useState(false);
+
+  const load = useCallback(() => {
+    api.get('/admin/members').then(setData).catch((e) => say(e.message, 'bad'));
+  }, [say]);
+  useEffect(load, [load]);
+  const act = useAction(say, load);
+
+  const runDigest = async (dry) => {
+    setBusy(true);
+    try {
+      setDigest(await api.post('/admin/digest', { dry }));
+      if (!dry) say('Digest sent.');
+    } catch (err) {
+      say(err.message, 'bad');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (!data) return <Spinner />;
+
+  const optedIn = data.members.filter((m) => m.email_opt_in && m.personal_email).length;
+
+  return (
+    <div className="grid gap-6 lg:grid-cols-[1fr_22rem] lg:items-start">
+      <Section title={`Signed-in members (${data.members.length})`} hint="Everyone who has signed in with an @mypisd.net account. Link someone to a roster student so their points show up on their own profile.">
+        {data.members.length === 0 ? (
+          <p className="text-sm" style={{ color: 'var(--ink-soft)' }}>Nobody has signed in yet.</p>
+        ) : (
+          <ul className="grid gap-2">
+            {data.members.map((m) => (
+              <li key={m.id} className="rounded border p-3">
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold">{m.full_name || m.school_email}</p>
+                    <p className="mono text-[0.65rem]" style={{ color: 'var(--ink-faint)' }}>
+                      {m.school_email}
+                      {m.personal_email && ` · ${m.personal_email}`}
+                      {m.email_opt_in ? ' · subscribed' : ''}
+                      {m.last_login_at && ` · last in ${relativeDate(m.last_login_at)}`}
+                    </p>
+                  </div>
+                  <select
+                    className="field w-44"
+                    value={m.student_id ?? ''}
+                    onChange={(e) =>
+                      act(
+                        () => api.patch(`/admin/members/${m.id}`, { student_id: e.target.value }),
+                        'Link updated.'
+                      )
+                    }
+                  >
+                    <option value="">Not on the roster</option>
+                    {data.students.map((st) => (
+                      <option key={st.id} value={st.id}>{st.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Section>
+
+      <Section title="Weekly email" hint="Sends every Monday, automatically, and only when something actually happened since the last one. Preview first -- it shows exactly what would go out.">
+        <p className="mono text-xs" style={{ color: 'var(--ink-faint)' }}>
+          {optedIn} subscribed of {data.members.length} signed in
+        </p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button className="btn btn-ghost" disabled={busy} onClick={() => runDigest(true)}>
+            Preview
+          </button>
+          <button className="btn btn-primary" disabled={busy} onClick={() => runDigest(false)}>
+            Send now
+          </button>
+        </div>
+        {digest && (
+          <div className="mt-4 border-t pt-3">
+            {digest.skipped ? (
+              <p className="text-sm" style={{ color: 'var(--ink-soft)' }}>{digest.skipped}</p>
+            ) : (
+              <>
+                <p className="mono text-[0.7rem]" style={{ color: 'var(--ink-faint)' }}>
+                  {digest.subject} · {digest.sent} of {digest.recipients} sent
+                </p>
+                {digest.sample && (
+                  <pre className="mono mt-2 max-h-72 overflow-auto rounded p-3 text-[0.65rem] whitespace-pre-wrap" style={{ background: 'var(--paper-2)' }}>
+                    {digest.sample}
+                  </pre>
+                )}
+              </>
+            )}
+          </div>
+        )}
+      </Section>
+    </div>
+  );
+}
+
 /* ------------------------------- page text ------------------------------- */
 
 const TEXT_FIELDS = [
@@ -1309,6 +1451,8 @@ const TEXT_FIELDS = [
   ['about_body', 'About page text', 'textarea'],
   ['discord_url', 'Discord invite link', 'input'],
   ['email', 'Contact email', 'input'],
+  ['cyber_intro', 'Cyber page intro', 'textarea'],
+  ['cyber_body', 'Cyber page text', 'textarea'],
   ['join_intro', 'Join page intro', 'textarea'],
   ['join_consent_url', 'Parent consent form link', 'input'],
   ['join_classroom_code', 'Google Classroom code', 'input'],
@@ -1355,7 +1499,7 @@ function TextTab({ say }) {
             {kind === 'textarea' ? (
               <textarea
                 className="field"
-                rows={key === 'about_body' ? 16 : 3}
+                rows={key === 'about_body' || key === 'cyber_body' ? 16 : 3}
                 value={settings[key] ?? ''}
                 onChange={(e) => setSettings({ ...settings, [key]: e.target.value })}
               />

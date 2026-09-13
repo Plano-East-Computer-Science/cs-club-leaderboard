@@ -108,11 +108,43 @@ CREATE TABLE IF NOT EXISTS competitions (
 -- shown -- an officer can post a puzzle for the current week with the answer
 -- withheld, then reveal it once the meeting has happened.
 CREATE TABLE IF NOT EXISTS puzzles (
-  id        INTEGER PRIMARY KEY AUTOINCREMENT,
-  title     TEXT    NOT NULL,
-  prompt    TEXT    NOT NULL,
-  answer    TEXT    NOT NULL DEFAULT '',
-  source    TEXT    NOT NULL DEFAULT 'club',
-  posted_at TEXT    NOT NULL DEFAULT (date('now')),
-  revealed  INTEGER NOT NULL DEFAULT 1
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  title      TEXT    NOT NULL,
+  prompt     TEXT    NOT NULL,
+  answer     TEXT    NOT NULL DEFAULT '',
+  source     TEXT    NOT NULL DEFAULT 'club',
+  posted_at  TEXT    NOT NULL DEFAULT (date('now')),
+  revealed   INTEGER NOT NULL DEFAULT 1,
+  -- Problem of the Week. Hints are newline-separated and revealed one at a
+  -- time; `revealed` still gates the full solution. Exactly one puzzle may be
+  -- is_current at a time (the admin route clears the others when setting one).
+  hints      TEXT    NOT NULL DEFAULT '',
+  difficulty TEXT    NOT NULL DEFAULT '',
+  is_current INTEGER NOT NULL DEFAULT 0
 );
+
+-- Anyone who has signed in with a district Google account.
+--
+-- Deliberately separate from `students`: any Plano ISD student may sign in and
+-- read the site, but only roster members appear on the leaderboard. An officer
+-- links the two by setting student_id, and a member with no link is simply a
+-- signed-in reader.
+--
+-- school_email is the identity and is always stored lowercased.
+-- personal_email is where digests go, and is opt-in -- the district filters
+-- external mail to student accounts, so club mail must not be sent there.
+CREATE TABLE IF NOT EXISTS members (
+  id                INTEGER PRIMARY KEY AUTOINCREMENT,
+  school_email      TEXT    NOT NULL UNIQUE,
+  student_id        INTEGER REFERENCES students(id) ON DELETE SET NULL,
+  full_name         TEXT    NOT NULL DEFAULT '',
+  personal_email    TEXT    NOT NULL DEFAULT '',
+  email_opt_in      INTEGER NOT NULL DEFAULT 0,
+  -- One-click unsubscribe, and the key for a personal calendar feed. Both are
+  -- random per member so neither can be guessed from the other.
+  unsubscribe_token TEXT    NOT NULL,
+  feed_token        TEXT    NOT NULL,
+  created_at        TEXT    NOT NULL DEFAULT (datetime('now')),
+  last_login_at     TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_members_feed ON members(feed_token);

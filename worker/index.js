@@ -10,10 +10,13 @@ import { Hono } from 'hono';
 import { publicRouter } from './routes/public.js';
 import { adminRouter } from './routes/admin.js';
 import { ingestRouter } from './routes/ingest.js';
+import { authRouter } from './routes/auth.js';
+import { runDigest } from './digest.js';
 
 const app = new Hono();
 
 app.route('/api/admin', adminRouter);
+app.route('/api/auth', authRouter);
 app.route('/api/ingest', ingestRouter);
 app.route('/api', publicRouter);
 
@@ -40,4 +43,19 @@ app.onError((err, c) => {
   return c.json({ error: 'Something broke on the server.' }, 500);
 });
 
-export default app;
+/**
+ * Two entry points, one Worker: HTTP requests, and the weekly Cron Trigger.
+ *
+ * The cron send is wrapped so a mail failure can never leave a scheduled run
+ * in a failed state -- the digest is not important enough to page anyone.
+ */
+export default {
+  fetch: app.fetch,
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(
+      runDigest(env)
+        .then((r) => console.log('[digest]', JSON.stringify(r)))
+        .catch((err) => console.error('[digest]', err))
+    );
+  },
+};

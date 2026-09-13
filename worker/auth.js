@@ -11,7 +11,15 @@
  */
 
 export const COOKIE = 'cslb_admin';
+/**
+ * Members get their own cookie, never the admin one. An officer signing in as
+ * an admin does not become a member, and a member must never become an admin
+ * by having the two conflated.
+ */
+export const MEMBER_COOKIE = 'cslb_member';
+
 const MAX_AGE_S = 60 * 60 * 24 * 14; // two weeks
+const MEMBER_MAX_AGE_S = 60 * 60 * 24 * 30; // a month; students sign in rarely
 
 const enc = new TextEncoder();
 
@@ -52,17 +60,90 @@ export function checkPassword(env, password) {
   return safeEqual(password ?? '', expected);
 }
 
-export async function signSession(env, expiresAt = Date.now() + MAX_AGE_S * 1000) {
-  const payload = String(expiresAt);
+/**
+ * Signs an arbitrary payload. The payload must not contain a "." -- that is
+ * the separator between payload and signature.
+ */
+export async function signValue(env, payload) {
   return `${payload}.${await hmac(env, payload)}`;
 }
 
+/** Returns the payload when the signature is good, otherwise null. */
+export async function verifyValue(env, token) {
+  if (!token || typeof token !== 'string') return null;
+  const idx = token.lastIndexOf('.');
+  if (idx <= 0) return null;
+  const payload = token.slice(0, idx);
+  const sig = token.slice(idx + 1);
+  if (!safeEqual(sig, await hmac(env, payload))) return null;
+  return payload;
+}
+
+export async function signSession(env, expiresAt = Date.now() + MAX_AGE_S * 1000) {
+  return signValue(env, String(expiresAt));
+}
+
 export async function verifySession(env, token) {
-  if (!token || typeof token !== 'string') return false;
-  const [payload, sig] = token.split('.');
-  if (!payload || !sig) return false;
-  if (!safeEqual(sig, await hmac(env, payload))) return false;
+  const payload = await verifyValue(env, token);
+  if (payload === null) return false;
   return Number(payload) > Date.now();
+}
+
+/* ------------------------------ member sessions ---------------------------- */
+
+/**
+ * A member session carries who it is, not just when it expires, so the server
+ * can look the member up without trusting anything the browser sends.
+ * Payload shape: "<memberId>:<expiresAtMs>".
+ */
+export async function signMemberSession(
+  env,
+  memberId,
+  expiresAt = Date.now() + MEMBER_MAX_AGE_S * 1000
+) {
+  return signValue(env, `${memberId}:${expiresAt}`);
+}
+
+/** Returns the member id when the session is valid and unexpired, else null. */
+export async function verifyMemberSession(env, token) {
+  const payload = await verifyValue(env, token);
+  if (payload === null) return null;
+  const [rawId, rawExp] = payload.split(':');
+  const id = Number(rawId);
+  const exp = Number(rawExp);
+  if (!Number.isInteger(id) || id <= 0 || !Number.isFinite(exp)) return null;
+  if (exp <= Date.now()) return null;
+  return id;
+}
+
+export function memberCookieOptions() {
+  return {
+    httpOnly: true,
+    sameSite: 'Lax',
+    secure: true,
+    path: '/',
+    maxAge: MEMBER_MAX_AGE_S,
+  };
+}
+
+/** Random, URL-safe, unguessable. Used for unsubscribe and calendar-feed keys. */
+export function randomToken(bytes = 24) {
+  const buf = new Uint8Array(bytes);
+  crypto.getRandomValues(buf);
+  return [...buf].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+/**
+ * The only place the district-domain rule is expressed.
+ *
+ * Compared against the VERIFIED `hd` claim from Google's ID token, never
+ * against a string the browser supplied. Matching on the email's suffix alone
+ * would accept `someone@notmypisd.net`, so the check is exact.
+ */
+export const DISTRICT_DOMAIN = 'mypisd.net';
+
+export function isDistrictDomain(hd) {
+  return typeof hd === 'string' && hd.toLowerCase() === DISTRICT_DOMAIN;
 }
 
 export function sessionCookieOptions() {
