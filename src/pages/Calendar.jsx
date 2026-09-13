@@ -3,13 +3,11 @@ import { Link } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { formatDate, daysUntil } from '../lib/format.js';
 import { Spinner, ErrorNote, Empty } from '../components/bits.jsx';
-import { useAuth } from '../lib/auth.jsx';
 
 const MONTH = (iso) =>
   new Date(`${iso}T12:00:00`).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
 
 export default function CalendarPage({ settings }) {
-  const { member } = useAuth();
   const [opps, setOpps] = useState(null);
   const [error, setError] = useState(null);
 
@@ -36,13 +34,7 @@ export default function CalendarPage({ settings }) {
     return [...map.entries()];
   }, [deadlines]);
 
-  // The feed carries a key because a calendar app cannot send a cookie, and
-  // the deadlines are members-only. The key is personal: sharing the URL shares
-  // access.
-  const subscribeUrl =
-    member && typeof window !== 'undefined'
-      ? `https://${window.location.host}/api/deadlines.ics?key=${member.feed_token}`
-      : '';
+  const subscribeUrl = typeof window !== 'undefined' ? `https://${window.location.host}/api/deadlines.ics` : '';
   const webcalUrl = subscribeUrl.replace(/^https?:\/\//, 'webcal://');
 
   return (
@@ -109,16 +101,14 @@ export default function CalendarPage({ settings }) {
           <div className="card p-5">
             <div className="mb-3 flex items-center justify-between gap-3">
               <h2 className="eyebrow">Deadlines</h2>
-              {subscribeUrl && (
-                <a
-                  className="mono text-[0.7rem] font-semibold no-underline"
-                  style={{ color: 'var(--flag)' }}
-                  href={webcalUrl}
-                  title="Opens your calendar app's subscribe dialog"
-                >
-                  + Subscribe
-                </a>
-              )}
+              <a
+                className="mono text-[0.7rem] font-semibold no-underline"
+                style={{ color: 'var(--flag)' }}
+                href={webcalUrl}
+                title="Opens your calendar app's subscribe dialog"
+              >
+                + Subscribe
+              </a>
             </div>
 
             {error ? (
@@ -164,19 +154,6 @@ export default function CalendarPage({ settings }) {
               Subscribing adds a live feed to your own calendar app — it updates on its own as
               deadlines change. It does not download a one-time file.
             </p>
-            {subscribeUrl && (
-              <>
-                <p className="mono mt-3 text-[0.65rem]" style={{ color: 'var(--ink-faint)' }}>
-                  Your personal feed URL — keep it to yourself:
-                </p>
-                <input
-                  className="field mono mt-1.5 text-[0.65rem]"
-                  readOnly
-                  value={subscribeUrl}
-                  onFocus={(e) => e.target.select()}
-                />
-              </>
-            )}
           </div>
         </aside>
       </div>

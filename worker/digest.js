@@ -5,8 +5,8 @@
  * changed since the last send, and if nothing changed it sends nothing at all
  * -- a weekly "nothing happened" email is how a mailing list dies.
  *
- * Mail goes to members' personal addresses only, and every message carries a
- * one-click unsubscribe.
+ * Mail goes only to addresses that confirmed by clicking the link we sent
+ * them, and every message carries a one-click unsubscribe.
  */
 import {
   pointEventsSince, opportunitiesSince, deadlinesWithin,
@@ -170,17 +170,17 @@ export async function runDigest(env, { dry = false } = {}) {
   const results = [];
 
   for (const m of recipients) {
-    const unsubscribeUrl = `${origin}/api/auth/unsubscribe?t=${m.unsubscribe_token}`;
+    const unsubscribeUrl = `${origin}/api/subscribe/unsubscribe?t=${m.unsubscribe_token}`;
     const preview = {
-      to: m.personal_email,
+      to: m.email,
       subject,
       text: renderText(digest, origin, unsubscribeUrl),
       html: renderHtml(digest, origin, unsubscribeUrl),
       headers: unsubscribeHeaders(unsubscribeUrl),
     };
-    // One send per member, not one bcc blast: each carries its own unsubscribe
-    // link, and nobody sees anyone else's address.
-    results.push(dry ? { ok: true, to: m.personal_email } : { ...(await sendEmail(env, preview)), to: m.personal_email });
+    // One send per address, not one bcc blast: each carries its own
+    // unsubscribe link, and nobody sees anyone else's address.
+    results.push(dry ? { ok: true, to: m.email } : { ...(await sendEmail(env, preview)), to: m.email });
   }
 
   if (!dry) await setSetting(db, 'last_digest_at', new Date().toISOString());
@@ -196,7 +196,7 @@ export async function runDigest(env, { dry = false } = {}) {
       opportunities: digest.opportunities.length,
       deadlines: digest.deadlines.length,
     },
-    ...(dry ? { sample: results.length ? renderText(digest, origin, `${origin}/api/auth/unsubscribe?t=…`) : null } : {}),
+    ...(dry ? { sample: renderText(digest, origin, `${origin}/api/subscribe/unsubscribe?t=…`) } : {}),
   };
 }
 

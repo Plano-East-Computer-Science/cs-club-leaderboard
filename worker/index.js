@@ -10,13 +10,13 @@ import { Hono } from 'hono';
 import { publicRouter } from './routes/public.js';
 import { adminRouter } from './routes/admin.js';
 import { ingestRouter } from './routes/ingest.js';
-import { authRouter } from './routes/auth.js';
+import { subscribeRouter } from './routes/subscribe.js';
 import { runDigest } from './digest.js';
 
 const app = new Hono();
 
 app.route('/api/admin', adminRouter);
-app.route('/api/auth', authRouter);
+app.route('/api/subscribe', subscribeRouter);
 app.route('/api/ingest', ingestRouter);
 app.route('/api', publicRouter);
 

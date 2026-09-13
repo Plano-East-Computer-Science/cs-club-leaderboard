@@ -82,24 +82,16 @@ Everything on the opportunity board. Three fields drive the behavior:
 - **`status`** — `live` (public) or `pending` (waiting for you). Anything found automatically arrives as `pending`. Nothing reaches the public site until you approve it.
 - **`fingerprint`** — a hidden ID built from the link and title. It's how re-running a search knows it has seen a listing before, instead of adding it a second time.
 
-### `members`
-Everyone who has signed in with a school Google account. This is **not** the
-same list as `students`:
+### `subscribers`
+Who gets the weekly email. Nobody signs in to this site, so an address is
+proven by email instead: a row starts **unconfirmed** and only becomes a
+recipient once its owner clicks the link we sent. That is what stops one
+student signing up another. `confirm_token` and `unsubscribe_token` are
+random and independent — one is the confirmation link, the other the one-click
+unsubscribe in every message.
 
-- `students` is the roster — who is on the leaderboard and can hold points.
-- `members` is who can *log in*. Any district student can sign in, whether or
-  not an officer has added them to the roster.
-
-`student_id` links one to the other, and an officer sets it from **Admin →
-Sign-ins**. It is allowed to be empty.
-
-The other fields exist for email: `personal_email` (never a school address — the
-district's filter eats club mail), `email_opt_in`, `unsubscribe_token` (the
-one-click unsubscribe link in every message), and `feed_token` (the personal key
-in a member's deadline-calendar URL, since a calendar app cannot log in).
-
-This table is the reason a downloaded backup now contains contact details for
-minors. Keep the file off shared drives.
+This table is the reason a downloaded backup contains email addresses. Keep the
+file off shared drives.
 
 ### `puzzles`
 The Problem of the Week and the archive behind it. `revealed` controls whether
@@ -117,9 +109,9 @@ Every editable piece of text — club name, tagline, prize description, the whol
 
 **Deleting a member deletes their points too.** This is deliberate (otherwise you'd accumulate orphaned rows referring to nobody), and it's why the panel asks you to confirm. If you only want them off the board, **hide** them instead.
 
-**Backups are one click.** Admin → Backup → *Download backup file*. You get a `.json` file containing everything: members, points, badges, opportunities, page text, and sign-in records. Restoring reads it back.
+**Backups are one click.** Admin → Backup → *Download backup file*. You get a `.json` file containing everything: members, points, badges, opportunities, page text, and email subscribers. Restoring reads it back.
 
-Because sign-ins are included, that file now holds students' email addresses. Treat it as confidential: your own computer, not a shared drive or a class Google Drive.
+Because subscribers are included, that file holds email addresses. Treat it as confidential: your own computer, not a shared drive or a class Google Drive.
 
 Do this **before any big change** and **once a month** otherwise. It takes five seconds and it is the difference between an inconvenience and losing a year of club records.
 

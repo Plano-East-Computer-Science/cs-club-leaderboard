@@ -13,7 +13,7 @@ const TABS = [
   { id: 'curriculum', label: 'Curriculum' },
   { id: 'competitions', label: 'Competitions' },
   { id: 'puzzles', label: 'Puzzles' },
-  { id: 'signins', label: 'Sign-ins' },
+  { id: 'email', label: 'Email' },
   { id: 'text', label: 'Page text' },
   { id: 'backup', label: 'Backup' },
 ];
@@ -97,7 +97,7 @@ export default function Admin() {
       {tab === 'curriculum' && <CurriculumTab say={say} />}
       {tab === 'competitions' && <CompetitionsTab say={say} />}
       {tab === 'puzzles' && <PuzzlesTab say={say} />}
-      {tab === 'signins' && <SignInsTab say={say} />}
+      {tab === 'email' && <EmailTab say={say} />}
       {tab === 'text' && <TextTab say={say} />}
       {tab === 'backup' && <BackupTab say={say} />}
     </div>
@@ -1327,22 +1327,20 @@ function PuzzlesTab({ say }) {
   );
 }
 
-/* -------------------------------- sign-ins ------------------------------- */
+/* ---------------------------------- email --------------------------------- */
 
 /**
- * Who has signed in with a school account, and the weekly email.
- *
- * Signing in does not put anyone on the leaderboard -- any district student can
- * get in, but points belong to roster students. Linking the two is the job of
- * the dropdown here.
+ * Who gets the weekly email, and the email itself. An address only counts once
+ * its owner has clicked the confirmation link -- "unconfirmed" rows are people
+ * who typed an address and never clicked.
  */
-function SignInsTab({ say }) {
-  const [data, setData] = useState(null);
+function EmailTab({ say }) {
+  const [subs, setSubs] = useState(null);
   const [digest, setDigest] = useState(null);
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(() => {
-    api.get('/admin/members').then(setData).catch((e) => say(e.message, 'bad'));
+    api.get('/admin/subscribers').then((d) => setSubs(d.subscribers)).catch((e) => say(e.message, 'bad'));
   }, [say]);
   useEffect(load, [load]);
   const act = useAction(say, load);
@@ -1359,45 +1357,31 @@ function SignInsTab({ say }) {
     }
   };
 
-  if (!data) return <Spinner />;
+  if (!subs) return <Spinner />;
 
-  const optedIn = data.members.filter((m) => m.email_opt_in && m.personal_email).length;
+  const confirmed = subs.filter((m) => m.confirmed).length;
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_22rem] lg:items-start">
-      <Section title={`Signed-in members (${data.members.length})`} hint="Everyone who has signed in with an @mypisd.net account. Link someone to a roster student so their points show up on their own profile.">
-        {data.members.length === 0 ? (
-          <p className="text-sm" style={{ color: 'var(--ink-soft)' }}>Nobody has signed in yet.</p>
+      <Section title={`Subscribers (${confirmed} confirmed of ${subs.length})`} hint="Anyone can type an address into the form in the site footer. Nothing is sent to it until they click the confirmation link, so an unconfirmed row is harmless.">
+        {subs.length === 0 ? (
+          <p className="text-sm" style={{ color: 'var(--ink-soft)' }}>Nobody yet. The signup form is at the bottom of every page.</p>
         ) : (
           <ul className="grid gap-2">
-            {data.members.map((m) => (
-              <li key={m.id} className="rounded border p-3">
-                <div className="flex flex-wrap items-center gap-3">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold">{m.full_name || m.school_email}</p>
-                    <p className="mono text-[0.65rem]" style={{ color: 'var(--ink-faint)' }}>
-                      {m.school_email}
-                      {m.personal_email && ` · ${m.personal_email}`}
-                      {m.email_opt_in ? ' · subscribed' : ''}
-                      {m.last_login_at && ` · last in ${relativeDate(m.last_login_at)}`}
-                    </p>
-                  </div>
-                  <select
-                    className="field w-44"
-                    value={m.student_id ?? ''}
-                    onChange={(e) =>
-                      act(
-                        () => api.patch(`/admin/members/${m.id}`, { student_id: e.target.value }),
-                        'Link updated.'
-                      )
-                    }
-                  >
-                    <option value="">Not on the roster</option>
-                    {data.students.map((st) => (
-                      <option key={st.id} value={st.id}>{st.name}</option>
-                    ))}
-                  </select>
+            {subs.map((m) => (
+              <li key={m.id} className="flex flex-wrap items-center gap-3 rounded border p-3">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold">{m.email}</p>
+                  <p className="mono text-[0.65rem]" style={{ color: m.confirmed ? '#2f8f5b' : 'var(--ink-faint)' }}>
+                    {m.confirmed ? 'confirmed' : 'not confirmed'} · added {relativeDate(m.created_at)}
+                  </p>
                 </div>
+                <button
+                  className="btn btn-danger"
+                  onClick={() => act(() => api.del(`/admin/subscribers/${m.id}`), `Removed ${m.email}.`)}
+                >
+                  Remove
+                </button>
               </li>
             ))}
           </ul>
@@ -1405,10 +1389,7 @@ function SignInsTab({ say }) {
       </Section>
 
       <Section title="Weekly email" hint="Sends every Monday, automatically, and only when something actually happened since the last one. Preview first -- it shows exactly what would go out.">
-        <p className="mono text-xs" style={{ color: 'var(--ink-faint)' }}>
-          {optedIn} subscribed of {data.members.length} signed in
-        </p>
-        <div className="mt-3 flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2">
           <button className="btn btn-ghost" disabled={busy} onClick={() => runDigest(true)}>
             Preview
           </button>

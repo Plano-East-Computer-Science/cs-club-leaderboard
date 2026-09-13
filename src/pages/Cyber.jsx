@@ -1,15 +1,13 @@
 /**
  * The Cybersecurity Committee.
  *
- * Public on purpose: it is a recruiting page, and 8 of 23 people who filled in
- * the interest form said a firm yes to cyber. The cyber opportunities at the
- * bottom are members-only like the rest of the board, so they simply do not
- * render for a signed-out reader.
+ * A recruiting page: 8 of 23 people who filled in the interest form said a
+ * firm yes to cyber. The listings on the side are the existing opportunity
+ * board filtered, not a second copy.
  */
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../lib/api.js';
-import { useAuth } from '../lib/auth.jsx';
 import { RichText, Spinner } from '../components/bits.jsx';
 import { formatDate } from '../lib/format.js';
 
@@ -35,7 +33,6 @@ Show up. Bring a laptop if you have one; if you do not, say so and we will pair 
 const CYBER_TYPES = /ctf|cyber|security|hack/i;
 
 export default function Cyber({ settings }) {
-  const { authed } = useAuth();
   const [officers, setOfficers] = useState(null);
   const [opps, setOpps] = useState([]);
 
@@ -47,7 +44,6 @@ export default function Cyber({ settings }) {
   }, []);
 
   useEffect(() => {
-    if (!authed) return;
     api
       .get('/opportunities')
       .then((d) =>
@@ -56,7 +52,7 @@ export default function Cyber({ settings }) {
         )
       )
       .catch(() => setOpps([]));
-  }, [authed]);
+  }, []);
 
   return (
     <div>
@@ -99,8 +95,7 @@ export default function Cyber({ settings }) {
             )
           )}
 
-          {authed ? (
-            opps.length > 0 && (
+          {opps.length > 0 && (
               <div className="card p-5">
                 <h2 className="eyebrow mb-3">Cyber on the board</h2>
                 <ul className="grid gap-2.5">
@@ -130,17 +125,6 @@ export default function Cyber({ settings }) {
                   The whole board →
                 </Link>
               </div>
-            )
-          ) : (
-            <div className="card p-5">
-              <p className="text-sm" style={{ color: 'var(--ink-soft)' }}>
-                CTFs and cyber programs with open deadlines are on the members' board.{' '}
-                <Link to="/signin" style={{ color: 'var(--flag)' }}>
-                  Sign in with your school account
-                </Link>{' '}
-                to see them.
-              </p>
-            </div>
           )}
         </aside>
       </div>

@@ -17,16 +17,15 @@ import {
   getLeaderboard, getStudent, addPointEvent, listOpportunities,
   getOfficers, getCurriculum, getCompetitions, getPuzzles,
   getSetting, setSetting, getAllSettings, exportBackup, restoreBackup,
-  upsertMember, getMemberById, getMemberByFeedToken, setMemberPrefs,
-  unsubscribeByToken, listDigestRecipients, linkMemberToStudent,
+  addSubscriber, getSubscriberByEmail, confirmSubscriber, unsubscribeByToken,
+  listDigestRecipients, listSubscribers,
   getCurrentPuzzle, setCurrentPuzzle,
 } from '../worker/db.js';
 import {
   haversineMiles, milesFromSchool, withinRadius, fingerprintOf, RADIUS_MILES,
 } from '../worker/geo.js';
 import {
-  signSession, verifySession, checkPassword, checkIngestToken, safeEqual,
-  signMemberSession, verifyMemberSession, isDistrictDomain, randomToken,
+  signSession, verifySession, checkPassword, checkIngestToken, safeEqual, randomToken,
 } from '../worker/auth.js';
 import { buildDigest } from '../worker/digest.js';
 import { parseDevpostDeadline } from '../ingest/sources.js';
@@ -229,97 +228,64 @@ test('the ingest token is checked, with or without a Bearer prefix', () => {
   assert.equal(checkIngestToken({}, 'Bearer anything'), false);
 });
 
-/* ------------------------------ member access ----------------------------- */
+/* ------------------------------- subscribers ------------------------------- */
 
-test('only the exact district domain passes, and only from the hd claim', () => {
-  assert.equal(isDistrictDomain('mypisd.net'), true);
-  assert.equal(isDistrictDomain('MyPISD.net'), true);
-  // The trap an email-suffix check would fall into.
-  assert.equal(isDistrictDomain('notmypisd.net'), false);
-  assert.equal(isDistrictDomain('mypisd.net.evil.com'), false);
-  assert.equal(isDistrictDomain('gmail.com'), false);
-  assert.equal(isDistrictDomain(undefined), false);
-  assert.equal(isDistrictDomain(null), false);
-  assert.equal(isDistrictDomain(''), false);
-});
-
-test('a member session round-trips to the member id', async () => {
-  assert.equal(await verifyMemberSession(ENV, await signMemberSession(ENV, 7)), 7);
-});
-
-test('a member session signed with another secret is rejected', async () => {
-  const other = await signMemberSession({ SESSION_SECRET: 'someone-elses-secret' }, 7);
-  assert.equal(await verifyMemberSession(ENV, other), null);
-});
-
-test('an expired member session is rejected', async () => {
-  assert.equal(await verifyMemberSession(ENV, await signMemberSession(ENV, 7, Date.now() - 1000)), null);
-});
-
-test('an admin session is not a member session, and vice versa', async () => {
-  // Same secret, same signer -- the payload shape is what keeps them apart.
-  assert.equal(await verifyMemberSession(ENV, await signSession(ENV)), null);
-  assert.equal(await verifySession(ENV, await signMemberSession(ENV, 7)), false);
-});
-
-test('member session garbage is rejected without throwing', async () => {
-  for (const bad of [null, '', 'abc', 'a.b', undefined, '0:1.deadbeef', '-3:99999999999999.x']) {
-    assert.equal(await verifyMemberSession(ENV, bad), null);
-  }
-});
-
-test('signing in twice is the same member, with the same feed token', async () => {
+test('a new address is unconfirmed and receives nothing', async () => {
   const db = await fresh();
-  const first = await upsertMember(db, { school_email: 'Kid@MyPISD.net', full_name: 'Kid', tokenFactory: randomToken });
-  const again = await upsertMember(db, { school_email: 'kid@mypisd.net', full_name: 'Kid', tokenFactory: randomToken });
+  const sub = await addSubscriber(db, 'Kid@Gmail.com', randomToken);
+  assert.equal(sub.email, 'kid@gmail.com');
+  assert.equal(sub.confirmed, 0);
+  assert.equal((await listDigestRecipients(db)).length, 0);
+});
+
+test('adding the same address twice keeps the original tokens', async () => {
+  const db = await fresh();
+  const first = await addSubscriber(db, 'kid@gmail.com', randomToken);
+  const again = await addSubscriber(db, 'KID@gmail.com', randomToken);
   assert.equal(again.id, first.id);
-  // Rotating this would silently break an already-subscribed calendar.
-  assert.equal(again.feed_token, first.feed_token);
-  assert.equal(first.school_email, 'kid@mypisd.net');
+  // A confirmation link already in someone's inbox must keep working.
+  assert.equal(again.confirm_token, first.confirm_token);
+  assert.equal((await listSubscribers(db)).length, 1);
 });
 
-test('the feed token finds its member, and a wrong one finds nobody', async () => {
+test('the confirm token turns the row into a recipient; a wrong one does nothing', async () => {
   const db = await fresh();
-  const m = await upsertMember(db, { school_email: 'kid@mypisd.net', full_name: '', tokenFactory: randomToken });
-  assert.equal((await getMemberByFeedToken(db, m.feed_token)).id, m.id);
-  assert.ok(!(await getMemberByFeedToken(db, 'not-a-token')));
-  assert.ok(!(await getMemberByFeedToken(db, '')));
-});
-
-test('unsubscribing by token stops the email and nothing else', async () => {
-  const db = await fresh();
-  const m = await upsertMember(db, { school_email: 'kid@mypisd.net', full_name: '', tokenFactory: randomToken });
-  await setMemberPrefs(db, m.id, { personal_email: 'kid@gmail.com', email_opt_in: true });
+  const sub = await addSubscriber(db, 'kid@gmail.com', randomToken);
+  assert.equal(await confirmSubscriber(db, 'not-a-token'), false);
+  assert.equal((await listDigestRecipients(db)).length, 0);
+  assert.equal(await confirmSubscriber(db, sub.confirm_token), true);
   assert.equal((await listDigestRecipients(db)).length, 1);
+});
 
-  await unsubscribeByToken(db, m.unsubscribe_token);
+test('the confirm and unsubscribe tokens are different, and unsubscribe works once confirmed', async () => {
+  const db = await fresh();
+  const sub = await addSubscriber(db, 'kid@gmail.com', randomToken);
+  assert.notEqual(sub.confirm_token, sub.unsubscribe_token);
+  await confirmSubscriber(db, sub.confirm_token);
+  await unsubscribeByToken(db, sub.unsubscribe_token);
   assert.equal((await listDigestRecipients(db)).length, 0);
-  const after = await getMemberById(db, m.id);
-  assert.equal(after.personal_email, 'kid@gmail.com');
-  assert.equal(after.school_email, 'kid@mypisd.net');
+  // The row stays, so re-subscribing later is the same address, not a duplicate.
+  assert.ok(await getSubscriberByEmail(db, 'kid@gmail.com'));
 });
 
-test('an opted-in member with no personal address gets nothing', async () => {
+test('subscribers are in the backup, and an older backup without them still restores', async () => {
   const db = await fresh();
-  const m = await upsertMember(db, { school_email: 'kid@mypisd.net', full_name: '', tokenFactory: randomToken });
-  await db.prepare('UPDATE members SET email_opt_in = 1 WHERE id = ?').bind(m.id).run();
-  assert.equal((await listDigestRecipients(db)).length, 0);
-});
-
-test('a member links to a roster student and back to nobody', async () => {
-  const db = await fresh();
-  const m = await upsertMember(db, { school_email: 'kid@mypisd.net', full_name: '', tokenFactory: randomToken });
-  await linkMemberToStudent(db, m.id, 1);
-  assert.equal((await getMemberById(db, m.id)).student_id, 1);
-  await linkMemberToStudent(db, m.id, null);
-  assert.equal((await getMemberById(db, m.id)).student_id, null);
-});
-
-test('members are in the backup, so a restore does not orphan sign-ins', async () => {
-  const db = await fresh();
-  await upsertMember(db, { school_email: 'kid@mypisd.net', full_name: 'Kid', tokenFactory: randomToken });
+  await addSubscriber(db, 'kid@gmail.com', randomToken);
   const backup = await exportBackup(db);
-  assert.equal(backup.data.members.length, 1);
+  assert.equal(backup.data.subscribers.length, 1);
+
+  // A backup file taken before the subscribers table existed.
+  const older = { ...backup, data: { ...backup.data } };
+  delete older.data.subscribers;
+  const db2 = await fresh();
+  await restoreBackup(db2, older);
+  assert.equal((await listSubscribers(db2)).length, 0);
+  assert.equal((await getLeaderboard(db2)).length, 1);
+});
+
+test('a backup missing the core tables is still refused', async () => {
+  const db = await fresh();
+  await assert.rejects(() => restoreBackup(db, { data: { students: [] } }), /point_events/);
 });
 
 /* --------------------------------- digest --------------------------------- */
