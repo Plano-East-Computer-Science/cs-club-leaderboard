@@ -1,17 +1,22 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { ChevronRight, ExternalLink } from 'lucide-react';
 import { api } from '../lib/api.js';
 import {
-  formatDate, daysUntil, TYPE_LABELS, FORMAT_LABELS, COST_LABELS,
+  formatDate, daysUntil, upcomingDeadlines, TYPE_LABELS, FORMAT_LABELS, COST_LABELS,
 } from '../lib/format.js';
-import { Spinner, ErrorNote, Empty } from '../components/bits.jsx';
+import { PageHeader, Skeleton, ErrorNote, Empty } from '../components/bits.jsx';
 
 const TYPE_COLORS = {
-  internship: '#2f8f5b',
-  competition: '#c42e2e',
-  program: '#2b5fd9',
-  resource: '#128c93',
-  scholarship: '#b8720e',
+  internship: 'var(--ok)',
+  competition: 'var(--tier-expert)',
+  program: 'var(--tier-specialist)',
+  resource: 'var(--tier-builder)',
+  scholarship: 'var(--color-brass)',
 };
+
+const FORMATS = ['all', 'online', 'local', 'residential'];
+const TINT = 'color-mix(in srgb, var(--flag) 8%, var(--card))';
 
 export default function Opportunities() {
   const [data, setData] = useState(null);
@@ -27,99 +32,118 @@ export default function Opportunities() {
   };
   useEffect(load, []);
 
+  const all = data?.opportunities ?? [];
+
   const filtered = useMemo(() => {
-    if (!data) return [];
     const q = query.trim().toLowerCase();
-    return data.opportunities.filter((o) => {
+    return all.filter((o) => {
       if (type !== 'all' && o.type !== type) return false;
       if (format !== 'all' && o.format !== format) return false;
       if (freeOnly && o.cost === 'paid') return false;
       if (q && !`${o.title} ${o.org} ${o.description}`.toLowerCase().includes(q)) return false;
       return true;
     });
-  }, [data, type, format, freeOnly, query]);
+  }, [all, type, format, freeOnly, query]);
 
-  if (error) return <ErrorNote onRetry={load}>{error}</ErrorNote>;
-  if (!data) return <Spinner label="Loading opportunities" />;
-
-  const types = ['all', ...new Set(data.opportunities.map((o) => o.type))];
-  const formats = ['all', 'online', 'local', 'residential'];
+  const open = filtered.filter((o) => (daysUntil(o.deadline) ?? 0) >= 0);
+  const closed = filtered.filter((o) => (daysUntil(o.deadline) ?? 0) < 0);
+  const types = ['all', ...new Set(all.map((o) => o.type))];
 
   return (
     <div>
-      <header className="mb-8">
-        <p className="eyebrow">Opportunity board</p>
-        <h1 className="display mt-2 text-[clamp(2.2rem,6vw,3.5rem)] leading-[0.95] font-extrabold">
-          Things worth applying to.
-        </h1>
-        <p className="mt-4 max-w-2xl text-base" style={{ color: 'var(--ink-soft)' }}>
-          Internships, competitions, programs, and free resources for ages 14–17. Anything you
-          would have to drive to is within {data.radius_miles} miles of {data.school} — the rest is
-          online, or houses you.
-        </p>
-      </header>
+      <PageHeader title="Things worth applying to.">
+        Internships, competitions, programs, and free resources for ages 14 to 17. Anything you
+        would have to drive to is within {data?.radius_miles ?? 30} miles of{' '}
+        {data?.school ?? 'school'}. The rest is online, or houses you.
+      </PageHeader>
 
-      <div className="card mb-6 grid gap-4 p-4">
-        <label className="block">
-          <span className="sr-only">Search opportunities</span>
+      <div className="mb-8 grid gap-4 rounded-lg border p-4" style={{ background: TINT }}>
+        <div>
+          <label htmlFor="opp-search" className="sr-only">
+            Search opportunities
+          </label>
           <input
+            id="opp-search"
             className="field"
             type="search"
-            placeholder="Search by name, organisation, or keyword"
+            placeholder="Search by name, organization, or keyword"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
-        </label>
-
-        <div className="flex flex-wrap gap-x-6 gap-y-3">
-          <FilterGroup label="Type" value={type} onChange={setType} options={types}
+        </div>
+        <div className="flex flex-wrap gap-x-8 gap-y-3">
+          <Pills label="Type" value={type} onChange={setType} options={types}
             render={(v) => (v === 'all' ? 'All' : TYPE_LABELS[v] ?? v)} />
-          <FilterGroup label="Where" value={format} onChange={setFormat} options={formats}
+          <Pills label="Where" value={format} onChange={setFormat} options={FORMATS}
             render={(v) => (v === 'all' ? 'All' : FORMAT_LABELS[v] ?? v)} />
-          <div>
-            <p className="eyebrow mb-1.5">Cost</p>
-            <label className="mono flex cursor-pointer items-center gap-2 text-xs" style={{ color: 'var(--ink-soft)' }}>
-              <input type="checkbox" checked={freeOnly} onChange={(e) => setFreeOnly(e.target.checked)} />
-              Hide anything that costs money
-            </label>
-          </div>
+          <label
+            htmlFor="opp-free"
+            className="mono flex min-h-8 cursor-pointer items-center gap-2 self-end text-xs font-semibold"
+            style={{ color: 'var(--ink-soft)' }}
+          >
+            <input
+              id="opp-free"
+              type="checkbox"
+              checked={freeOnly}
+              onChange={(e) => setFreeOnly(e.target.checked)}
+            />
+            Free only
+          </label>
         </div>
       </div>
 
-      <p className="mono mb-4 text-xs" style={{ color: 'var(--ink-faint)' }}>
-        {filtered.length} of {data.opportunities.length} shown
-      </p>
-
-      {filtered.length === 0 ? (
-        <Empty title="Nothing matches those filters">
-          Try widening the search, or clear a filter.
-        </Empty>
+      {error ? (
+        <ErrorNote onRetry={load}>{error}</ErrorNote>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2">
-          {filtered.map((o, i) => (
-            <OpportunityCard key={o.id} o={o} index={i} />
-          ))}
+        <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-start">
+          <section className="order-2 min-w-0 lg:order-1">
+            {!data ? (
+              <div className="grid gap-4 md:grid-cols-2" aria-busy="true" aria-label="Loading opportunities">
+                {Array.from({ length: 4 }, (_, i) => (
+                  <Skeleton key={i} className="h-56" />
+                ))}
+              </div>
+            ) : filtered.length === 0 ? (
+              <Empty title="Nothing matches those filters">Widen the search or clear a filter.</Empty>
+            ) : (
+              <>
+                <p className="mono mb-4 text-xs" style={{ color: 'var(--ink-faint)' }}>
+                  {open.length} open
+                </p>
+                <div className="grid gap-4 md:grid-cols-2">
+                  {open.map((o, i) => (
+                    <OpportunityCard key={o.id} o={o} index={i} />
+                  ))}
+                </div>
+                {closed.length > 0 && <ClosedList rows={closed} />}
+              </>
+            )}
+          </section>
+          <NextDeadlines rows={data ? upcomingDeadlines(all, 5) : null} />
         </div>
       )}
     </div>
   );
 }
 
-function FilterGroup({ label, value, onChange, options, render }) {
+function Pills({ label, value, onChange, options, render }) {
   return (
     <div>
-      <p className="eyebrow mb-1.5">{label}</p>
+      <p className="mono mb-1.5 text-xs font-semibold" style={{ color: 'var(--ink-faint)' }}>
+        {label}
+      </p>
       <div className="flex flex-wrap gap-1.5">
         {options.map((opt) => {
           const active = value === opt;
           return (
             <button
               key={opt}
+              type="button"
               onClick={() => onChange(opt)}
-              className="mono rounded-full border px-2.5 py-1 text-[0.7rem] font-semibold transition-colors"
+              className="mono rounded-md border px-3 py-1.5 text-xs font-semibold transition-colors"
               style={{
-                color: active ? 'light-dark(#fff, #0d1017)' : 'var(--ink-soft)',
-                background: active ? 'var(--flag)' : 'transparent',
+                color: active ? 'var(--on-flag)' : 'var(--ink-soft)',
+                background: active ? 'var(--flag)' : 'var(--card)',
                 borderColor: active ? 'var(--flag)' : 'var(--rule)',
               }}
               aria-pressed={active}
@@ -133,87 +157,187 @@ function FilterGroup({ label, value, onChange, options, render }) {
   );
 }
 
+/* --------------------------------- rail --------------------------------- */
+
+function NextDeadlines({ rows }) {
+  return (
+    <aside className="order-1 lg:order-2">
+      <h2 className="display mb-3 text-xl font-bold" style={{ color: 'var(--ink)' }}>
+        Next deadlines
+      </h2>
+      {!rows ? (
+        <div className="grid gap-3">
+          {Array.from({ length: 3 }, (_, i) => (
+            <Skeleton key={i} className="h-12" />
+          ))}
+        </div>
+      ) : rows.length === 0 ? (
+        <p className="text-sm" style={{ color: 'var(--ink-soft)' }}>
+          Nothing with a deadline right now. Everything listed is rolling.
+        </p>
+      ) : (
+        <ol className="divide-y border-t">
+          {rows.map((o) => {
+            const days = daysUntil(o.deadline);
+            return (
+              <li key={o.id} className="flex items-start gap-3 py-3">
+                <span
+                  className="mono w-10 shrink-0 text-2xl leading-none font-bold"
+                  style={{ color: days <= 7 ? 'var(--danger)' : 'var(--ink)' }}
+                  aria-label={`${days} days left`}
+                >
+                  {days}
+                </span>
+                <span className="min-w-0">
+                  <a
+                    href={o.url}
+                    target="_blank"
+                    rel="noreferrer noopener"
+                    aria-label={`Open ${o.title}`}
+                    className="block truncate text-sm font-semibold no-underline hover:underline"
+                    style={{ color: 'var(--ink)' }}
+                  >
+                    {o.title}
+                  </a>
+                  <span className="mono block text-xs" style={{ color: 'var(--ink-faint)' }}>
+                    {formatDate(o.deadline)}
+                  </span>
+                </span>
+              </li>
+            );
+          })}
+        </ol>
+      )}
+      <Link
+        to="/calendar"
+        className="mono mt-3 inline-block text-xs font-semibold"
+        style={{ color: 'var(--flag)' }}
+      >
+        Every deadline, and a calendar feed
+      </Link>
+    </aside>
+  );
+}
+
+/* --------------------------------- cards --------------------------------- */
+
+function Chip({ color, children }) {
+  return (
+    <span
+      className="mono rounded-md px-1.5 py-0.5 text-xs font-semibold"
+      style={{
+        color,
+        background: `color-mix(in srgb, ${color} 12%, transparent)`,
+        border: `1px solid color-mix(in srgb, ${color} 26%, transparent)`,
+      }}
+    >
+      {children}
+    </span>
+  );
+}
+
 function OpportunityCard({ o, index }) {
   const days = daysUntil(o.deadline);
-  const urgent = days !== null && days >= 0 && days <= 21;
-  const color = TYPE_COLORS[o.type] ?? '#6b7689';
+  const urgent = days !== null && days <= 21;
+  const color = TYPE_COLORS[o.type] ?? 'var(--tier-newcomer)';
+  const meta = [`Ages ${o.age_min} to ${o.age_max}`];
+  if (o.format === 'local' && o.distance_mi != null) meta.push(`${o.distance_mi} mi away`);
 
   return (
     <article
-      className="card flex flex-col p-5"
-      style={{ animation: `row-in 0.4s ease-out ${Math.min(index * 0.03, 0.4)}s backwards` }}
+      className="flex flex-col rounded-lg border bg-card p-5"
+      style={{ animation: `row-in 0.35s ease-out ${Math.min(index * 0.03, 0.3)}s backwards` }}
     >
       <div className="mb-3 flex flex-wrap items-center gap-1.5">
-        <span
-          className="mono rounded px-1.5 py-0.5 text-[0.65rem] font-bold tracking-wide uppercase"
-          style={{
-            color,
-            background: `color-mix(in srgb, ${color} 12%, transparent)`,
-            border: `1px solid color-mix(in srgb, ${color} 26%, transparent)`,
-          }}
-        >
-          {TYPE_LABELS[o.type] ?? o.type}
-        </span>
-
-        <span className="mono rounded border px-1.5 py-0.5 text-[0.65rem]" style={{ color: 'var(--ink-soft)' }}>
-          {FORMAT_LABELS[o.format] ?? o.format}
-          {o.format === 'local' && o.distance_mi != null && ` · ${o.distance_mi} mi`}
-        </span>
-
-        {o.cost !== 'paid' && (
-          <span
-            className="mono rounded px-1.5 py-0.5 text-[0.65rem] font-semibold"
-            style={{
-              color: '#2f8f5b',
-              background: 'color-mix(in srgb, #2f8f5b 12%, transparent)',
-            }}
-          >
-            {COST_LABELS[o.cost]}
-          </span>
-        )}
+        <Chip color={color}>{TYPE_LABELS[o.type] ?? o.type}</Chip>
+        <Chip color="var(--ink-soft)">{FORMAT_LABELS[o.format] ?? o.format}</Chip>
+        {o.cost !== 'paid' && <Chip color="var(--ok)">{COST_LABELS[o.cost]}</Chip>}
       </div>
 
-      <h2 className="display text-lg leading-snug font-bold" style={{ color: 'var(--ink)' }}>
+      <h3 className="display text-lg leading-snug font-bold" style={{ color: 'var(--ink)' }}>
         {o.title}
-      </h2>
+      </h3>
       {o.org && (
-        <p className="mono mt-0.5 text-[0.7rem]" style={{ color: 'var(--ink-faint)' }}>
+        <p className="mono mt-0.5 text-xs" style={{ color: 'var(--ink-faint)' }}>
           {o.org}
         </p>
       )}
 
-      <p className="mt-3 flex-1 text-[0.85rem] leading-relaxed" style={{ color: 'var(--ink-soft)' }}>
+      <p
+        className="mt-3 flex-1 overflow-hidden text-sm leading-relaxed [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:3]"
+        style={{ color: 'var(--ink-soft)' }}
+      >
         {o.description}
       </p>
 
-      {o.location && o.format === 'local' && (
-        <p className="mono mt-3 text-[0.68rem]" style={{ color: 'var(--ink-faint)' }}>
-          {o.location}
-        </p>
-      )}
+      <p className="mono mt-3 text-xs" style={{ color: 'var(--ink-faint)' }}>
+        {meta.join(', ')}
+      </p>
 
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t pt-4">
-        <span className="mono text-[0.7rem]" style={{ color: urgent ? '#c42e2e' : 'var(--ink-faint)' }}>
+        <span
+          className="mono text-xs"
+          style={{ color: urgent ? 'var(--danger)' : 'var(--ink-faint)' }}
+        >
           {o.deadline
-            ? days < 0
-              ? `Closed ${formatDate(o.deadline)}`
-              : `Due ${formatDate(o.deadline)} · ${days} day${days === 1 ? '' : 's'} left`
-            : 'Rolling / varies'}
+            ? `Due ${formatDate(o.deadline)}, ${days} day${days === 1 ? '' : 's'} left`
+            : 'Rolling'}
         </span>
         <a
           className="btn btn-primary"
           href={o.url}
           target="_blank"
           rel="noreferrer noopener"
-          style={{ textDecoration: 'none' }}
+          aria-label={`Open ${o.title}`}
         >
-          Open ↗
+          Open
+          <ExternalLink size={14} aria-hidden="true" />
         </a>
       </div>
-
-      <p className="mono mt-2 text-[0.6rem]" style={{ color: 'var(--ink-faint)' }}>
-        Ages {o.age_min}–{o.age_max}
-      </p>
     </article>
+  );
+}
+
+function ClosedList({ rows }) {
+  return (
+    <details className="group mt-8">
+      <summary
+        className="mono flex cursor-pointer list-none items-center gap-1.5 text-sm font-semibold [&::-webkit-details-marker]:hidden"
+        style={{ color: 'var(--ink-soft)' }}
+      >
+        <ChevronRight
+          size={16}
+          className="transition-transform group-open:rotate-90"
+          aria-hidden="true"
+        />
+        Closed ({rows.length})
+      </summary>
+      <ul className="mt-3 divide-y border-t">
+        {rows.map((o) => (
+          <li key={o.id} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-2.5">
+            <span className="min-w-0">
+              <a
+                href={o.url}
+                target="_blank"
+                rel="noreferrer noopener"
+                aria-label={`Open ${o.title}`}
+                className="text-sm font-semibold no-underline hover:underline"
+                style={{ color: 'var(--ink-soft)' }}
+              >
+                {o.title}
+              </a>
+              {o.org && (
+                <span className="mono ml-2 text-xs" style={{ color: 'var(--ink-faint)' }}>
+                  {o.org}
+                </span>
+              )}
+            </span>
+            <span className="mono text-xs" style={{ color: 'var(--ink-faint)' }}>
+              Closed {formatDate(o.deadline)}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </details>
   );
 }

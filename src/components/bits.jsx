@@ -26,8 +26,8 @@ export function Avatar({ name, seed, size = 40, points = 0, ring = true }) {
         height: size,
         fontSize: size * 0.36,
         fontFamily: 'var(--font-mono)',
-        background: `hsl(${hue} 46% 92%)`,
-        color: `hsl(${hue} 55% 28%)`,
+        background: `light-dark(hsl(${hue} 46% 92%), hsl(${hue} 30% 24%))`,
+        color: `light-dark(hsl(${hue} 55% 28%), hsl(${hue} 60% 82%))`,
         boxShadow: ring ? `0 0 0 2px var(--card), 0 0 0 3.5px ${tier.color}` : undefined,
       }}
       aria-hidden="true"
@@ -41,7 +41,7 @@ export function Avatar({ name, seed, size = 40, points = 0, ring = true }) {
 
 export function TierMark({ points, showPoints = false, size = 'sm' }) {
   const tier = tierFor(points);
-  const pad = size === 'lg' ? 'px-2.5 py-1 text-xs' : 'px-2 py-0.5 text-[0.6875rem]';
+  const pad = size === 'lg' ? 'px-2.5 py-1 text-xs' : 'px-2 py-0.5 text-xs';
   return (
     <span
       className={`mono inline-flex items-center gap-1.5 rounded-full font-semibold tracking-wide ${pad}`}
@@ -78,7 +78,7 @@ export function TierProgress({ points, className = '' }) {
           style={{ width: `${pct}%`, background: tier.color }}
         />
       </div>
-      <p className="mono mt-1.5 text-[0.6875rem]" style={{ color: 'var(--ink-faint)' }}>
+      <p className="mono mt-1.5 text-xs" style={{ color: 'var(--ink-faint)' }}>
         {next ? (
           <>
             <span style={{ color: 'var(--ink-soft)', fontWeight: 600 }}>
@@ -97,13 +97,13 @@ export function TierProgress({ points, className = '' }) {
 /* ------------------------------- badges ------------------------------- */
 
 const BADGE_COLORS = {
-  amber: '#b8720e', emerald: '#2f8f5b', violet: '#6e3bd1', sky: '#2b5fd9',
-  rose: '#c42e2e', orange: '#c2560f', teal: '#128c93', lime: '#4d7c0f',
+  amber: 'var(--color-brass)', emerald: 'var(--ok)', violet: 'var(--tier-expert)', sky: 'var(--tier-specialist)',
+  rose: 'var(--danger)', orange: 'light-dark(#c2560f, #f08a4b)', teal: 'var(--tier-builder)', lime: 'light-dark(#4d7c0f, #9ccc3c)',
 };
 
 export function BadgeChip({ badge, size = 'sm' }) {
-  const color = BADGE_COLORS[badge.color] ?? '#6b7689';
-  const pad = size === 'lg' ? 'px-2.5 py-1 text-xs' : 'px-1.5 py-0.5 text-[0.6875rem]';
+  const color = BADGE_COLORS[badge.color] ?? 'var(--tier-newcomer)';
+  const pad = size === 'lg' ? 'px-2.5 py-1 text-xs' : 'px-1.5 py-0.5 text-xs';
   return (
     <span
       className={`mono inline-flex items-center gap-1 rounded font-medium ${pad}`}
@@ -175,10 +175,11 @@ export function Spinner({ label = 'Loading' }) {
 export function ErrorNote({ children, onRetry }) {
   return (
     <div
+      role="alert"
       className="card flex flex-wrap items-center gap-3 p-4"
-      style={{ borderColor: 'color-mix(in srgb, #c42e2e 35%, transparent)' }}
+      style={{ borderColor: 'color-mix(in srgb, var(--danger) 35%, transparent)' }}
     >
-      <p className="text-sm" style={{ color: '#c42e2e' }}>
+      <p className="text-sm" style={{ color: 'var(--danger)' }}>
         {children}
       </p>
       {onRetry && (
@@ -187,6 +188,17 @@ export function ErrorNote({ children, onRetry }) {
         </button>
       )}
     </div>
+  );
+}
+
+/** Grey block the shape of what is loading, so the page does not jump. */
+export function Skeleton({ className = '' }) {
+  return (
+    <div
+      className={`animate-pulse rounded-md ${className}`}
+      style={{ background: 'var(--paper-2)' }}
+      aria-hidden="true"
+    />
   );
 }
 
@@ -200,6 +212,50 @@ export function Empty({ title, children }) {
         </p>
       )}
     </div>
+  );
+}
+
+/* ------------------------------ headings ------------------------------ */
+
+/**
+ * The one section heading used across the site: a display h2 over a hairline,
+ * with an optional small note on the right. No uppercase eyebrows.
+ */
+export function SectionTitle({ children, aside, as: Tag = 'h2' }) {
+  return (
+    <div className="mb-4 flex items-baseline justify-between gap-4 border-b pb-2">
+      <Tag className="display text-xl font-bold" style={{ color: 'var(--ink)' }}>
+        {children}
+      </Tag>
+      {aside && (
+        <span className="mono text-xs" style={{ color: 'var(--ink-faint)' }}>
+          {aside}
+        </span>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Page header: an h1 plus one short line under it. Every page opens with this
+ * so the type scale and spacing never drift between pages.
+ */
+export function PageHeader({ title, children, eyebrow }) {
+  return (
+    <header className="mb-10">
+      {eyebrow && <p className="eyebrow">{eyebrow}</p>}
+      <h1
+        className="display mt-2 max-w-[16ch] text-[clamp(2.2rem,6vw,3.5rem)] leading-[0.95] font-extrabold"
+        style={{ color: 'var(--ink)' }}
+      >
+        {title}
+      </h1>
+      {children && (
+        <p className="mt-4 max-w-2xl text-base leading-relaxed" style={{ color: 'var(--ink-soft)' }}>
+          {children}
+        </p>
+      )}
+    </header>
   );
 }
 

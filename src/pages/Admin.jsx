@@ -2,6 +2,21 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../lib/api.js';
 import { formatDate, relativeDate, TYPE_LABELS, FORMAT_LABELS } from '../lib/format.js';
 import { Avatar, TierMark, Spinner } from '../components/bits.jsx';
+import { toast } from 'sonner';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+
+// Same signature the tabs have always used, so they only ever see `say`.
+const say = (message, tone = 'ok') => (tone === 'ok' ? toast.success : toast.error)(message);
 
 const TABS = [
   { id: 'points', label: 'Award points' },
@@ -22,12 +37,6 @@ export default function Admin() {
   const [authed, setAuthed] = useState(null);
   const [actionsUrl, setActionsUrl] = useState('');
   const [tab, setTab] = useState('points');
-  const [flash, setFlash] = useState(null);
-
-  const say = useCallback((message, tone = 'ok') => {
-    setFlash({ message, tone });
-    setTimeout(() => setFlash(null), 4000);
-  }, []);
 
   useEffect(() => {
     api
@@ -57,36 +66,29 @@ export default function Admin() {
         </button>
       </header>
 
-      <nav className="mb-6 flex flex-wrap gap-1.5 border-b pb-3">
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
-            className="mono rounded px-3 py-1.5 text-xs font-semibold transition-colors"
-            style={{
-              color: tab === t.id ? 'light-dark(#fff, #0d1017)' : 'var(--ink-soft)',
-              background: tab === t.id ? 'var(--flag)' : 'transparent',
-            }}
-            aria-current={tab === t.id ? 'page' : undefined}
-          >
-            {t.label}
-          </button>
-        ))}
-      </nav>
-
-      {flash && (
-        <p
-          className="mono mb-5 rounded border px-3 py-2 text-xs"
-          role="status"
-          style={{
-            color: flash.tone === 'ok' ? '#2f8f5b' : '#c42e2e',
-            borderColor: `color-mix(in srgb, ${flash.tone === 'ok' ? '#2f8f5b' : '#c42e2e'} 35%, transparent)`,
-            background: `color-mix(in srgb, ${flash.tone === 'ok' ? '#2f8f5b' : '#c42e2e'} 8%, transparent)`,
-          }}
+      <Tabs value={tab} onValueChange={setTab} className="mb-6">
+        <TabsList
+          className="w-full flex-wrap justify-start gap-1"
+          // Inline so the generated component's fixed 36px height cannot clip the wrapped rows.
+          style={{ height: 'auto' }}
         >
-          {flash.message}
-        </p>
-      )}
+          {TABS.map((t) => (
+            <TabsTrigger
+              key={t.id}
+              value={t.id}
+              className="mono h-auto flex-none px-3 py-1.5 text-xs font-semibold"
+              // Inline so the generated component's own active/dark classes cannot win.
+              style={
+                tab === t.id
+                  ? { background: 'var(--flag)', color: 'var(--on-flag)', borderColor: 'transparent' }
+                  : undefined
+              }
+            >
+              {t.label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
 
       {tab === 'points' && <PointsTab say={say} />}
       {tab === 'members' && <MembersTab say={say} />}
@@ -145,12 +147,12 @@ function Login({ onIn }) {
           />
         </label>
         {error && (
-          <p className="mono text-xs" style={{ color: '#c42e2e' }}>
+          <p className="mono text-xs" style={{ color: 'var(--danger)' }}>
             {error}
           </p>
         )}
         <button className="btn btn-primary" disabled={busy}>
-          {busy ? 'Checking…' : 'Sign in'}
+          {busy ? 'Checking' : 'Sign in'}
         </button>
       </form>
     </div>
@@ -179,7 +181,7 @@ function Field({ label, hint, children }) {
       <span className="eyebrow">{label}</span>
       {children}
       {hint && (
-        <span className="text-[0.72rem]" style={{ color: 'var(--ink-faint)' }}>
+        <span className="text-xs" style={{ color: 'var(--ink-faint)' }}>
           {hint}
         </span>
       )}
@@ -226,6 +228,7 @@ function PointsTab({ say }) {
   const [picked, setPicked] = useState([]);
   const [delta, setDelta] = useState('');
   const [reason, setReason] = useState('');
+  const [busy, setBusy] = useState(false);
   const reasonRef = useRef(null);
 
   const load = useCallback(() => {
@@ -243,10 +246,11 @@ function PointsTab({ say }) {
     reasonRef.current?.focus();
   };
 
-  const submit = (e) => {
+  const submit = async (e) => {
     e.preventDefault();
+    setBusy(true);
     if (mode === 'one') {
-      act(
+      await act(
         () => api.post('/admin/points', { student_id: Number(studentId), delta: Number(delta), reason }),
         `Awarded ${delta} points.`,
         () => {
@@ -255,7 +259,7 @@ function PointsTab({ say }) {
         }
       );
     } else {
-      act(
+      await act(
         () => api.post('/admin/points/bulk', { student_ids: picked, delta: Number(delta), reason }),
         `Awarded ${delta} points to ${picked.length} members.`,
         () => {
@@ -265,6 +269,7 @@ function PointsTab({ say }) {
         }
       );
     }
+    setBusy(false);
   };
 
   const recent = data.leaderboard;
@@ -286,7 +291,7 @@ function PointsTab({ say }) {
               onClick={() => setMode(id)}
               className="mono rounded border px-3 py-1.5 text-xs font-semibold"
               style={{
-                color: mode === id ? 'light-dark(#fff, #0d1017)' : 'var(--ink-soft)',
+                color: mode === id ? 'var(--on-flag)' : 'var(--ink-soft)',
                 background: mode === id ? 'var(--flag)' : 'transparent',
                 borderColor: mode === id ? 'var(--flag)' : 'var(--rule)',
               }}
@@ -304,7 +309,7 @@ function PointsTab({ say }) {
                 {active.map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.name}
-                    {s.grade ? ` — grade ${s.grade}` : ''}
+                    {s.grade ? ` · grade ${s.grade}` : ''}
                   </option>
                 ))}
               </select>
@@ -314,7 +319,7 @@ function PointsTab({ say }) {
               <div className="grid max-h-64 gap-1 overflow-y-auto rounded border p-2">
                 <button
                   type="button"
-                  className="mono self-start text-[0.7rem]"
+                  className="mono self-start text-xs"
                   style={{ color: 'var(--flag)' }}
                   onClick={() => setPicked(picked.length === active.length ? [] : active.map((s) => s.id))}
                 >
@@ -367,7 +372,7 @@ function PointsTab({ say }) {
                   key={p.reason}
                   type="button"
                   onClick={() => applyPreset(p)}
-                  className="mono rounded-full border px-2.5 py-1 text-[0.7rem]"
+                  className="mono rounded-full border px-2.5 py-1 text-xs"
                   style={{ color: 'var(--ink-soft)' }}
                 >
                   +{p.amount} {p.reason}
@@ -376,7 +381,9 @@ function PointsTab({ say }) {
             </div>
           </div>
 
-          <button className="btn btn-primary justify-self-start">Award points</button>
+          <button className="btn btn-primary justify-self-start" disabled={busy}>
+            {busy ? 'Awarding' : 'Award points'}
+          </button>
         </form>
       </Section>
 
@@ -406,6 +413,7 @@ function MembersTab({ say }) {
   const [grade, setGrade] = useState('');
   const [openId, setOpenId] = useState(null);
   const [events, setEvents] = useState([]);
+  const [busy, setBusy] = useState(false);
 
   const load = useCallback(() => {
     api.get('/admin/students').then(setData).catch((e) => say(e.message, 'bad'));
@@ -428,12 +436,14 @@ function MembersTab({ say }) {
       <Section title="Add a member" hint="Only a name is required.">
         <form
           className="grid gap-3"
-          onSubmit={(e) => {
+          onSubmit={async (e) => {
             e.preventDefault();
-            act(() => api.post('/admin/students', { name, grade }), `Added ${name}.`, () => {
+            setBusy(true);
+            await act(() => api.post('/admin/students', { name, grade }), `Added ${name}.`, () => {
               setName('');
               setGrade('');
             });
+            setBusy(false);
           }}
         >
           <Field label="Name">
@@ -449,7 +459,9 @@ function MembersTab({ say }) {
               ))}
             </select>
           </Field>
-          <button className="btn btn-primary">Add member</button>
+          <button className="btn btn-primary" disabled={busy}>
+            {busy ? 'Adding' : 'Add member'}
+          </button>
         </form>
       </Section>
 
@@ -461,43 +473,42 @@ function MembersTab({ say }) {
               <li key={s.id} className="rounded border p-3">
                 <div className="flex flex-wrap items-center gap-3">
                   <Avatar name={s.name} seed={s.avatar_seed} points={stats?.points ?? 0} size={32} />
-                  <div className="min-w-0 flex-1">
+                  {/* A floor rather than min-w-0: the buttons wrap instead of squeezing the name to an ellipsis. */}
+                  <div className="min-w-[9rem] flex-1">
                     <p className="truncate text-sm font-semibold">
                       {s.name}
                       {!s.active && (
-                        <span className="mono ml-2 text-[0.65rem]" style={{ color: 'var(--ink-faint)' }}>
+                        <span className="mono ml-2 text-xs" style={{ color: 'var(--ink-faint)' }}>
                           hidden
                         </span>
                       )}
                     </p>
-                    <p className="mono text-[0.65rem]" style={{ color: 'var(--ink-faint)' }}>
+                    <p className="mono text-xs" style={{ color: 'var(--ink-faint)' }}>
                       {s.grade ? `Grade ${s.grade}` : 'No grade'} · {stats?.points ?? 0} points
                     </p>
                   </div>
-                  <button className="btn btn-ghost" onClick={() => openHistory(s.id)}>
-                    {openId === s.id ? 'Hide history' : 'History'}
-                  </button>
-                  <button
-                    className="btn btn-ghost"
-                    onClick={() =>
-                      act(
-                        () => api.patch(`/admin/students/${s.id}`, { active: !s.active }),
-                        s.active ? `${s.name} hidden from the board.` : `${s.name} is back on the board.`
-                      )
-                    }
-                  >
-                    {s.active ? 'Hide' : 'Show'}
-                  </button>
-                  <button
-                    className="btn btn-danger"
-                    onClick={() => {
-                      if (confirm(`Delete ${s.name} and every point they have earned? This cannot be undone.`)) {
-                        act(() => api.del(`/admin/students/${s.id}`), `Deleted ${s.name}.`);
+                  <div className="flex flex-wrap gap-2">
+                    <button className="btn btn-ghost" onClick={() => openHistory(s.id)}>
+                      {openId === s.id ? 'Hide history' : 'History'}
+                    </button>
+                    <button
+                      className="btn btn-ghost"
+                      onClick={() =>
+                        act(
+                          () => api.patch(`/admin/students/${s.id}`, { active: !s.active }),
+                          s.active ? `${s.name} hidden from the board.` : `${s.name} is back on the board.`
+                        )
                       }
-                    }}
-                  >
-                    Delete
-                  </button>
+                    >
+                      {s.active ? 'Hide' : 'Show'}
+                    </button>
+                    <ConfirmButton
+                      label="Delete"
+                      title={`Delete ${s.name}?`}
+                      description="Their profile and every point they have earned go away. This cannot be undone."
+                      onConfirm={() => act(() => api.del(`/admin/students/${s.id}`), `Deleted ${s.name}.`)}
+                    />
+                  </div>
                 </div>
 
                 {openId === s.id && (
@@ -511,25 +522,26 @@ function MembersTab({ say }) {
                       <li key={e.id} className="flex items-center gap-3 text-sm">
                         <span
                           className="mono w-12 text-right font-bold"
-                          style={{ color: e.delta >= 0 ? '#2f8f5b' : '#c42e2e' }}
+                          style={{ color: e.delta >= 0 ? 'var(--ok)' : 'var(--danger)' }}
                         >
                           {e.delta > 0 ? '+' : ''}
                           {e.delta}
                         </span>
                         <span className="min-w-0 flex-1 truncate">{e.reason}</span>
-                        <span className="mono text-[0.65rem]" style={{ color: 'var(--ink-faint)' }}>
+                        <span className="mono text-xs" style={{ color: 'var(--ink-faint)' }}>
                           {relativeDate(e.created_at)}
                         </span>
-                        <button
-                          className="btn btn-danger"
-                          onClick={() =>
+                        <ConfirmButton
+                          label="Undo"
+                          title="Undo this award?"
+                          description={`${e.delta > 0 ? '+' : ''}${e.delta} points for "${e.reason}" are taken back.`}
+                          confirmLabel="Undo"
+                          onConfirm={() =>
                             act(() => api.del(`/admin/points/${e.id}`), 'Award removed.', () => {
                               setOpenId(null);
                             })
                           }
-                        >
-                          Undo
-                        </button>
+                        />
                       </li>
                     ))}
                   </ul>
@@ -552,6 +564,8 @@ function BadgesTab({ say }) {
   const [students, setStudents] = useState([]);
   const [form, setForm] = useState({ name: '', emoji: '🏅', description: '', color: 'violet' });
   const [award, setAward] = useState({ student_id: '', badge_id: '' });
+  const [creating, setCreating] = useState(false);
+  const [awarding, setAwarding] = useState(false);
 
   const load = useCallback(() => {
     Promise.all([api.get('/admin/badges'), api.get('/admin/students')])
@@ -574,11 +588,13 @@ function BadgesTab({ say }) {
         <Section title="Create a badge">
           <form
             className="grid gap-3"
-            onSubmit={(e) => {
+            onSubmit={async (e) => {
               e.preventDefault();
-              act(() => api.post('/admin/badges', form), `Created "${form.name}".`, () =>
+              setCreating(true);
+              await act(() => api.post('/admin/badges', form), `Created "${form.name}".`, () =>
                 setForm({ name: '', emoji: '🏅', description: '', color: 'violet' })
               );
+              setCreating(false);
             }}
           >
             <div className="grid grid-cols-[4.5rem_1fr] gap-3">
@@ -619,16 +635,19 @@ function BadgesTab({ say }) {
                 ))}
               </select>
             </Field>
-            <button className="btn btn-primary">Create badge</button>
+            <button className="btn btn-primary" disabled={creating}>
+              {creating ? 'Creating' : 'Create badge'}
+            </button>
           </form>
         </Section>
 
         <Section title="Give a badge to someone">
           <form
             className="grid gap-3"
-            onSubmit={(e) => {
+            onSubmit={async (e) => {
               e.preventDefault();
-              act(
+              setAwarding(true);
+              await act(
                 () =>
                   api.post('/admin/badges/award', {
                     student_id: Number(award.student_id),
@@ -636,6 +655,7 @@ function BadgesTab({ say }) {
                   }),
                 'Badge awarded.'
               );
+              setAwarding(false);
             }}
           >
             <Field label="Member">
@@ -668,7 +688,9 @@ function BadgesTab({ say }) {
                 ))}
               </select>
             </Field>
-            <button className="btn btn-primary">Award badge</button>
+            <button className="btn btn-primary" disabled={awarding}>
+              {awarding ? 'Awarding' : 'Award badge'}
+            </button>
           </form>
         </Section>
       </div>
@@ -683,42 +705,39 @@ function BadgesTab({ say }) {
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold">{b.name}</p>
-                  <p className="text-[0.75rem]" style={{ color: 'var(--ink-soft)' }}>
+                  <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>
                     {b.description || 'No description'}
                   </p>
                 </div>
-                <button
-                  className="btn btn-danger"
-                  onClick={() => {
-                    if (confirm(`Delete the "${b.name}" badge everywhere it has been awarded?`)) {
-                      act(() => api.del(`/admin/badges/${b.id}`), 'Badge deleted.');
-                    }
-                  }}
-                >
-                  Delete
-                </button>
+                <ConfirmButton
+                  label="Delete"
+                  title={`Delete the "${b.name}" badge?`}
+                  description="It is removed from everyone who has been awarded it."
+                  onConfirm={() => act(() => api.del(`/admin/badges/${b.id}`), 'Badge deleted.')}
+                />
               </div>
               <div className="mt-2 flex flex-wrap gap-1.5">
                 {holders(b.id).length === 0 ? (
-                  <span className="mono text-[0.65rem]" style={{ color: 'var(--ink-faint)' }}>
+                  <span className="mono text-xs" style={{ color: 'var(--ink-faint)' }}>
                     Not awarded yet
                   </span>
                 ) : (
                   holders(b.id).map((s) => (
-                    <button
+                    <ConfirmButton
                       key={s.id}
-                      className="mono rounded border px-2 py-0.5 text-[0.65rem]"
+                      label={`${s.name} ✕`}
+                      className="mono rounded border px-2 py-0.5 text-xs"
                       style={{ color: 'var(--ink-soft)' }}
-                      title="Click to take this badge back"
-                      onClick={() =>
+                      title={`Take "${b.name}" back from ${s.name}?`}
+                      description="The badge disappears from their profile."
+                      confirmLabel="Revoke"
+                      onConfirm={() =>
                         act(
                           () => api.post('/admin/badges/revoke', { student_id: s.id, badge_id: b.id }),
                           `Took "${b.name}" back from ${s.name}.`
                         )
                       }
-                    >
-                      {s.name} ✕
-                    </button>
+                    />
                   ))
                 )}
               </div>
@@ -738,7 +757,7 @@ const BLANK_OPP = {
   age_min: 14, age_max: 17, status: 'live',
 };
 
-function OpportunityForm({ value, onChange, onSubmit, submitLabel, onCancel }) {
+function OpportunityForm({ value, onChange, onSubmit, submitLabel, onCancel, busy }) {
   return (
     <form className="grid gap-3" onSubmit={onSubmit}>
       <Field label="Title">
@@ -793,7 +812,9 @@ function OpportunityForm({ value, onChange, onSubmit, submitLabel, onCancel }) {
         </Field>
       </div>
       <div className="flex gap-2">
-        <button className="btn btn-primary">{submitLabel}</button>
+        <button className="btn btn-primary" disabled={busy}>
+          {busy ? 'Saving' : submitLabel}
+        </button>
         {onCancel && (
           <button type="button" className="btn btn-ghost" onClick={onCancel}>
             Cancel
@@ -808,6 +829,7 @@ function OpportunitiesTab({ say }) {
   const [items, setItems] = useState(null);
   const [draft, setDraft] = useState(BLANK_OPP);
   const [editing, setEditing] = useState(null);
+  const [busy, setBusy] = useState(false);
 
   const load = useCallback(() => {
     api.get('/admin/opportunities').then((d) => setItems(d.opportunities)).catch((e) => say(e.message, 'bad'));
@@ -829,17 +851,20 @@ function OpportunitiesTab({ say }) {
           onChange={editing ? setEditing : setDraft}
           submitLabel={editing ? 'Save changes' : 'Add to the board'}
           onCancel={editing ? () => setEditing(null) : undefined}
-          onSubmit={(e) => {
+          busy={busy}
+          onSubmit={async (e) => {
             e.preventDefault();
+            setBusy(true);
             if (editing) {
-              act(() => api.patch(`/admin/opportunities/${editing.id}`, editing), 'Saved.', () =>
+              await act(() => api.patch(`/admin/opportunities/${editing.id}`, editing), 'Saved.', () =>
                 setEditing(null)
               );
             } else {
-              act(() => api.post('/admin/opportunities', draft), 'Added to the board.', () =>
+              await act(() => api.post('/admin/opportunities', draft), 'Added to the board.', () =>
                 setDraft(BLANK_OPP)
               );
             }
+            setBusy(false);
           }}
         />
       </Section>
@@ -850,7 +875,7 @@ function OpportunitiesTab({ say }) {
             <li key={o.id} className="flex flex-wrap items-center gap-3 rounded border p-3">
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold">{o.title}</p>
-                <p className="mono text-[0.65rem]" style={{ color: 'var(--ink-faint)' }}>
+                <p className="mono text-xs" style={{ color: 'var(--ink-faint)' }}>
                   {TYPE_LABELS[o.type] ?? o.type} · {FORMAT_LABELS[o.format] ?? o.format}
                   {o.distance_mi != null && ` · ${o.distance_mi} mi`}
                   {o.deadline && ` · due ${formatDate(o.deadline)}`}
@@ -860,16 +885,13 @@ function OpportunitiesTab({ say }) {
               <button className="btn btn-ghost" onClick={() => setEditing({ ...o, deadline: o.deadline ?? '' })}>
                 Edit
               </button>
-              <button
-                className="btn btn-danger"
-                onClick={() => {
-                  if (confirm(`Remove "${o.title}" from the board?`)) {
-                    act(() => api.del(`/admin/opportunities/${o.id}`), 'Removed.');
-                  }
-                }}
-              >
-                Remove
-              </button>
+              <ConfirmButton
+                label="Remove"
+                title={`Remove "${o.title}"?`}
+                description="It comes off the public board straight away."
+                confirmLabel="Remove"
+                onConfirm={() => act(() => api.del(`/admin/opportunities/${o.id}`), 'Removed.')}
+              />
             </li>
           ))}
         </ul>
@@ -916,7 +938,7 @@ function QueueTab({ say, actionsUrl }) {
             Open the scraper on GitHub ↗
           </a>
         ) : (
-          <p className="mono mt-4 text-[0.7rem]" style={{ color: 'var(--ink-faint)' }}>
+          <p className="mono mt-4 text-xs" style={{ color: 'var(--ink-faint)' }}>
             Set ACTIONS_URL in wrangler.toml to link straight to it from here.
           </p>
         )}
@@ -942,10 +964,10 @@ function QueueTab({ say, actionsUrl }) {
                     >
                       {o.title} ↗
                     </a>
-                    <p className="mt-0.5 text-[0.78rem]" style={{ color: 'var(--ink-soft)' }}>
+                    <p className="mt-0.5 text-xs" style={{ color: 'var(--ink-soft)' }}>
                       {o.description || 'No description supplied.'}
                     </p>
-                    <p className="mono mt-1 text-[0.65rem]" style={{ color: 'var(--ink-faint)' }}>
+                    <p className="mono mt-1 text-xs" style={{ color: 'var(--ink-faint)' }}>
                       {o.org || 'Unknown source'} · {FORMAT_LABELS[o.format] ?? o.format}
                       {o.distance_mi != null && ` · ${o.distance_mi} mi`}
                       {o.deadline && ` · due ${formatDate(o.deadline)}`}
@@ -961,12 +983,13 @@ function QueueTab({ say, actionsUrl }) {
                     >
                       Approve
                     </button>
-                    <button
-                      className="btn btn-danger"
-                      onClick={() => act(() => api.del(`/admin/opportunities/${o.id}`), 'Rejected.')}
-                    >
-                      Reject
-                    </button>
+                    <ConfirmButton
+                      label="Reject"
+                      title={`Reject "${o.title}"?`}
+                      description="It leaves the queue and the scraper will not bring it back."
+                      confirmLabel="Reject"
+                      onConfirm={() => act(() => api.del(`/admin/opportunities/${o.id}`), 'Rejected.')}
+                    />
                   </div>
                 </div>
               </li>
@@ -985,6 +1008,7 @@ const BLANK_OFFICER = { name: '', role: '', note: '', committee: 'main', sort_or
 function OfficersTab({ say }) {
   const [officers, setOfficers] = useState(null);
   const [form, setForm] = useState(BLANK_OFFICER);
+  const [busy, setBusy] = useState(false);
 
   const load = useCallback(() => {
     api.get('/admin/officers').then((d) => setOfficers(d.officers)).catch((e) => say(e.message, 'bad'));
@@ -999,11 +1023,13 @@ function OfficersTab({ say }) {
       <Section title="Add an officer" hint="Shown on the About page.">
         <form
           className="grid gap-3"
-          onSubmit={(e) => {
+          onSubmit={async (e) => {
             e.preventDefault();
-            act(() => api.post('/admin/officers', form), `Added ${form.name}.`, () =>
+            setBusy(true);
+            await act(() => api.post('/admin/officers', form), `Added ${form.name}.`, () =>
               setForm({ ...BLANK_OFFICER, sort_order: officers.length })
             );
+            setBusy(false);
           }}
         >
           <Field label="Name">
@@ -1021,7 +1047,9 @@ function OfficersTab({ say }) {
               <option value="cyber">Cybersecurity Committee</option>
             </select>
           </Field>
-          <button className="btn btn-primary">Add officer</button>
+          <button className="btn btn-primary" disabled={busy}>
+            {busy ? 'Adding' : 'Add officer'}
+          </button>
         </form>
       </Section>
 
@@ -1034,16 +1062,17 @@ function OfficersTab({ say }) {
               <li key={o.id} className="flex flex-wrap items-center gap-3 rounded border p-3">
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold">{o.name}</p>
-                  <p className="mono text-[0.65rem]" style={{ color: 'var(--ink-faint)' }}>
+                  <p className="mono text-xs" style={{ color: 'var(--ink-faint)' }}>
                     {o.role}{o.note && ` · ${o.note}`} · {o.committee === 'cyber' ? 'Cyber' : 'Main'}
                   </p>
                 </div>
-                <button
-                  className="btn btn-danger"
-                  onClick={() => act(() => api.del(`/admin/officers/${o.id}`), `Removed ${o.name}.`)}
-                >
-                  Remove
-                </button>
+                <ConfirmButton
+                  label="Remove"
+                  title={`Remove ${o.name}?`}
+                  description="They come off the About page."
+                  confirmLabel="Remove"
+                  onConfirm={() => act(() => api.del(`/admin/officers/${o.id}`), `Removed ${o.name}.`)}
+                />
               </li>
             ))}
           </ul>
@@ -1058,6 +1087,7 @@ function OfficersTab({ say }) {
 function CurriculumTab({ say }) {
   const [topics, setTopics] = useState(null);
   const [form, setForm] = useState({ track: 'fall', title: '' });
+  const [busy, setBusy] = useState(false);
 
   const load = useCallback(() => {
     api.get('/admin/curriculum').then((d) => setTopics(d.topics)).catch((e) => say(e.message, 'bad'));
@@ -1072,24 +1102,28 @@ function CurriculumTab({ say }) {
       <Section title="Add a topic" hint="Check topics off as covered from the list once they've actually been taught.">
         <form
           className="grid gap-3"
-          onSubmit={(e) => {
+          onSubmit={async (e) => {
             e.preventDefault();
             const sort_order = topics.filter((t) => t.track === form.track).length;
-            act(() => api.post('/admin/curriculum', { ...form, sort_order }), `Added "${form.title}".`, () =>
+            setBusy(true);
+            await act(() => api.post('/admin/curriculum', { ...form, sort_order }), `Added "${form.title}".`, () =>
               setForm({ ...form, title: '' })
             );
+            setBusy(false);
           }}
         >
           <Field label="Track">
             <select className="field" value={form.track} onChange={(e) => setForm({ ...form, track: e.target.value })}>
-              <option value="fall">Fall — Beginner</option>
-              <option value="spring">Spring — Advanced</option>
+              <option value="fall">Fall (Beginner)</option>
+              <option value="spring">Spring (Advanced)</option>
             </select>
           </Field>
           <Field label="Topic">
             <input className="field" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required />
           </Field>
-          <button className="btn btn-primary">Add topic</button>
+          <button className="btn btn-primary" disabled={busy}>
+            {busy ? 'Adding' : 'Add topic'}
+          </button>
         </form>
       </Section>
 
@@ -1110,15 +1144,16 @@ function CurriculumTab({ say }) {
                     {t.title}
                   </span>
                 </label>
-                <span className="mono text-[0.65rem]" style={{ color: 'var(--ink-faint)' }}>
+                <span className="mono text-xs" style={{ color: 'var(--ink-faint)' }}>
                   {t.track}
                 </span>
-                <button
-                  className="btn btn-danger"
-                  onClick={() => act(() => api.del(`/admin/curriculum/${t.id}`), 'Removed.')}
-                >
-                  Remove
-                </button>
+                <ConfirmButton
+                  label="Remove"
+                  title={`Remove "${t.title}"?`}
+                  description="It comes off the curriculum list for this track."
+                  confirmLabel="Remove"
+                  onConfirm={() => act(() => api.del(`/admin/curriculum/${t.id}`), 'Removed.')}
+                />
               </li>
             ))}
           </ul>
@@ -1137,6 +1172,7 @@ const BLANK_COMPETITION = {
 function CompetitionsTab({ say }) {
   const [competitions, setCompetitions] = useState(null);
   const [form, setForm] = useState(BLANK_COMPETITION);
+  const [busy, setBusy] = useState(false);
 
   const load = useCallback(() => {
     api.get('/admin/competitions').then((d) => setCompetitions(d.competitions)).catch((e) => say(e.message, 'bad'));
@@ -1151,13 +1187,15 @@ function CompetitionsTab({ say }) {
       <Section title="Add a competition">
         <form
           className="grid gap-3"
-          onSubmit={(e) => {
+          onSubmit={async (e) => {
             e.preventDefault();
-            act(
+            setBusy(true);
+            await act(
               () => api.post('/admin/competitions', { ...form, sort_order: competitions.length }),
               `Added "${form.name}".`,
               () => setForm(BLANK_COMPETITION)
             );
+            setBusy(false);
           }}
         >
           <Field label="Name">
@@ -1183,7 +1221,9 @@ function CompetitionsTab({ say }) {
           <Field label="Link" hint="Optional.">
             <input className="field" type="url" value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} placeholder="https://" />
           </Field>
-          <button className="btn btn-primary">Add competition</button>
+          <button className="btn btn-primary" disabled={busy}>
+            {busy ? 'Adding' : 'Add competition'}
+          </button>
         </form>
       </Section>
 
@@ -1196,16 +1236,17 @@ function CompetitionsTab({ say }) {
               <li key={c.id} className="flex flex-wrap items-center gap-3 rounded border p-3">
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold">{c.name}</p>
-                  <p className="mono text-[0.65rem]" style={{ color: 'var(--ink-faint)' }}>
+                  <p className="mono text-xs" style={{ color: 'var(--ink-faint)' }}>
                     {c.result || 'No result yet'}{c.event_date && ` · ${formatDate(c.event_date)}`}
                   </p>
                 </div>
-                <button
-                  className="btn btn-danger"
-                  onClick={() => act(() => api.del(`/admin/competitions/${c.id}`), `Removed ${c.name}.`)}
-                >
-                  Remove
-                </button>
+                <ConfirmButton
+                  label="Remove"
+                  title={`Remove ${c.name}?`}
+                  description="It comes off the Competitions page, result and all."
+                  confirmLabel="Remove"
+                  onConfirm={() => act(() => api.del(`/admin/competitions/${c.id}`), `Removed ${c.name}.`)}
+                />
               </li>
             ))}
           </ul>
@@ -1225,6 +1266,7 @@ const BLANK_PUZZLE = {
 function PuzzlesTab({ say }) {
   const [puzzles, setPuzzles] = useState(null);
   const [form, setForm] = useState(BLANK_PUZZLE);
+  const [busy, setBusy] = useState(false);
 
   const load = useCallback(() => {
     api.get('/admin/puzzles').then((d) => setPuzzles(d.puzzles)).catch((e) => say(e.message, 'bad'));
@@ -1239,9 +1281,11 @@ function PuzzlesTab({ say }) {
       <Section title="Add a puzzle" hint="Leave the answer blank and 'revealed' off to post this week's opener without spoiling it, then come back and fill in the answer after the meeting.">
         <form
           className="grid gap-3"
-          onSubmit={(e) => {
+          onSubmit={async (e) => {
             e.preventDefault();
-            act(() => api.post('/admin/puzzles', form), `Added "${form.title}".`, () => setForm(BLANK_PUZZLE));
+            setBusy(true);
+            await act(() => api.post('/admin/puzzles', form), `Added "${form.title}".`, () => setForm(BLANK_PUZZLE));
+            setBusy(false);
           }}
         >
           <Field label="Title">
@@ -1275,7 +1319,9 @@ function PuzzlesTab({ say }) {
             <input type="checkbox" checked={form.is_current} onChange={(e) => setForm({ ...form, is_current: e.target.checked })} />
             Make this the Problem of the Week
           </label>
-          <button className="btn btn-primary">Add puzzle</button>
+          <button className="btn btn-primary" disabled={busy}>
+            {busy ? 'Adding' : 'Add puzzle'}
+          </button>
         </form>
       </Section>
 
@@ -1289,7 +1335,7 @@ function PuzzlesTab({ say }) {
                 <div className="flex flex-wrap items-center gap-3">
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold">{p.title}</p>
-                    <p className="mono text-[0.65rem]" style={{ color: 'var(--ink-faint)' }}>
+                    <p className="mono text-xs" style={{ color: 'var(--ink-faint)' }}>
                       {formatDate(p.posted_at)} · {p.revealed ? 'revealed' : 'hidden until revealed'}
                       {p.is_current ? ' · this week' : ''}
                       {p.difficulty ? ` · ${p.difficulty}` : ''}
@@ -1311,12 +1357,13 @@ function PuzzlesTab({ say }) {
                       Make current
                     </button>
                   )}
-                  <button
-                    className="btn btn-danger"
-                    onClick={() => act(() => api.del(`/admin/puzzles/${p.id}`), `Removed ${p.title}.`)}
-                  >
-                    Remove
-                  </button>
+                  <ConfirmButton
+                    label="Remove"
+                    title={`Remove "${p.title}"?`}
+                    description="The puzzle, its hints, and its answer leave the archive."
+                    confirmLabel="Remove"
+                    onConfirm={() => act(() => api.del(`/admin/puzzles/${p.id}`), `Removed ${p.title}.`)}
+                  />
                 </div>
               </li>
             ))}
@@ -1372,23 +1419,24 @@ function EmailTab({ say }) {
               <li key={m.id} className="flex flex-wrap items-center gap-3 rounded border p-3">
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold">{m.email}</p>
-                  <p className="mono text-[0.65rem]" style={{ color: m.confirmed ? '#2f8f5b' : 'var(--ink-faint)' }}>
+                  <p className="mono text-xs" style={{ color: m.confirmed ? 'var(--ok)' : 'var(--ink-faint)' }}>
                     {m.confirmed ? 'confirmed' : 'not confirmed'} · added {relativeDate(m.created_at)}
                   </p>
                 </div>
-                <button
-                  className="btn btn-danger"
-                  onClick={() => act(() => api.del(`/admin/subscribers/${m.id}`), `Removed ${m.email}.`)}
-                >
-                  Remove
-                </button>
+                <ConfirmButton
+                  label="Remove"
+                  title={`Remove ${m.email}?`}
+                  description="They stop getting the weekly email. They can sign up again from the site footer."
+                  confirmLabel="Remove"
+                  onConfirm={() => act(() => api.del(`/admin/subscribers/${m.id}`), `Removed ${m.email}.`)}
+                />
               </li>
             ))}
           </ul>
         )}
       </Section>
 
-      <Section title="Weekly email" hint="Sends every Monday, automatically, and only when something actually happened since the last one. Preview first -- it shows exactly what would go out.">
+      <Section title="Weekly email" hint="Sends every Monday, automatically, and only when something actually happened since the last one. Preview first. It shows exactly what would go out.">
         <div className="flex flex-wrap gap-2">
           <button className="btn btn-ghost" disabled={busy} onClick={() => runDigest(true)}>
             Preview
@@ -1403,11 +1451,11 @@ function EmailTab({ say }) {
               <p className="text-sm" style={{ color: 'var(--ink-soft)' }}>{digest.skipped}</p>
             ) : (
               <>
-                <p className="mono text-[0.7rem]" style={{ color: 'var(--ink-faint)' }}>
+                <p className="mono text-xs" style={{ color: 'var(--ink-faint)' }}>
                   {digest.subject} · {digest.sent} of {digest.recipients} sent
                 </p>
                 {digest.sample && (
-                  <pre className="mono mt-2 max-h-72 overflow-auto rounded p-3 text-[0.65rem] whitespace-pre-wrap" style={{ background: 'var(--paper-2)' }}>
+                  <pre className="mono mt-2 max-h-72 overflow-auto rounded p-3 text-xs whitespace-pre-wrap" style={{ background: 'var(--paper-2)' }}>
                     {digest.sample}
                   </pre>
                 )}
@@ -1445,6 +1493,7 @@ const TEXT_FIELDS = [
 
 function TextTab({ say }) {
   const [settings, setSettings] = useState(null);
+  const [busy, setBusy] = useState(false);
 
   const load = useCallback(() => {
     api.get('/admin/settings').then((d) => setSettings(d.settings)).catch((e) => say(e.message, 'bad'));
@@ -1458,9 +1507,11 @@ function TextTab({ say }) {
     <Section title="Page text" hint="Everything the site says, in one place. The About page understands ## for headings and - for bullet points.">
       <form
         className="grid gap-4"
-        onSubmit={(e) => {
+        onSubmit={async (e) => {
           e.preventDefault();
-          act(() => api.put('/admin/settings', { settings }), 'Saved.');
+          setBusy(true);
+          await act(() => api.put('/admin/settings', { settings }), 'Saved.');
+          setBusy(false);
         }}
       >
         {TEXT_FIELDS.map(([key, label, kind]) => (
@@ -1493,7 +1544,9 @@ function TextTab({ say }) {
             )}
           </Field>
         ))}
-        <button className="btn btn-primary justify-self-start">Save page text</button>
+        <button className="btn btn-primary justify-self-start" disabled={busy}>
+          {busy ? 'Saving' : 'Save page text'}
+        </button>
       </form>
     </Section>
   );
@@ -1506,7 +1559,6 @@ function BackupTab({ say }) {
 
   const restore = async (file) => {
     if (!file) return;
-    if (!confirm('Restoring replaces everything currently on the site with the contents of this file. Continue?')) return;
     try {
       const backup = JSON.parse(await file.text());
       await api.post('/admin/restore', backup);
@@ -1520,7 +1572,7 @@ function BackupTab({ say }) {
     <div className="grid gap-6 md:grid-cols-2">
       <Section
         title="Download a backup"
-        hint="Everything — members, points, badges, opportunities, page text — as one file. Do this before big changes, and once a month otherwise."
+        hint="Everything (members, points, badges, opportunities, page text) as one file. Do this before big changes, and once a month otherwise."
       >
         <a className="btn btn-primary" href="/api/admin/backup" style={{ textDecoration: 'none' }}>
           Download backup file
@@ -1528,14 +1580,74 @@ function BackupTab({ say }) {
       </Section>
 
       <Section title="Restore from a backup" hint="Replaces all current data with the file's contents. There is no undo.">
+        <ConfirmButton
+          label="Restore from file"
+          title="Restore from a backup file?"
+          description="Everything currently on the site is replaced with the contents of the file you pick next. There is no undo."
+          confirmLabel="Restore"
+          onConfirm={() => fileRef.current?.click()}
+        />
         <input
           ref={fileRef}
           type="file"
           accept="application/json,.json"
-          className="field"
+          className="sr-only"
           onChange={(e) => restore(e.target.files?.[0])}
         />
       </Section>
     </div>
+  );
+}
+
+/* ------------------------------ confirm dialog ------------------------------ */
+
+/** Replaces window.confirm so a destructive action reads in the site's own voice. */
+function ConfirmButton({
+  label,
+  title,
+  description,
+  confirmLabel = 'Delete',
+  onConfirm,
+  className = 'btn btn-danger',
+  style,
+}) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <button type="button" className={className} style={style}>
+          {label}
+        </button>
+      </DialogTrigger>
+      <DialogContent
+        className="rounded-lg"
+        style={{ background: 'var(--card)', borderColor: 'var(--rule)', color: 'var(--ink)' }}
+      >
+        <DialogHeader>
+          <DialogTitle className="display text-base font-bold">{title}</DialogTitle>
+          {description && (
+            <DialogDescription style={{ color: 'var(--ink-soft)' }}>{description}</DialogDescription>
+          )}
+        </DialogHeader>
+        <DialogFooter>
+          <DialogClose asChild>
+            <button type="button" className="btn btn-ghost">
+              Cancel
+            </button>
+          </DialogClose>
+          <button
+            type="button"
+            className="btn btn-danger"
+            onClick={() => {
+              onConfirm();
+              setOpen(false);
+            }}
+          >
+            {confirmLabel}
+          </button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

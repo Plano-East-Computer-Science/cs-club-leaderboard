@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
+import { Check } from 'lucide-react';
 import { api } from '../lib/api.js';
-import { Spinner, ErrorNote, Empty } from '../components/bits.jsx';
+import { PageHeader, SectionTitle, Skeleton, ErrorNote } from '../components/bits.jsx';
 
 const TRACKS = [
-  { id: 'fall', label: 'Fall — Beginner', blurb: 'Print statements to object-oriented programming. No experience assumed.' },
-  { id: 'spring', label: 'Spring — Advanced', blurb: 'Searching, sorting, data structures, graphs, and dynamic programming.' },
+  { id: 'fall', label: 'Fall, beginner', blurb: 'Print statements to object-oriented programming. No experience assumed.' },
+  { id: 'spring', label: 'Spring, advanced', blurb: 'Searching, sorting, data structures, graphs, and dynamic programming.' },
 ];
 
 export default function Curriculum() {
@@ -17,64 +18,94 @@ export default function Curriculum() {
   };
   useEffect(load, []);
 
-  if (error) return <ErrorNote onRetry={load}>{error}</ErrorNote>;
-  if (!topics) return <Spinner label="Loading curriculum" />;
-
   return (
     <div>
-      <header className="mb-8">
-        <p className="eyebrow">The Java track</p>
-        <h1 className="display mt-2 text-[clamp(2.2rem,6vw,3.5rem)] leading-[0.95] font-extrabold">
-          What we teach, all year.
-        </h1>
-        <p className="mt-4 max-w-2xl text-base" style={{ color: 'var(--ink-soft)' }}>
-          Beginners and returning members are both covered — the fall track assumes nothing, the
-          spring track goes further. A checked topic has already been taught this year.
-        </p>
-      </header>
+      <PageHeader title="What we teach, all year">
+        The fall track assumes nothing. The spring track goes further. A checked topic has
+        already been taught this year.
+      </PageHeader>
 
-      {topics.length === 0 ? (
-        <Empty title="No topics posted yet">Check back once the roadmap is up.</Empty>
+      {error ? (
+        <ErrorNote onRetry={load}>{error}</ErrorNote>
+      ) : !topics ? (
+        <div className="grid gap-10 md:grid-cols-2" aria-busy="true" aria-label="Loading curriculum">
+          {TRACKS.map((t) => (
+            <div key={t.id} className="grid gap-3">
+              <Skeleton className="h-8" />
+              <Skeleton className="h-6" />
+              <Skeleton className="h-6" />
+              <Skeleton className="h-6" />
+            </div>
+          ))}
+        </div>
+      ) : topics.length === 0 ? (
+        <p className="text-sm" style={{ color: 'var(--ink-soft)' }}>
+          Topics get posted here as the semester is planned.
+        </p>
       ) : (
-        <div className="grid gap-5 md:grid-cols-2">
-          {TRACKS.map((track) => {
-            const items = topics.filter((t) => t.track === track.id);
-            if (!items.length) return null;
-            const done = items.filter((t) => t.covered).length;
-            return (
-              <section key={track.id} className="card p-5">
-                <h2 className="display text-lg font-bold" style={{ color: 'var(--ink)' }}>
-                  {track.label}
-                </h2>
-                <p className="mt-1 text-[0.8rem]" style={{ color: 'var(--ink-soft)' }}>
-                  {track.blurb}
-                </p>
-                <p className="mono mt-3 mb-3 text-[0.65rem]" style={{ color: 'var(--ink-faint)' }}>
-                  {done} of {items.length} covered so far
-                </p>
-                <ol className="grid gap-2">
-                  {items.map((t) => (
-                    <li key={t.id} className="flex items-center gap-2.5 text-sm">
-                      <span
-                        className="grid h-5 w-5 shrink-0 place-items-center rounded-full border text-[0.65rem] font-bold"
-                        style={{
-                          borderColor: t.covered ? 'var(--flag)' : 'var(--rule)',
-                          background: t.covered ? 'var(--flag)' : 'transparent',
-                          color: t.covered ? 'light-dark(#fff, #0d1017)' : 'var(--ink-faint)',
-                        }}
-                        aria-hidden="true"
-                      >
-                        {t.covered ? '✓' : ''}
-                      </span>
-                      <span style={{ color: t.covered ? 'var(--ink)' : 'var(--ink-soft)' }}>{t.title}</span>
-                    </li>
-                  ))}
-                </ol>
-              </section>
-            );
-          })}
+        <div className="grid gap-10 md:grid-cols-2">
+          {TRACKS.map((track) => (
+            <Track key={track.id} track={track} items={topics.filter((t) => t.track === track.id)} />
+          ))}
         </div>
       )}
     </div>
+  );
+}
+
+function Track({ track, items }) {
+  const done = items.filter((t) => t.covered).length;
+  const pct = items.length ? (done / items.length) * 100 : 0;
+
+  return (
+    <section className="min-w-0">
+      <SectionTitle aside={`${done} of ${items.length} covered`}>{track.label}</SectionTitle>
+      <p className="text-sm" style={{ color: 'var(--ink-soft)' }}>
+        {track.blurb}
+      </p>
+      <div
+        className="mt-3 h-1.5 w-full overflow-hidden rounded-full"
+        style={{ background: 'var(--paper-2)' }}
+        role="progressbar"
+        aria-valuemin={0}
+        aria-valuemax={items.length}
+        aria-valuenow={done}
+        aria-label={`${track.label} topics covered`}
+      >
+        <div className="h-full rounded-full" style={{ width: `${pct}%`, background: 'var(--flag)' }} />
+      </div>
+
+      {items.length === 0 ? (
+        <p className="mt-4 text-sm" style={{ color: 'var(--ink-soft)' }}>
+          Topics get posted here as the semester is planned.
+        </p>
+      ) : (
+        <ol className="mt-4 grid gap-2.5">
+          {items.map((t, i) => (
+            <li
+              key={t.id}
+              className="flex items-center gap-3 text-sm"
+              style={{ animation: `row-in 0.35s ease-out ${Math.min(i * 0.03, 0.3)}s backwards` }}
+            >
+              <span
+                className="grid h-5 w-5 shrink-0 place-items-center rounded-full"
+                style={
+                  t.covered
+                    ? { background: 'var(--ok)', color: 'var(--on-flag)' }
+                    : { border: '1.5px solid var(--rule)' }
+                }
+                aria-hidden="true"
+              >
+                {t.covered ? <Check size={12} strokeWidth={3} /> : null}
+              </span>
+              <span style={{ color: t.covered ? 'var(--ink)' : 'var(--ink-soft)' }}>
+                {t.title}
+                <span className="sr-only">{t.covered ? ', covered' : ', not yet covered'}</span>
+              </span>
+            </li>
+          ))}
+        </ol>
+      )}
+    </section>
   );
 }

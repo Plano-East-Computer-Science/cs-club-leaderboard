@@ -1,104 +1,162 @@
-import { RichText } from '../components/bits.jsx';
+import { useState } from 'react';
+import { ExternalLink } from 'lucide-react';
+import { PageHeader, SectionTitle, RichText } from '../components/bits.jsx';
+import { SubscribeBox } from '../components/Subscribe.jsx';
+
+/**
+ * The classroom setting is one free-text field an officer types into, and it
+ * has held "Main CS - y27jjuq7 Cyber - zL4etzb6" style strings with no
+ * separators between pairs. Split on newlines or commas, then pull every
+ * "Name - CODE" pair out of each chunk. Codes are 5 to 8 alphanumerics.
+ */
+export function parseClassroomCodes(raw = '') {
+  const rows = [];
+  for (const chunk of raw.split(/[\n,]/)) {
+    for (const m of chunk.matchAll(/([A-Za-z][A-Za-z ]*?)\s*-\s*([A-Za-z0-9]{5,8})/g)) {
+      rows.push({ name: m[1].trim(), code: m[2] });
+    }
+  }
+  return rows;
+}
 
 export default function Join({ settings }) {
-  const hasClassroom = Boolean(settings.join_classroom_code?.trim());
+  const classroom = settings.join_classroom_code?.trim() ?? '';
+  const codes = parseClassroomCodes(classroom);
 
   return (
     <div>
-      <header className="mb-10">
-        <p className="eyebrow">Get involved</p>
-        <h1 className="display mt-2 text-[clamp(2.2rem,6vw,3.5rem)] leading-[0.95] font-extrabold">
-          How to join
-        </h1>
-        {settings.join_intro && (
-          <p className="mt-4 max-w-2xl text-base" style={{ color: 'var(--ink-soft)' }}>
-            {settings.join_intro}
+      <PageHeader title="How to join">
+        {settings.join_intro || 'Three steps, about five minutes. Then show up to a meeting.'}
+      </PageHeader>
+
+      <ol className="divide-y rounded-lg border bg-card">
+        <Step n={1} title="Parent consent form" required>
+          <p className="text-sm leading-relaxed" style={{ color: 'var(--ink-soft)' }}>
+            You cannot attend a meeting until this is turned in.
           </p>
-        )}
-      </header>
+          <div className="mt-4">
+            {settings.join_consent_url ? (
+              <a
+                className="btn btn-primary"
+                href={settings.join_consent_url}
+                target="_blank"
+                rel="noreferrer noopener"
+              >
+                Open the consent form
+                <ExternalLink size={14} aria-hidden="true" />
+              </a>
+            ) : (
+              <p className="mono text-xs" style={{ color: 'var(--ink-faint)' }}>
+                Link not posted yet. Ask an officer.
+              </p>
+            )}
+          </div>
+        </Step>
 
-      <div className="grid gap-5 sm:grid-cols-2">
-        <StepCard
-          step={1}
-          required
-          title="Parent consent form"
-          body="You cannot attend meetings until this is submitted."
-        >
-          {settings.join_consent_url ? (
-            <a
-              className="btn btn-primary"
-              href={settings.join_consent_url}
-              target="_blank"
-              rel="noreferrer noopener"
-              style={{ textDecoration: 'none' }}
-            >
-              Open the consent form ↗
-            </a>
-          ) : (
-            <p className="mono text-[0.7rem]" style={{ color: 'var(--ink-faint)' }}>
-              Link not set yet — ask an officer.
-            </p>
-          )}
-        </StepCard>
+        <Step n={2} title="Join the Google Classroom">
+          <p className="text-sm leading-relaxed" style={{ color: 'var(--ink-soft)' }}>
+            Slides, problems, and competition signups all live there.
+          </p>
+          <div className="mt-4">
+            {!classroom ? (
+              <p className="mono text-xs" style={{ color: 'var(--ink-faint)' }}>
+                Code coming soon. Ask an officer.
+              </p>
+            ) : codes.length === 0 ? (
+              <code className="mono text-sm" style={{ color: 'var(--flag)' }}>
+                {classroom}
+              </code>
+            ) : (
+              <ul className="max-w-md divide-y rounded-md border">
+                {codes.map((c) => (
+                  <CodeRow key={c.code} name={c.name} code={c.code} />
+                ))}
+              </ul>
+            )}
+          </div>
+        </Step>
 
-        <StepCard
-          step={2}
-          title="Google Classroom"
-          body="Everything — slides, problems, competition signups — lives there."
-        >
-          {hasClassroom ? (
-            <p className="mono rounded border px-3 py-2 text-sm font-semibold" style={{ color: 'var(--flag)' }}>
-              {settings.join_classroom_code}
-            </p>
-          ) : (
-            <p className="mono text-[0.7rem]" style={{ color: 'var(--ink-faint)' }}>
-              Code coming soon — check back or ask an officer.
-            </p>
-          )}
-        </StepCard>
-      </div>
+        <Step n={3} title="Get the weekly email" id="subscribe">
+          <p className="text-sm leading-relaxed" style={{ color: 'var(--ink-soft)' }}>
+            Points, new opportunities, and deadlines once a week. Use a personal address.
+          </p>
+          <div className="mt-4">
+            <SubscribeBox id="join-subscribe" />
+          </div>
+        </Step>
+      </ol>
 
-      <div className="card mt-6 p-5">
-        <h2 className="eyebrow mb-3">Meeting</h2>
+      <section className="mt-12">
+        <SectionTitle>Meetings</SectionTitle>
         {settings.join_meeting_info?.trim() ? (
-          <RichText text={settings.join_meeting_info} />
+          <div className="max-w-2xl">
+            <RichText text={settings.join_meeting_info} />
+          </div>
         ) : (
           <p className="text-sm" style={{ color: 'var(--ink-soft)' }}>
-            Day, time, and room haven't been posted here yet — ask an officer or check the
-            school announcements.
+            Day, time, and room are posted on Discord and in school announcements.
           </p>
         )}
-      </div>
+      </section>
     </div>
   );
 }
 
-function StepCard({ step, required, title, body, children }) {
+function Step({ n, title, required, id, children }) {
   return (
-    <div className="card p-5">
-      <div className="flex items-center gap-2">
-        <span
-          className="mono grid h-6 w-6 shrink-0 place-items-center rounded-full text-[0.7rem] font-bold"
-          style={{ background: 'var(--flag)', color: 'light-dark(#fff, #0d1017)' }}
-        >
-          {step}
-        </span>
-        <h2 className="display text-base font-bold" style={{ color: 'var(--ink)' }}>
+    <li id={id} className="grid grid-cols-[3.5rem_minmax(0,1fr)] gap-x-2 p-5 sm:p-6">
+      <span
+        className="mono text-3xl leading-none font-bold"
+        style={{ color: 'var(--flag)' }}
+        aria-hidden="true"
+      >
+        {n}
+      </span>
+      <div className="min-w-0">
+        <h2 className="display flex flex-wrap items-center gap-2 text-lg font-bold" style={{ color: 'var(--ink)' }}>
           {title}
+          {required && (
+            <span
+              className="mono rounded-md px-1.5 py-0.5 text-xs font-semibold"
+              style={{
+                color: 'var(--danger)',
+                background: 'color-mix(in srgb, var(--danger) 12%, transparent)',
+              }}
+            >
+              Required
+            </span>
+          )}
         </h2>
-        {required && (
-          <span
-            className="mono ml-auto rounded px-1.5 py-0.5 text-[0.6rem] font-bold tracking-wide uppercase"
-            style={{ color: '#c42e2e', background: 'color-mix(in srgb, #c42e2e 12%, transparent)' }}
-          >
-            Required
-          </span>
-        )}
+        <div className="mt-1.5">{children}</div>
       </div>
-      <p className="mt-2 text-[0.85rem]" style={{ color: 'var(--ink-soft)' }}>
-        {body}
-      </p>
-      <div className="mt-4">{children}</div>
-    </div>
+    </li>
+  );
+}
+
+function CodeRow({ name, code }) {
+  const [copied, setCopied] = useState(false);
+  const copy = () => {
+    navigator.clipboard?.writeText(code).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  };
+  return (
+    <li className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2">
+      <span className="text-sm font-semibold" style={{ color: 'var(--ink)' }}>
+        {name}
+      </span>
+      <code className="mono text-sm" style={{ color: 'var(--flag)' }}>
+        {code}
+      </code>
+      <button
+        type="button"
+        className="btn btn-ghost ml-auto"
+        onClick={copy}
+        aria-label={`Copy ${name} class code`}
+      >
+        {copied ? 'Copied' : 'Copy'}
+      </button>
+    </li>
   );
 }

@@ -5,6 +5,7 @@ import { Hono } from 'hono';
 import {
   getLeaderboard, getStudent, listOpportunities, getAllSettings,
   getOfficers, getCurriculum, getCompetitions, getPuzzles, getCurrentPuzzle,
+  recentPointEvents,
 } from '../db.js';
 import { RADIUS_MILES, SCHOOL } from '../geo.js';
 import { opportunitiesToICS } from '../ics.js';
@@ -12,7 +13,10 @@ import { opportunitiesToICS } from '../ics.js';
 export const publicRouter = new Hono();
 
 publicRouter.get('/leaderboard', async (c) => {
-  return c.json({ students: await getLeaderboard(c.env.DB) });
+  return c.json({
+    students: await getLeaderboard(c.env.DB),
+    recent: await recentPointEvents(c.env.DB),
+  });
 });
 
 publicRouter.get('/student/:id', async (c) => {

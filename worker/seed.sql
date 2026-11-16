@@ -124,7 +124,7 @@ INSERT INTO competitions (name, description, result, event_date, url, status, so
 INSERT INTO competitions (name, description, result, event_date, url, status, sort_order) SELECT 'Lockheed Martin AI Quest', 'AI Quest and related challenges, run by Lockheed Martin.', '2nd place, 2025-26 season', NULL, '', 'upcoming', 2 WHERE NOT EXISTS (SELECT 1 FROM competitions WHERE name = 'Lockheed Martin AI Quest');
 
 -- Puzzle Archive
-INSERT INTO puzzles (title, prompt, answer, source, posted_at, revealed) SELECT 'The Twelve Coins', 'You have 12 coins. One is lighter. Find it in three weighings.', 'Weighing 1: split the 12 coins into three groups of 4 -- A, B, C. Weigh A against B.
+INSERT INTO puzzles (title, prompt, answer, source, posted_at, revealed) SELECT 'The Twelve Coins', 'You have 12 coins. One is lighter. Find it in three weighings.', 'Weighing 1: split the 12 coins into three groups of 4 (A, B, C). Weigh A against B.
   - If they balance, the light coin is among the 4 in C.
   - If they do not, the light coin is in whichever group of 4 was lighter (the side that went up).
 
@@ -137,7 +137,7 @@ INSERT OR IGNORE INTO settings (key, value) VALUES ('club_name', 'Plano East CS 
 INSERT OR IGNORE INTO settings (key, value) VALUES ('school_name', 'Plano East Senior High School');
 INSERT OR IGNORE INTO settings (key, value) VALUES ('tagline', 'Build things. Win things. Get better together.');
 INSERT OR IGNORE INTO settings (key, value) VALUES ('prize_title', 'Meta Ray-Ban Display Glasses');
-INSERT OR IGNORE INTO settings (key, value) VALUES ('prize_blurb', 'First place at the end of the year takes home a pair of Meta Ray-Bans. Points are earned all year — every meeting, every project, every competition counts.');
+INSERT OR IGNORE INTO settings (key, value) VALUES ('prize_blurb', 'First place at the end of the year takes home a pair of Meta Ray-Bans. Points are earned all year: every meeting, every project, every competition counts.');
 INSERT OR IGNORE INTO settings (key, value) VALUES ('about_heading', 'About the club');
 INSERT OR IGNORE INTO settings (key, value) VALUES ('about_body', 'We are the computer science club at Plano East Senior High School. We meet to build software, break into things we are allowed to break into, enter competitions, and help each other get good.
 You do not need experience to join. Half of the people here started by showing up and asking what a terminal was. The other half are happy to tell you.
@@ -158,7 +158,7 @@ The member in first place at the end of the year wins a pair of Meta Ray-Bans.
 Check the club Discord and the school announcements for the current meeting time and room.');
 INSERT OR IGNORE INTO settings (key, value) VALUES ('discord_url', '');
 INSERT OR IGNORE INTO settings (key, value) VALUES ('email', '');
-INSERT OR IGNORE INTO settings (key, value) VALUES ('join_intro', 'No experience needed. Beginners and returning competitors are both covered -- see the Curriculum page for what that looks like week to week.');
+INSERT OR IGNORE INTO settings (key, value) VALUES ('join_intro', 'No experience needed. Beginners and returning competitors are both covered. See the Curriculum page for what that looks like week to week.');
 INSERT OR IGNORE INTO settings (key, value) VALUES ('join_consent_url', 'https://myforms.pisd.edu/Forms/ParentClubConsent');
 INSERT OR IGNORE INTO settings (key, value) VALUES ('join_classroom_code', '');
 INSERT OR IGNORE INTO settings (key, value) VALUES ('join_meeting_info', '');

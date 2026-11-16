@@ -89,13 +89,16 @@ export async function addPointEvent(db, { student_id, delta, reason }) {
 
 /* ------------------------------ opportunities ------------------------------ */
 
+// Soonest deadline first, then rolling deadlines, then anything already
+// closed. Closed rows are still returned -- the frontend groups them.
 export function listOpportunities(db, { status = 'live' } = {}) {
   return status === 'all'
     ? all(db, 'SELECT * FROM opportunities ORDER BY created_at DESC')
     : all(
         db,
         `SELECT * FROM opportunities WHERE status = ?
-         ORDER BY (deadline IS NULL), deadline ASC, created_at DESC`,
+         ORDER BY (deadline IS NOT NULL AND deadline < date('now')), (deadline IS NULL),
+                  deadline ASC, created_at DESC`,
         status
       );
 }
@@ -203,6 +206,22 @@ export const pointEventsSince = (db, since) =>
      WHERE e.created_at > datetime(?)
      ORDER BY e.created_at DESC`,
     since
+  );
+
+/**
+ * Latest awards across the whole board, for the public "recent activity"
+ * strip. created_at is reformatted as ISO ("...T02:14:00Z") because Safari's
+ * Date parser rejects SQLite's space-separated form.
+ */
+export const recentPointEvents = (db, limit = 8) =>
+  all(
+    db,
+    `SELECT e.id, e.delta, e.reason, s.id AS student_id, s.name,
+            strftime('%Y-%m-%dT%H:%M:%SZ', e.created_at) AS created_at
+     FROM point_events e JOIN students s ON s.id = e.student_id
+     WHERE s.active = 1
+     ORDER BY e.created_at DESC, e.id DESC LIMIT ?`,
+    limit
   );
 
 export const opportunitiesSince = (db, since) =>

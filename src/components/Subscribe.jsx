@@ -1,11 +1,11 @@
 /**
- * The weekly-email signup. Lives in the footer so it is on every page without
- * being a page of its own.
+ * The weekly-email signup. Rendered in the footer on every page and as the
+ * last step on the Join page, so the same form is never built twice.
  */
 import { useState } from 'react';
 import { api } from '../lib/api.js';
 
-export function SubscribeBox() {
+export function SubscribeBox({ id = 'subscribe-email' }) {
   const [email, setEmail] = useState('');
   const [state, setState] = useState({ busy: false, done: false, error: null });
 
@@ -22,30 +22,33 @@ export function SubscribeBox() {
 
   if (state.done) {
     return (
-      <p className="mono text-xs" style={{ color: 'var(--ink-soft)' }}>
-        Check your inbox — click the link to confirm.
+      <p className="text-sm" role="status" style={{ color: 'var(--ink-soft)' }}>
+        If you are not already on the list, a confirmation email is on its way. Click the link
+        in it to finish.
       </p>
     );
   }
 
   return (
     <form onSubmit={submit} className="flex w-full max-w-md flex-wrap items-center gap-2">
-      <label className="mono w-full text-[0.7rem]" style={{ color: 'var(--ink-faint)' }}>
-        Weekly email: points, new opportunities, deadlines. Personal address, not school.
+      <label htmlFor={id} className="sr-only">
+        Email address
       </label>
       <input
+        id={id}
         className="field min-w-0 flex-1"
         type="email"
         placeholder="you@gmail.com"
+        autoComplete="email"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
         required
       />
-      <button className="btn btn-ghost" disabled={state.busy}>
-        {state.busy ? 'Sending…' : 'Subscribe'}
+      <button className="btn btn-primary" disabled={state.busy}>
+        {state.busy ? 'Sending' : 'Subscribe'}
       </button>
       {state.error && (
-        <p className="mono w-full text-xs" style={{ color: '#c42e2e' }}>
+        <p className="w-full text-xs" role="alert" style={{ color: 'var(--danger)' }}>
           {state.error}
         </p>
       )}

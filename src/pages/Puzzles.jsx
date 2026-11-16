@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../lib/api.js';
 import { formatDate } from '../lib/format.js';
-import { Spinner, ErrorNote, Empty } from '../components/bits.jsx';
+import { PageHeader, SectionTitle, Skeleton, ErrorNote } from '../components/bits.jsx';
 
 export default function Puzzles() {
   const [data, setData] = useState(null);
@@ -13,52 +13,65 @@ export default function Puzzles() {
   };
   useEffect(load, []);
 
-  if (error) return <ErrorNote onRetry={load}>{error}</ErrorNote>;
-  if (!data) return <Spinner label="Loading puzzles" />;
-
-  const current = data.current;
+  const current = data?.current;
   // The featured puzzle is already in the archive list; showing it twice would
   // just be the same card printed under two headings.
-  const archive = data.puzzles.filter((p) => p.id !== current?.id);
+  const archive = data?.puzzles.filter((p) => p.id !== current?.id) ?? [];
 
   return (
     <div>
-      <header className="mb-8">
-        <p className="eyebrow">What practice looks like</p>
-        <h1 className="display mt-2 text-[clamp(2.2rem,6vw,3.5rem)] leading-[0.95] font-extrabold">
-          Problem of the Week.
-        </h1>
-        <p className="mt-4 max-w-2xl text-base" style={{ color: 'var(--ink-soft)' }}>
-          Every meeting opens with one of these. No syntax, no compiler — just the part of
-          computer science that is actually thinking. Hints are there when you are stuck; the
-          solution is there when you are done. Reading either one costs you nothing but the point
-          of doing it yourself.
+      <PageHeader title="Problem of the Week">
+        Every meeting opens with one of these. No syntax, no compiler, just the part of computer
+        science that is actually thinking. Hints are there when you are stuck. The solution is
+        there when you are done.
+      </PageHeader>
+
+      {error ? (
+        <ErrorNote onRetry={load}>{error}</ErrorNote>
+      ) : !data ? (
+        <div className="grid gap-4" aria-busy="true" aria-label="Loading puzzles">
+          <Skeleton className="h-48" />
+          <Skeleton className="h-8 w-32" />
+          <Skeleton className="h-24" />
+          <Skeleton className="h-24" />
+        </div>
+      ) : !current && archive.length === 0 ? (
+        <p className="text-sm" style={{ color: 'var(--ink-soft)' }}>
+          The first puzzle goes up at the first meeting.
         </p>
-      </header>
-
-      {current && (
-        <section className="mb-10">
-          <PuzzleCard puzzle={current} featured />
-        </section>
-      )}
-
-      {archive.length === 0 ? (
-        !current && <Empty title="No puzzles posted yet" />
       ) : (
-        <section>
-          <h2 className="eyebrow mb-3">{current ? 'Earlier problems' : 'Archive'}</h2>
-          <div className="grid gap-4">
-            {archive.map((p) => (
-              <PuzzleCard key={p.id} puzzle={p} />
-            ))}
-          </div>
-        </section>
+        <>
+          {current && (
+            <section className="mb-12">
+              <PuzzleCard puzzle={current} featured />
+            </section>
+          )}
+
+          {archive.length > 0 && (
+            <section>
+              <SectionTitle aside={`${archive.length} ${archive.length === 1 ? 'puzzle' : 'puzzles'}`}>
+                Archive
+              </SectionTitle>
+              <ul className="divide-y">
+                {archive.map((p, i) => (
+                  <li
+                    key={p.id}
+                    className="py-5"
+                    style={{ animation: `row-in 0.35s ease-out ${Math.min(i * 0.03, 0.3)}s backwards` }}
+                  >
+                    <PuzzleCard puzzle={p} />
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+        </>
       )}
     </div>
   );
 }
 
-const DIFFICULTY_COLORS = { easy: '#2f8f5b', medium: '#b8720e', hard: '#c42e2e' };
+const DIFFICULTY_COLORS = { easy: 'var(--ok)', medium: 'var(--color-brass)', hard: 'var(--danger)' };
 
 function PuzzleCard({ puzzle, featured = false }) {
   // Hints come out one at a time, so "I need a nudge" and "just tell me" stay
@@ -72,25 +85,37 @@ function PuzzleCard({ puzzle, featured = false }) {
     .filter(Boolean);
   const hasAnswer = Boolean(puzzle.answer?.trim());
   const difficultyColor = DIFFICULTY_COLORS[String(puzzle.difficulty).toLowerCase()];
+  const Heading = featured ? 'h2' : 'h3';
 
   return (
     <article
-      className="card p-5"
-      style={featured ? { borderColor: 'var(--flag)', borderWidth: 2 } : undefined}
+      className={featured ? 'rounded-lg border p-6' : ''}
+      style={
+        featured
+          ? {
+              background: 'color-mix(in srgb, var(--flag) 8%, var(--card))',
+              borderColor: 'color-mix(in srgb, var(--flag) 30%, var(--rule))',
+            }
+          : undefined
+      }
     >
-      {featured && <p className="eyebrow mb-2">This week</p>}
+      {featured && (
+        <p className="mono mb-2 text-xs font-semibold" style={{ color: 'var(--flag)' }}>
+          This week
+        </p>
+      )}
 
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+        <Heading
           className={`display font-bold ${featured ? 'text-2xl' : 'text-lg'}`}
           style={{ color: 'var(--ink)' }}
         >
           {puzzle.title}
-        </h2>
+        </Heading>
         <div className="flex items-center gap-2">
           {difficultyColor && (
             <span
-              className="mono rounded-full px-2 py-0.5 text-[0.6875rem] font-semibold"
+              className="mono rounded-md px-2 py-0.5 text-xs font-semibold"
               style={{
                 color: difficultyColor,
                 background: `color-mix(in srgb, ${difficultyColor} 12%, transparent)`,
@@ -100,60 +125,66 @@ function PuzzleCard({ puzzle, featured = false }) {
               {puzzle.difficulty}
             </span>
           )}
-          <span className="mono text-[0.68rem]" style={{ color: 'var(--ink-faint)' }}>
+          <span className="mono text-xs" style={{ color: 'var(--ink-faint)' }}>
             {formatDate(puzzle.posted_at)}
           </span>
         </div>
       </div>
 
       <p
-        className={`mt-2 whitespace-pre-line leading-relaxed ${featured ? 'text-[0.95rem]' : 'text-[0.9rem]'}`}
-        style={{ color: 'var(--ink-soft)' }}
+        className={`mt-2 max-w-2xl whitespace-pre-line leading-relaxed ${featured ? 'text-base' : 'text-sm'}`}
+        style={{ color: featured ? 'var(--ink)' : 'var(--ink-soft)' }}
       >
         {puzzle.prompt}
       </p>
 
       {hints.length > 0 && (
-        <div className="mt-4 grid gap-2">
+        <div className="mt-4 grid max-w-2xl gap-2">
           {hints.slice(0, hintsShown).map((h, i) => (
             <div
               key={i}
-              className="rounded p-3 text-[0.85rem] leading-relaxed"
+              className="rounded-md p-3 text-sm leading-relaxed"
               style={{ background: 'var(--paper-2)', color: 'var(--ink-soft)' }}
             >
-              <span className="mono mr-2 text-[0.65rem] font-semibold" style={{ color: 'var(--ink-faint)' }}>
-                HINT {i + 1}
+              <span className="mono mr-2 text-xs font-semibold" style={{ color: 'var(--ink-faint)' }}>
+                Hint {i + 1}
               </span>
               {h}
             </div>
           ))}
           {hintsShown < hints.length && (
-            <button className="btn btn-ghost justify-self-start" onClick={() => setHintsShown((n) => n + 1)}>
+            <button
+              type="button"
+              className="btn btn-ghost justify-self-start"
+              onClick={() => setHintsShown((n) => n + 1)}
+            >
               {hintsShown === 0 ? `Show a hint (${hints.length} available)` : 'Next hint'}
             </button>
           )}
         </div>
       )}
 
-      <div className="mt-4 border-t pt-4">
+      <div className="mt-4">
         {!hasAnswer ? (
-          <p className="mono text-[0.7rem]" style={{ color: 'var(--ink-faint)' }}>
+          <p className="mono text-xs" style={{ color: 'var(--ink-faint)' }}>
             Solution posted after the next meeting.
           </p>
         ) : solved ? (
-          <div>
-            <p className="eyebrow mb-2">Solution</p>
-            <p className="whitespace-pre-line text-[0.85rem] leading-relaxed" style={{ color: 'var(--ink)' }}>
+          <div className="max-w-2xl">
+            <p className="mono mb-1 text-xs font-semibold" style={{ color: 'var(--ink-faint)' }}>
+              Solution
+            </p>
+            <p className="whitespace-pre-line text-sm leading-relaxed" style={{ color: 'var(--ink)' }}>
               {puzzle.answer}
             </p>
           </div>
         ) : (
           <div className="flex flex-wrap items-center gap-3">
-            <button className="btn btn-ghost" onClick={() => setSolved(true)}>
+            <button type="button" className="btn btn-ghost" onClick={() => setSolved(true)}>
               Show solution
             </button>
-            <span className="mono text-[0.65rem]" style={{ color: 'var(--ink-faint)' }}>
-              No points for reading it — that is the whole deal.
+            <span className="mono text-xs" style={{ color: 'var(--ink-faint)' }}>
+              No points for reading the answer. That is the whole deal.
             </span>
           </div>
         )}

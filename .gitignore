@@ -14,3 +14,4 @@ demo/
 
 # Local MCP tool config.
 .serena/
+.review/

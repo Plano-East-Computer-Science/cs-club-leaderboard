@@ -364,7 +364,7 @@ export const PUZZLES = [
     title: 'The Twelve Coins',
     prompt: 'You have 12 coins. One is lighter. Find it in three weighings.',
     answer: [
-      'Weighing 1: split the 12 coins into three groups of 4 -- A, B, C. Weigh A against B.',
+      'Weighing 1: split the 12 coins into three groups of 4 (A, B, C). Weigh A against B.',
       '  - If they balance, the light coin is among the 4 in C.',
       '  - If they do not, the light coin is in whichever group of 4 was lighter (the side that went up).',
       '',
@@ -384,7 +384,7 @@ export const SETTINGS = {
   tagline: 'Build things. Win things. Get better together.',
   prize_title: 'Meta Ray-Ban Display Glasses',
   prize_blurb:
-    'First place at the end of the year takes home a pair of Meta Ray-Bans. Points are earned all year — every meeting, every project, every competition counts.',
+    'First place at the end of the year takes home a pair of Meta Ray-Bans. Points are earned all year: every meeting, every project, every competition counts.',
   about_heading: 'About the club',
   about_body: [
     'We are the computer science club at Plano East Senior High School. We meet to build software, break into things we are allowed to break into, enter competitions, and help each other get good.',
@@ -414,7 +414,7 @@ export const SETTINGS = {
   // asks about Wednesday conflicts). Fill both in from Admin -> Page text
   // once they're settled rather than guessing here.
   join_intro:
-    'No experience needed. Beginners and returning competitors are both covered -- see the Curriculum page for what that looks like week to week.',
+    'No experience needed. Beginners and returning competitors are both covered. See the Curriculum page for what that looks like week to week.',
   join_consent_url: 'https://myforms.pisd.edu/Forms/ParentClubConsent',
   join_classroom_code: '',
   join_meeting_info: '',

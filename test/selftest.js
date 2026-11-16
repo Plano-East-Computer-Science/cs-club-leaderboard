@@ -14,7 +14,7 @@ import { fileURLToPath } from 'node:url';
 
 import { makeTestDb } from './d1-shim.js';
 import {
-  getLeaderboard, getStudent, addPointEvent, listOpportunities,
+  getLeaderboard, getStudent, addPointEvent, listOpportunities, recentPointEvents,
   getOfficers, getCurriculum, getCompetitions, getPuzzles,
   getSetting, setSetting, getAllSettings, exportBackup, restoreBackup,
   addSubscriber, getSubscriberByEmail, confirmSubscriber, unsubscribeByToken,
@@ -467,6 +467,35 @@ test('the live board never includes pending rows', async () => {
   assert.equal(live.length, 1);
   assert.equal(live[0].title, 'Live one');
   assert.equal((await listOpportunities(db, { status: 'all' })).length, 2);
+});
+
+test('the live board puts expired deadlines last, after rolling ones', async () => {
+  const db = makeTestDb(SCHEMA);
+  await db
+    .prepare(
+      `INSERT INTO opportunities (title, deadline, status, fingerprint) VALUES
+         ('Expired', date('now', '-1 day'), 'live', 'a'),
+         ('Soon', date('now', '+1 day'), 'live', 'b'),
+         ('Rolling', NULL, 'live', 'c')`
+    )
+    .run();
+  const titles = (await listOpportunities(db)).map((o) => o.title);
+  assert.deepEqual(titles, ['Soon', 'Rolling', 'Expired']);
+});
+
+test('recent awards come newest first, named, ISO-stamped, and skip hidden students', async () => {
+  const db = await fresh();
+  await db.prepare("INSERT INTO students (name, grade) VALUES ('Second Student', 10)").run();
+  await db.prepare("INSERT INTO students (name, grade, active) VALUES ('Hidden', 9, 0)").run();
+  await addPointEvent(db, { student_id: 1, delta: 5, reason: 'first' });
+  await addPointEvent(db, { student_id: 2, delta: 7, reason: 'second' });
+  await addPointEvent(db, { student_id: 3, delta: 9, reason: 'hidden' });
+  await addPointEvent(db, { student_id: 1, delta: 3, reason: 'third' });
+  const recent = await recentPointEvents(db, 8);
+  assert.deepEqual(recent.map((e) => e.reason), ['third', 'second', 'first']);
+  assert.equal(recent[0].name, 'Test Student');
+  assert.equal(recent[1].name, 'Second Student');
+  assert.match(recent[0].created_at, /^\d{4}-\d{2}-\d{2}T/);
 });
 
 test('settings read back what was written', async () => {

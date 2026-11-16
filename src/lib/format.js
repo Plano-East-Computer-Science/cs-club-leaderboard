@@ -55,3 +55,11 @@ export const COST_LABELS = {
   paid: 'Costs money',
   stipend: 'Paid to you',
 };
+
+/** Open deadlines, soonest first. Rolling and closed rows are dropped. */
+export function upcomingDeadlines(opps, limit = Infinity) {
+  return opps
+    .filter((o) => o.deadline && daysUntil(o.deadline) >= 0)
+    .sort((a, b) => a.deadline.localeCompare(b.deadline))
+    .slice(0, limit);
+}

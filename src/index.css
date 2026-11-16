@@ -11,68 +11,103 @@
   --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', monospace;
 
-  --color-paper: #f2f4f8;
-  --color-paper-2: #e8ecf3;
-  --color-card: #ffffff;
-  --color-ink: #10141c;
-  --color-ink-soft: #5a6478;
-  --color-ink-faint: #8b94a6;
-  --color-rule: #d5dae3;
-  --color-flag: #1b2cc1;
-  --color-flag-soft: #e6e9fb;
-  --color-brass: #b8720e;
+  --color-brass: light-dark(#b8720e, #e0a24a);
 
-  --tier-newcomer: #6b7689;
-  --tier-contributor: #2f8f5b;
-  --tier-builder: #128c93;
-  --tier-specialist: #2b5fd9;
-  --tier-expert: #6e3bd1;
-  --tier-master: #b8720e;
-  --tier-legend: #c42e2e;
+  /* Tier colours: light / dark pairs so the standing stays readable on a dark card. */
+  --tier-newcomer: light-dark(#5f6a80, #a4aec2);
+  --tier-contributor: light-dark(#2a8253, #4fc07f);
+  --tier-builder: light-dark(#0f7f86, #2fc3cc);
+  --tier-specialist: light-dark(#2b5fd9, #7b9bff);
+  --tier-expert: light-dark(#6e3bd1, #a98bff);
+  --tier-master: light-dark(#a8660a, #e0a24a);
+  --tier-legend: light-dark(#c42e2e, #ff6b6b);
 }
 
+/*
+  One block for both themes. `color-scheme: light dark` lets light-dark() pick
+  the side; a data-theme attribute forces one side when a toggle ever lands.
+*/
 :root {
+  color-scheme: light dark;
+
+  --paper: light-dark(#f2f4f8, #0d1017);
+  --paper-2: light-dark(#e8ecf3, #141924);
+  --card: light-dark(#ffffff, #161c28);
+  --ink: light-dark(#10141c, #e9edf5);
+  --ink-soft: light-dark(#4f5a70, #a3adc0);
+  --ink-faint: light-dark(#626a7c, #8590a4); /* >= 4.5:1 on paper and card */
+  --rule: light-dark(#d5dae3, #262f3f);
+  --flag: light-dark(#1b2cc1, #7b8cff);
+  --flag-soft: light-dark(#e6e9fb, #1b2440);
+  --ok: light-dark(#2a8253, #4fc07f);
+  --danger: light-dark(#c42e2e, #ff6b6b);
+  --on-flag: light-dark(#ffffff, #0d1017);
+  --shadow-card: light-dark(
+    0 1px 2px rgb(16 20 28 / 0.05),
+    0 1px 2px rgb(0 0 0 / 0.4)
+  );
+  --radius: 0.5rem;
+
+  /* shadcn names, mapped onto the tokens above so its components match the site. */
+  --background: var(--paper);
+  --foreground: var(--ink);
+  --card-foreground: var(--ink);
+  --popover: var(--card);
+  --popover-foreground: var(--ink);
+  --primary: var(--flag);
+  --primary-foreground: var(--on-flag);
+  --secondary: var(--paper-2);
+  --secondary-foreground: var(--ink);
+  --muted: var(--paper-2);
+  --muted-foreground: var(--ink-soft);
+  --accent: var(--paper-2);
+  --accent-foreground: var(--ink);
+  --destructive: var(--danger);
+  --border: var(--rule);
+  --input: var(--rule);
+  --ring: var(--flag);
+}
+
+:root[data-theme='light'] {
   color-scheme: light;
-  --paper: var(--color-paper);
-  --paper-2: var(--color-paper-2);
-  --card: var(--color-card);
-  --ink: var(--color-ink);
-  --ink-soft: var(--color-ink-soft);
-  --ink-faint: var(--color-ink-faint);
-  --rule: var(--color-rule);
-  --flag: var(--color-flag);
-  --flag-soft: var(--color-flag-soft);
-  --shadow-card: 0 1px 2px rgb(16 20 28 / 0.05), 0 8px 24px -12px rgb(16 20 28 / 0.12);
 }
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) {
-    color-scheme: dark;
-    --paper: #0d1017;
-    --paper-2: #141924;
-    --card: #161c28;
-    --ink: #e9edf5;
-    --ink-soft: #98a3b8;
-    --ink-faint: #6b7688;
-    --rule: #262f3f;
-    --flag: #7b8cff;
-    --flag-soft: #1b2440;
-    --shadow-card: 0 1px 2px rgb(0 0 0 / 0.4), 0 8px 24px -12px rgb(0 0 0 / 0.6);
-  }
-}
-
 :root[data-theme='dark'] {
   color-scheme: dark;
-  --paper: #0d1017;
-  --paper-2: #141924;
-  --card: #161c28;
-  --ink: #e9edf5;
-  --ink-soft: #98a3b8;
-  --ink-faint: #6b7688;
-  --rule: #262f3f;
-  --flag: #7b8cff;
-  --flag-soft: #1b2440;
-  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.4), 0 8px 24px -12px rgb(0 0 0 / 0.6);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-paper: var(--paper);
+  --color-paper-2: var(--paper-2);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-ink-faint: var(--ink-faint);
+  --color-rule: var(--rule);
+  --color-flag: var(--flag);
+  --color-flag-soft: var(--flag-soft);
+  --color-ok: var(--ok);
+  --color-danger: var(--danger);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
 }
 
 * {
@@ -118,7 +153,7 @@ body {
 
 .eyebrow {
   font-family: var(--font-mono);
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -128,7 +163,7 @@ body {
 .card {
   background: var(--card);
   border: 1px solid var(--rule);
-  border-radius: 0.5rem;
+  border-radius: var(--radius);
   box-shadow: var(--shadow-card);
 }
 
@@ -136,7 +171,7 @@ body {
   width: 100%;
   background: var(--card);
   border: 1px solid var(--rule);
-  border-radius: 0.375rem;
+  border-radius: calc(var(--radius) - 2px);
   padding: 0.5rem 0.7rem;
   color: var(--ink);
   font-family: var(--font-sans);
@@ -156,7 +191,8 @@ body {
   align-items: center;
   justify-content: center;
   gap: 0.4rem;
-  border-radius: 0.375rem;
+  border-radius: calc(var(--radius) - 2px);
+  text-decoration: none;
   padding: 0.5rem 0.9rem;
   font-family: var(--font-mono);
   font-size: 0.8rem;
@@ -171,8 +207,7 @@ body {
 }
 .btn-primary {
   background: var(--flag);
-  /* In dark mode --flag lightens, so the label has to darken to stay legible. */
-  color: light-dark(#fff, #0d1017);
+  color: var(--on-flag);
 }
 .btn-primary:hover {
   background: color-mix(in srgb, var(--flag) 88%, black);
@@ -188,17 +223,16 @@ body {
 }
 .btn-danger {
   background: transparent;
-  color: #c42e2e;
-  border-color: color-mix(in srgb, #c42e2e 35%, transparent);
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 35%, transparent);
 }
 .btn-danger:hover {
-  background: color-mix(in srgb, #c42e2e 10%, transparent);
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
 }
 
 :where(a, button, input, select, textarea):focus-visible {
   outline: 2px solid var(--flag);
   outline-offset: 2px;
-  border-radius: 3px;
 }
 
 @media (prefers-reduced-motion: reduce) {
