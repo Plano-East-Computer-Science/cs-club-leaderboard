@@ -142,6 +142,53 @@ const mlh = {
   },
 };
 
-export const SOURCES = [devpost, mlh];
+/**
+ * Hack Club's curated list of high school hackathons.
+ *
+ * An open JSON feed with coordinates, so in-person events skip geocoding.
+ * Non-US events that are not online are dropped here, as with MLH.
+ */
+const hackclub = {
+  id: 'hackclub',
+  label: 'Hack Club — high school hackathons',
+  async fetchAll() {
+    const raw = await getText('https://hackathons.hackclub.com/api/events/upcoming');
+    let list;
+    try {
+      list = JSON.parse(raw);
+    } catch {
+      return [];
+    }
+    if (!Array.isArray(list)) return [];
+
+    const out = [];
+    for (const h of list) {
+      const title = clean(h.name);
+      if (!title || !/^https?:\/\//.test(h.website ?? '')) continue;
+      const online = Boolean(h.virtual) && !h.hybrid;
+      if (!online && h.countryCode !== 'US') continue;
+
+      const place = [h.city, h.state].filter(Boolean).join(', ');
+      out.push({
+        title,
+        org: 'Hack Club',
+        description: `High school hackathon. ${online ? 'Runs online.' : place}`.trim(),
+        url: h.website,
+        type: 'competition',
+        cost: 'free',
+        format: online ? 'online' : 'local',
+        location: online ? '' : place,
+        lat: online ? null : h.latitude ?? null,
+        lng: online ? null : h.longitude ?? null,
+        deadline: h.start ? h.start.slice(0, 10) : null,
+        age_min: 14,
+        age_max: 18,
+      });
+    }
+    return out;
+  },
+};
+
+export const SOURCES = [devpost, mlh, hackclub];
 
 export const SOURCES_BY_ID = Object.fromEntries(SOURCES.map((s) => [s.id, s]));
