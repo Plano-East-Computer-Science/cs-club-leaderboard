@@ -69,11 +69,17 @@ async function main() {
     }
   }
 
+  // Overdue listings are useless to students, so drop them before they reach
+  // the Pending queue. Rolling listings (no deadline) always pass.
+  const today = new Date().toISOString().slice(0, 10);
+  const current = collected.filter((i) => !i.deadline || i.deadline >= today);
+  const expired = collected.length - current.length;
+
   // The 15-mile rule. Online and residential pass automatically; in-person
   // listings get geocoded and dropped if they are too far to drive to.
   const kept = [];
   let rejected = 0;
-  for (const item of collected) {
+  for (const item of current) {
     if (item.format === 'local') await sleep(1100);
     const geo = await withinRadius(item);
     if (!geo.keep) {
@@ -106,7 +112,7 @@ async function main() {
 
   console.log(report.join('\n'));
   console.log(
-    `\nScraped ${collected.length}, dropped ${rejected} as too far, sent ${kept.length}.`
+    `\nScraped ${collected.length}, dropped ${expired} expired and ${rejected} as too far, sent ${kept.length}.`
   );
   console.log(`Site added ${result.added} new, skipped ${result.skipped} already known.`);
   if (result.errors?.length) console.log('Errors:', result.errors.join('; '));

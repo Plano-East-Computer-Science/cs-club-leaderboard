@@ -86,10 +86,15 @@ const mlh = {
   id: 'mlh',
   label: 'Major League Hacking — season events',
   async fetchAll() {
-    const season = new Date().getFullYear();
+    // MLH seasons start in the autumn of the previous calendar year, so in
+    // November the live season is already next year's. Read both and let the
+    // run's expiry filter discard whatever has finished.
+    const year = new Date().getFullYear();
+    const out = [];
+
+    for (const season of [year, year + 1]) {
     const html = await getText(`https://mlh.io/seasons/${season}/events`);
     const $ = cheerio.load(html);
-    const out = [];
 
     $('[itemtype="https://schema.org/Event"]').each((_, el) => {
       const $el = $(el);
@@ -129,8 +134,11 @@ const mlh = {
         age_max: 18,
       });
     });
+    }
 
-    return out.slice(0, 40);
+    // The season pages can overlap; keep one copy of each event.
+    const seen = new Set();
+    return out.filter((e) => !seen.has(e.url) && seen.add(e.url)).slice(0, 40);
   },
 };
 
