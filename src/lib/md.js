@@ -31,7 +31,8 @@ export function parseSections(text = '') {
       flushList();
     } else {
       flushList();
-      para.push(l);
+      // Like RichText, every non-blank line is its own paragraph.
+      cur().blocks.push({ p: l });
     }
   }
   flushPara();

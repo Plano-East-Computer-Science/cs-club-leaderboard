@@ -65,7 +65,8 @@ export default function Puzzles() {
   const [open, setOpen] = useState(() => new Set());
   useReveal();
 
-  const current = data?.current ?? null;
+  // With no puzzle flagged as this week's, feature the newest rather than leave the page empty.
+  const current = data?.current ?? data?.puzzles?.[0] ?? null;
   // The featured problem is already in the archive list; showing it twice would
   // just be the same card printed under two headings.
   const arch = (data?.puzzles ?? []).filter((p) => p.id !== current?.id);

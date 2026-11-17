@@ -42,52 +42,32 @@ export default function Admin() {
   if (authed === null) return <Spinner label="Checking session" />;
   if (!authed) return <Login onIn={() => setAuthed(true)} />;
 
+  const cur = TABS.find((t) => t.id === tab);
   return (
-    <div>
-      <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="eyebrow">Admin</p>
-          <h1 className="display mt-1 text-3xl font-extrabold">Club control panel</h1>
-        </div>
-        <button
-          className="btn btn-ghost"
-          onClick={() => api.post('/admin/logout').then(() => setAuthed(false))}
-        >
-          Sign out
+    <div className="wrap">
+      <div className="pf-crumb">
+        <span className="d" style={{ fontSize: 13 }}>
+          <b className="g">officer@pehs-cs</b> ~/admin/{tab}
+        </span>
+        <button className="btn btn-ghost" onClick={() => api.post('/admin/logout').then(() => setAuthed(false))}>
+          sign out
         </button>
-      </header>
-
-      <nav className="mb-6 flex flex-wrap gap-1.5 border-b pb-3">
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
-            className="mono rounded px-3 py-1.5 text-xs font-semibold transition-colors"
-            style={{
-              color: tab === t.id ? 'light-dark(#fff, #0d1017)' : 'var(--ink-soft)',
-              background: tab === t.id ? 'var(--flag)' : 'transparent',
-            }}
-            aria-current={tab === t.id ? 'page' : undefined}
-          >
-            {t.label}
-          </button>
-        ))}
-      </nav>
-
-      {flash && (
-        <p
-          className="mono mb-5 rounded border px-3 py-2 text-xs"
-          role="status"
-          style={{
-            color: flash.tone === 'ok' ? '#2f8f5b' : '#c42e2e',
-            borderColor: `color-mix(in srgb, ${flash.tone === 'ok' ? '#2f8f5b' : '#c42e2e'} 35%, transparent)`,
-            background: `color-mix(in srgb, ${flash.tone === 'ok' ? '#2f8f5b' : '#c42e2e'} 8%, transparent)`,
-          }}
-        >
-          {flash.message}
-        </p>
-      )}
-
+      </div>
+      <div className="adm">
+        <nav className="ad-side" role="tablist" aria-label="Admin sections">
+          {TABS.map((t, i) => (
+            <button key={t.id} role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)}>
+              <b>{String(i + 1).padStart(2, '0')}</b>
+              {t.label}
+            </button>
+          ))}
+        </nav>
+        <div className="ad-main">
+          <div className={`flash ${flash ? (flash.tone === 'ok' ? 'ok' : 'bad') : ''}`} role="status">
+            {flash ? `> ${flash.message}` : '> ready'}
+          </div>
+          <div className="ad-body">
+            <h2>{cur.label}</h2>
       {tab === 'points' && <PointsTab say={say} />}
       {tab === 'members' && <MembersTab say={say} />}
       {tab === 'badges' && <BadgesTab say={say} />}
@@ -100,6 +80,9 @@ export default function Admin() {
       {tab === 'email' && <EmailTab say={say} />}
       {tab === 'text' && <TextTab say={say} />}
       {tab === 'backup' && <BackupTab say={say} />}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -126,13 +109,15 @@ function Login({ onIn }) {
   };
 
   return (
-    <div className="mx-auto max-w-sm py-16">
-      <p className="eyebrow">Admin</p>
-      <h1 className="display mt-2 mb-1 text-3xl font-extrabold">Sign in</h1>
-      <p className="mb-6 text-sm" style={{ color: 'var(--ink-soft)' }}>
+    <div className="ad-login wrap">
+      <div className="ad-box">
+        <div className="pane-h"><span><b>admin</b> sudo</span><span>officers only</span></div>
+        <div className="bd">
+      <h1>Sign in</h1>
+      <p className="mb-6 text-sm">
         Officers only. The password is the ADMIN_PASSWORD secret set on the site.
       </p>
-      <form onSubmit={submit} className="card grid gap-3 p-5">
+      <form onSubmit={submit} className="grid gap-3 mt-4">
         <label className="grid gap-1.5">
           <span className="eyebrow">Password</span>
           <input
@@ -153,6 +138,8 @@ function Login({ onIn }) {
           {busy ? 'Checking…' : 'Sign in'}
         </button>
       </form>
+        </div>
+      </div>
     </div>
   );
 }
@@ -161,28 +148,22 @@ function Login({ onIn }) {
 
 function Section({ title, hint, children, className = '' }) {
   return (
-    <section className={`card p-5 ${className}`}>
-      <h2 className="display text-base font-bold">{title}</h2>
-      {hint && (
-        <p className="mt-1 mb-4 text-[0.82rem]" style={{ color: 'var(--ink-soft)' }}>
-          {hint}
-        </p>
-      )}
-      <div className={hint ? '' : 'mt-4'}>{children}</div>
+    <section className={`ad-box2 ${className}`}>
+      <div className="pane-h"><span><b>{title}</b></span></div>
+      <div className="in">
+        {hint && <p className="d" style={{ fontSize: 13 }}>{hint}</p>}
+        {children}
+      </div>
     </section>
   );
 }
 
 function Field({ label, hint, children }) {
   return (
-    <label className="grid gap-1.5">
-      <span className="eyebrow">{label}</span>
+    <label className="fld">
+      <span>{label}</span>
       {children}
-      {hint && (
-        <span className="text-[0.72rem]" style={{ color: 'var(--ink-faint)' }}>
-          {hint}
-        </span>
-      )}
+      {hint && <small>{hint}</small>}
     </label>
   );
 }

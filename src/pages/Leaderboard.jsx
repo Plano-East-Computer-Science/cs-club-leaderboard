@@ -109,7 +109,7 @@ export default function Leaderboard() {
             <p className="lead">
               {settings.club_name || 'Plano East CS Club'} runs on points. <b>Show up, ship something, enter a contest</b>,
               and every award is logged with a reason. {students.length} member{students.length === 1 ? ' is' : 's are'} on the
-              board. {settings.prize_blurb || `The season ends with ${prize}.`}
+              board. The season ends with {prize}.
             </p>
             <Countdown end={season.end} />
             <div className="kv">

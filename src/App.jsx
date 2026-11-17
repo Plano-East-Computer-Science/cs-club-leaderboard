@@ -98,11 +98,7 @@ function Shell() {
           <Route path="/cyber" element={<Cyber />} />
           <Route
             path="/admin"
-            element={
-              <div className="page-pad">
-                <Admin />
-              </div>
-            }
+            element={<Admin />}
           />
           <Route
             path="*"
