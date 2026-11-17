@@ -62,13 +62,20 @@ const devpost = {
   },
 };
 
-/** Devpost gives dates as "Mar 01 - Apr 15, 2026". We want the end date, ISO. */
+/**
+ * Devpost gives dates as "Mar 01 - Apr 15, 2026", "Nov 15 - 17, 2026" (same
+ * month, so the end has no month of its own) or "Jan 05, 2027". We want the end
+ * date, ISO.
+ */
 export function parseDevpostDeadline(text) {
   if (!text) return null;
-  const m = String(text).match(/([A-Z][a-z]{2})\s+(\d{1,2}),?\s*(\d{4})?\s*$/);
+  const [start, end = start] = String(text).split(/\s+[-–]\s+/);
+  const m = end.trim().match(/^(?:([A-Z][a-z]{2})\s+)?(\d{1,2}),?\s*(\d{4})?$/);
   if (!m) return null;
-  const [, mon, day, year] = m;
-  const d = new Date(`${mon} ${day}, ${year ?? new Date().getFullYear()} UTC`);
+  const mon = m[1] ?? start.match(/^[A-Z][a-z]{2}/)?.[0];
+  const year = m[3] ?? start.match(/\d{4}/)?.[0] ?? new Date().getFullYear();
+  if (!mon) return null;
+  const d = new Date(`${mon} ${m[2]}, ${year} UTC`);
   return Number.isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
 }
 
