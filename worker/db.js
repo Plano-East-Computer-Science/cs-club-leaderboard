@@ -46,6 +46,21 @@ export async function getLeaderboard(db) {
   });
 }
 
+/**
+ * Every point award for active members, oldest first. The standings page uses
+ * it for the rank-change column, the rank race chart and the recent-awards feed.
+ * It exposes nothing /api/student/:id does not already show per member.
+ */
+export function getAllPointEvents(db) {
+  return all(
+    db,
+    `SELECT e.student_id, e.delta, e.reason, e.created_at
+     FROM point_events e JOIN students s ON s.id = e.student_id
+     WHERE s.active = 1
+     ORDER BY e.created_at, e.id`
+  );
+}
+
 export async function getBadgesByStudent(db) {
   const rows = await all(
     db,
