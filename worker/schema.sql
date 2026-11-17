@@ -267,3 +267,19 @@ CREATE TABLE IF NOT EXISTS problems (
   updated_at TEXT    NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_problems_status ON problems(status, difficulty);
+
+-- C3. Daily problem. A pin overrides the deterministic pick for one date;
+-- a result is saved once per member per day (first solve wins).
+CREATE TABLE IF NOT EXISTS daily_pins (
+  date       TEXT    PRIMARY KEY,                  -- YYYY-MM-DD, club timezone
+  problem_id INTEGER NOT NULL REFERENCES problems(id)
+);
+CREATE TABLE IF NOT EXISTS daily_results (
+  user_id   INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  date      TEXT    NOT NULL,
+  attempts  INTEGER NOT NULL,
+  solved_at TEXT    NOT NULL DEFAULT (datetime('now')),
+  ms        INTEGER NOT NULL,
+  PRIMARY KEY (user_id, date)
+);
+CREATE INDEX IF NOT EXISTS idx_daily_results_date ON daily_results(date);

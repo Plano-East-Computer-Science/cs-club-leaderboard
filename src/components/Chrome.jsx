@@ -17,6 +17,7 @@ export const PAGES = [
   ['standings', '/standings'],
   ['learn', '/learn'],
   ['quests', '/quests'],
+  ['daily', '/daily'],
   ['room', '/room'],
   ['projects', '/projects'],
   ['opportunities', '/opportunities'],
@@ -36,7 +37,7 @@ const BAR = ['home', 'standings', 'learn', 'quests', 'room', 'projects', 'opport
 // The "all" panel: the whole site as a directory listing, grouped by what you came to do.
 const GROUPS = [
   ['meet', [['room', 'join the live meeting'], ['calendar', 'meetings and deadlines'], ['ideas', 'tell us what to run next']]],
-  ['learn', [['learn', 'lessons that run in the page'], ['quests', 'earn xp and a rank'], ['puzzles', 'problem of the week'], ['curriculum', 'what we teach, by track']]],
+  ['learn', [['learn', 'lessons that run in the page'], ['quests', 'earn xp and a rank'], ['daily', 'one problem a day'], ['puzzles', 'problem of the week'], ['curriculum', 'what we teach, by track']]],
   ['build', [['projects', 'post what you made'], ['gateway', 'GitHub on school wifi']]],
   ['compete', [['standings', 'points, tiers, the prize'], ['competitions', 'USACO, UIL, BOT and more'], ['opportunities', 'contests, programs, internships'], ['cyber', 'the cyber team']]],
   ['club', [['about', 'who runs this'], ['join', 'how to get involved']]],
@@ -265,7 +266,7 @@ export function Dock() {
         return close();
       }
       case 'daily':
-        navigate('/learn'); // TODO(C3): point at /daily once the daily problem page exists
+        navigate('/daily');
         return close();
       case 'next':
         navigate('/');

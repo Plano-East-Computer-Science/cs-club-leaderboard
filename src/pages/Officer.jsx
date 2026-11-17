@@ -4,6 +4,7 @@ import { api } from '../lib/api.js';
 import { Spinner, ErrorNote, Empty } from '../components/bits.jsx';
 import Problems from './officer/Problems.jsx';
 import Announce from './officer/Announce.jsx';
+import DailyAdmin from './officer/Daily.jsx';
 
 const HOURS = [1, 2, 3, 6, 12];
 
@@ -68,6 +69,7 @@ export default function Officer() {
       <IdeasAdmin />
       <Announce />
       <Gateway />
+      <DailyAdmin />
       <Problems />
     </div>
   );
