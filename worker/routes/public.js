@@ -3,7 +3,7 @@
  */
 import { Hono } from 'hono';
 import {
-  getLeaderboard, getStudent, listOpportunities, getAllSettings,
+  getLeaderboard, getAllPointEvents, getStudent, listOpportunities, getAllSettings,
   getOfficers, getCurriculum, getCompetitions, getPuzzles, getCurrentPuzzle,
 } from '../db.js';
 import { RADIUS_MILES, SCHOOL } from '../geo.js';
@@ -12,7 +12,10 @@ import { opportunitiesToICS } from '../ics.js';
 export const publicRouter = new Hono();
 
 publicRouter.get('/leaderboard', async (c) => {
-  return c.json({ students: await getLeaderboard(c.env.DB) });
+  return c.json({
+    students: await getLeaderboard(c.env.DB),
+    events: await getAllPointEvents(c.env.DB),
+  });
 });
 
 publicRouter.get('/student/:id', async (c) => {
@@ -78,7 +81,7 @@ publicRouter.get('/deadlines.ics', async (c) => {
  */
 const PUBLIC_SETTINGS = [
   'club_name', 'school_name', 'tagline',
-  'prize_title', 'prize_blurb',
+  'prize_title', 'prize_blurb', 'season_start', 'season_end',
   'about_heading', 'about_body',
   'discord_url', 'email',
   'cyber_intro', 'cyber_body',

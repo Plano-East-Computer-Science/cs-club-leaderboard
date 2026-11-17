@@ -20,35 +20,25 @@ export function SubscribeBox() {
     }
   };
 
-  if (state.done) {
-    return (
-      <p className="mono text-xs" style={{ color: 'var(--ink-soft)' }}>
-        Check your inbox — click the link to confirm.
-      </p>
-    );
-  }
-
   return (
-    <form onSubmit={submit} className="flex w-full max-w-md flex-wrap items-center gap-2">
-      <label className="mono w-full text-[0.7rem]" style={{ color: 'var(--ink-faint)' }}>
-        Weekly email: points, new opportunities, deadlines. Personal address, not school.
-      </label>
-      <input
-        className="field min-w-0 flex-1"
-        type="email"
-        placeholder="you@gmail.com"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        required
-      />
-      <button className="btn btn-ghost" disabled={state.busy}>
-        {state.busy ? 'Sending…' : 'Subscribe'}
-      </button>
-      {state.error && (
-        <p className="mono w-full text-xs" style={{ color: '#c42e2e' }}>
-          {state.error}
-        </p>
-      )}
-    </form>
+    <>
+      <form className="sub-form" onSubmit={submit}>
+        <span>&gt;</span>
+        <input
+          type="email"
+          placeholder="you@gmail.com"
+          aria-label="Email address"
+          autoComplete="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+        />
+        <button disabled={state.busy}>{state.busy ? 'sending...' : 'subscribe'}</button>
+      </form>
+      <div className="sub-out" aria-live="polite" style={state.error ? { color: 'var(--down)' } : undefined}>
+        {state.done && `> confirmation sent to ${email}. click the link in it to finish subscribing.`}
+        {state.error && `> ${state.error}`}
+      </div>
+    </>
   );
 }

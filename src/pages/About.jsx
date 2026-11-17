@@ -1,114 +1,113 @@
-import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { TIERS } from '../lib/tiers.js';
-import { api } from '../lib/api.js';
-import { RichText, Spinner } from '../components/bits.jsx';
+import { useData } from '../lib/data.jsx';
+import { useApi, useReveal } from '../lib/ui.js';
+import { parseSections, slug, paras, bullets } from '../lib/md.js';
+import { Pane, Paras, PageHead } from '../components/Pane.jsx';
 
-const COMMITTEE_LABEL = { main: 'Main CS Club', cyber: 'Cybersecurity Committee' };
+const COMMITTEE = { main: 'Main CS Club', cyber: 'Cybersecurity Committee' };
 
-function Officers() {
-  const [officers, setOfficers] = useState(null);
+/** "Showing up to a meeting: 2-5 points" -> label and value. */
+const rate = (t) => {
+  const i = t.lastIndexOf(': ');
+  return i < 0 ? [t, ''] : [t.slice(0, i), t.slice(i + 2)];
+};
 
-  useEffect(() => {
-    api.get('/officers').then((d) => setOfficers(d.officers)).catch(() => setOfficers([]));
-  }, []);
+export default function About() {
+  const { settings } = useData();
+  const { data } = useApi('/officers');
+  useReveal();
 
-  if (officers === null) return <Spinner label="Loading officers" />;
-  if (!officers.length) return null;
+  const officers = data?.officers ?? [];
+  const secs = parseSections(settings.about_body || '');
+  const intro = secs.find((s) => !s.h);
+  const named = secs.filter((s) => s.h);
+  const pointsSec = named.find((s) => /point/i.test(s.h));
+  const rest = named.filter((s) => s !== pointsSec);
+
+  const heading = (settings.about_heading || 'About the club').replace(/\.$/, '');
+  const words = heading.split(' ');
+  const last = words.pop();
 
   return (
-    <section>
-      <h2 className="display mb-4 text-xl font-bold" style={{ color: 'var(--ink)' }}>
-        The officers
-      </h2>
-      <ul className="grid gap-3 sm:grid-cols-2">
-        {officers.map((o) => (
-          <li key={o.id} className="card p-4">
-            <p className="text-sm font-semibold" style={{ color: 'var(--ink)' }}>
-              {o.name}
-            </p>
-            <p className="mono mt-0.5 text-[0.7rem]" style={{ color: 'var(--flag)' }}>
-              {o.role}
-            </p>
-            {o.note && (
-              <p className="mt-1.5 text-[0.8rem]" style={{ color: 'var(--ink-soft)' }}>
-                {o.note}
-              </p>
+    <>
+      <PageHead
+        one
+        eyebrow={settings.school_name || 'Plano East Senior High School'}
+        title={<>{words.join(' ')}{words.length ? ' ' : ''}<em>{last}</em>.</>}
+      />
+      <section className="sec" style={{ border: 0, paddingBottom: 12 }}>
+        <div className="wrap">
+          <div className="ab">
+            <Pane file="about.md" meta="plano east shs" cls="a">
+              {intro ? <Paras section={intro} /> : <div className="pn-b"><p className="d">No about text yet. An officer can add it in Admin, Page text.</p></div>}
+            </Pane>
+
+            {pointsSec && (
+              <Pane file="points.conf" meta={`${bullets(pointsSec).length} rules`} cls="p">
+                <div className="pn-b">
+                  {paras(pointsSec)[0] && <p className="d">{paras(pointsSec)[0]}</p>}
+                  {bullets(pointsSec).length > 0 && <h4 className="k">cat rates</h4>}
+                  {bullets(pointsSec).map((t, i) => {
+                    const [a, b] = rate(t);
+                    return <div key={i} className="prow"><span>{a}</span><span>{b}</span></div>;
+                  })}
+                  {paras(pointsSec).length > 1 && (
+                    <>
+                      <h4 className="k">prize</h4>
+                      {paras(pointsSec).slice(1).map((p, i) => <p key={i}>{p}</p>)}
+                    </>
+                  )}
+                </div>
+              </Pane>
             )}
-            <p className="mono mt-2 text-[0.65rem]" style={{ color: 'var(--ink-faint)' }}>
-              {COMMITTEE_LABEL[o.committee] ?? o.committee}
-            </p>
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
-}
 
-export default function About({ settings }) {
-  return (
-    <div>
-      <header className="mb-10">
-        <p className="eyebrow">{settings.school_name || 'Plano East Senior High School'}</p>
-        <h1 className="display mt-2 text-[clamp(2.2rem,6vw,3.5rem)] leading-[0.95] font-extrabold">
-          {settings.about_heading || 'About the club'}
-        </h1>
-      </header>
-
-      <div className="grid gap-8 lg:grid-cols-[1fr_18rem] lg:items-start">
-        <div className="grid gap-8">
-          <article className="card p-6 sm:p-8">
-            <RichText text={settings.about_body || ''} />
-          </article>
-          <Officers />
-        </div>
-
-        <aside className="grid gap-6">
-          <div className="card p-5">
-            <h2 className="eyebrow mb-3">The tier ladder</h2>
-            <ol className="grid gap-2">
-              {TIERS.map((t) => (
-                <li key={t.name} className="mono flex items-center gap-2 text-xs">
-                  <span
-                    className="inline-block h-2.5 w-2.5 shrink-0 rounded-sm"
-                    style={{ background: t.color }}
-                    aria-hidden="true"
-                  />
-                  <span className="font-semibold" style={{ color: t.color }}>
-                    {t.name}
-                  </span>
-                  <span className="ml-auto" style={{ color: 'var(--ink-faint)' }}>
-                    {t.min}+
-                  </span>
-                </li>
+            <div className="m" style={{ display: 'grid', gap: 16, alignContent: 'start' }}>
+              {rest.map((s) => (
+                <Pane key={s.h} file={slug(s.h)} meta={/meeting/i.test(s.h) ? 'when and where' : 'read me'}>
+                  <Paras section={s} />
+                </Pane>
               ))}
-            </ol>
-          </div>
-
-          {(settings.discord_url || settings.email) && (
-            <div className="card p-5">
-              <h2 className="eyebrow mb-3">Get in</h2>
-              <div className="grid gap-2">
-                {settings.discord_url && (
-                  <a
-                    className="btn btn-primary"
-                    href={settings.discord_url}
-                    target="_blank"
-                    rel="noreferrer noopener"
-                    style={{ textDecoration: 'none' }}
-                  >
-                    Join the Discord
-                  </a>
-                )}
-                {settings.email && (
-                  <a className="btn btn-ghost" href={`mailto:${settings.email}`} style={{ textDecoration: 'none' }}>
-                    Email an officer
-                  </a>
-                )}
-              </div>
             </div>
-          )}
-        </aside>
-      </div>
-    </div>
+
+            <Pane file="tiers.conf" meta={`${TIERS.length} tiers`} cls="t">
+              <ol className="tl">
+                {TIERS.map((t) => (
+                  <li key={t.name} style={{ '--c': t.color }}><i /><b>{t.name}</b><span>{t.min}+</span></li>
+                ))}
+              </ol>
+            </Pane>
+
+            <Pane file="get_in" meta="contact" cls="gi">
+              <div className="pn-b">
+                <Link className="btn pri" to="/join">How to join</Link>
+                <Link className="btn" to="/cyber">Cybersecurity Committee</Link>
+                <Link className="btn" to="/">See the standings</Link>
+                {settings.discord_url && <a className="btn" href={settings.discord_url} target="_blank" rel="noreferrer noopener">Join the Discord</a>}
+                {settings.email && <a className="btn" href={`mailto:${settings.email}`}>Email an officer</a>}
+              </div>
+            </Pane>
+          </div>
+        </div>
+      </section>
+
+      {officers.length > 0 && (
+        <section className="sec" style={{ border: 0, paddingTop: 12 }}>
+          <div className="wrap">
+            <h2>The officers <small>ls officers/</small></h2>
+            <div className="og">
+              {officers.map((o, i) => (
+                <article key={o.id} className="of sp rv" style={{ '--d': i % 3 }}>
+                  <h3>{o.name}</h3>
+                  <div className="rl">{o.role}</div>
+                  {o.note && <p>{o.note}</p>}
+                  {o.note !== COMMITTEE[o.committee] && <span className="cm">{COMMITTEE[o.committee] ?? o.committee}</span>}
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+    </>
   );
 }

@@ -1,104 +1,123 @@
-import { RichText } from '../components/bits.jsx';
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { useData } from '../lib/data.jsx';
+import { parseSections } from '../lib/md.js';
+import { useReveal } from '../lib/ui.js';
+import { PageHead } from '../components/Pane.jsx';
 
-export default function Join({ settings }) {
-  const hasClassroom = Boolean(settings.join_classroom_code?.trim());
+export default function Join() {
+  const { settings } = useData();
+  const [done, setDone] = useState(() => new Set());
+  useReveal();
 
-  return (
-    <div>
-      <header className="mb-10">
-        <p className="eyebrow">Get involved</p>
-        <h1 className="display mt-2 text-[clamp(2.2rem,6vw,3.5rem)] leading-[0.95] font-extrabold">
-          How to join
-        </h1>
-        {settings.join_intro && (
-          <p className="mt-4 max-w-2xl text-base" style={{ color: 'var(--ink-soft)' }}>
-            {settings.join_intro}
-          </p>
-        )}
-      </header>
+  const code = settings.join_classroom_code?.trim();
+  const meeting = settings.join_meeting_info?.trim();
+  const toggle = (n) =>
+    setDone((s) => {
+      const x = new Set(s);
+      x.has(n) ? x.delete(n) : x.add(n);
+      return x;
+    });
+  const mark = (n) => (done.has(n) ? <span className="ok">[x]</span> : <span className="wt">[ ]</span>);
 
-      <div className="grid gap-5 sm:grid-cols-2">
-        <StepCard
-          step={1}
-          required
-          title="Parent consent form"
-          body="You cannot attend meetings until this is submitted."
-        >
-          {settings.join_consent_url ? (
-            <a
-              className="btn btn-primary"
-              href={settings.join_consent_url}
-              target="_blank"
-              rel="noreferrer noopener"
-              style={{ textDecoration: 'none' }}
-            >
-              Open the consent form ↗
-            </a>
-          ) : (
-            <p className="mono text-[0.7rem]" style={{ color: 'var(--ink-faint)' }}>
-              Link not set yet — ask an officer.
-            </p>
-          )}
-        </StepCard>
-
-        <StepCard
-          step={2}
-          title="Google Classroom"
-          body="Everything — slides, problems, competition signups — lives there."
-        >
-          {hasClassroom ? (
-            <p className="mono rounded border px-3 py-2 text-sm font-semibold" style={{ color: 'var(--flag)' }}>
-              {settings.join_classroom_code}
-            </p>
-          ) : (
-            <p className="mono text-[0.7rem]" style={{ color: 'var(--ink-faint)' }}>
-              Code coming soon — check back or ask an officer.
-            </p>
-          )}
-        </StepCard>
-      </div>
-
-      <div className="card mt-6 p-5">
-        <h2 className="eyebrow mb-3">Meeting</h2>
-        {settings.join_meeting_info?.trim() ? (
-          <RichText text={settings.join_meeting_info} />
-        ) : (
-          <p className="text-sm" style={{ color: 'var(--ink-soft)' }}>
-            Day, time, and room haven't been posted here yet — ask an officer or check the
-            school announcements.
-          </p>
-        )}
-      </div>
-    </div>
+  const toggleBtn = (n) => (
+    <button key={n} className="btn tg" type="button" aria-pressed={done.has(n)} onClick={() => toggle(n)}>
+      {done.has(n) ? '[x] marked done' : '[ ] mark done'}
+    </button>
   );
-}
 
-function StepCard({ step, required, title, body, children }) {
   return (
-    <div className="card p-5">
-      <div className="flex items-center gap-2">
-        <span
-          className="mono grid h-6 w-6 shrink-0 place-items-center rounded-full text-[0.7rem] font-bold"
-          style={{ background: 'var(--flag)', color: 'light-dark(#fff, #0d1017)' }}
-        >
-          {step}
-        </span>
-        <h2 className="display text-base font-bold" style={{ color: 'var(--ink)' }}>
-          {title}
-        </h2>
-        {required && (
-          <span
-            className="mono ml-auto rounded px-1.5 py-0.5 text-[0.6rem] font-bold tracking-wide uppercase"
-            style={{ color: '#c42e2e', background: 'color-mix(in srgb, #c42e2e 12%, transparent)' }}
-          >
-            Required
-          </span>
-        )}
-      </div>
-      <p className="mt-2 text-[0.85rem]" style={{ color: 'var(--ink-soft)' }}>
-        {body}
-      </p>
-      <div className="mt-4">{children}</div>
-    </div>
+    <>
+      <PageHead
+        eyebrow="get involved"
+        title={<>How to <em>join</em></>}
+        lead={
+          <>
+            {settings.join_intro || 'No experience needed. Beginners and returning competitors are both covered.'} See the{' '}
+            <Link className="g uline" to="/curriculum">Curriculum</Link> page for what that looks like week to week.
+          </>
+        }
+        kv={
+          <div className="kv two2">
+            <div><span>steps</span><strong>3</strong></div>
+            <div><span>progress</span><strong>{done.size} of 2 done</strong></div>
+          </div>
+        }
+      />
+      <section className="sec" style={{ border: 0 }}>
+        <div className="wrap">
+          <div className="jsteps">
+            <article className={`pn stp sp ${done.has(1) ? 'done' : ''}`}>
+              <div className="pane-h"><span><b>step_1</b></span><span>required</span></div>
+              <div className="pn-b">
+                <div className="hd"><span className="no">01</span><h2>Parent consent form</h2><span className="tagr rq">Required</span></div>
+                <p className="d">You cannot attend meetings until this is submitted.</p>
+                <div className="act">
+                  {settings.join_consent_url ? (
+                    <a className="btn pri" href={settings.join_consent_url} target="_blank" rel="noreferrer noopener">Open the consent form &#8599;</a>
+                  ) : (
+                    <span className="soon">Link not set yet. Ask an officer.</span>
+                  )}
+                  {toggleBtn(1)}
+                </div>
+              </div>
+            </article>
+
+            <article className={`pn stp sp ${done.has(2) ? 'done' : ''}`}>
+              <div className="pane-h"><span><b>step_2</b></span><span /></div>
+              <div className="pn-b">
+                <div className="hd"><span className="no">02</span><h2>Google Classroom</h2></div>
+                <p className="d">Everything: slides, problems, competition signups, lives there.</p>
+                <div className="act">
+                  {code ? <span className="g" style={{ border: '1px solid var(--gold-d)', padding: '3px 10px', fontWeight: 700 }}>{code}</span> : <span className="soon">Code coming soon. Check back or ask an officer.</span>}
+                  {toggleBtn(2)}
+                </div>
+              </div>
+            </article>
+
+            <article className="pn stp sp">
+              <div className="pane-h"><span><b>step_3</b></span><span /></div>
+              <div className="pn-b">
+                <div className="hd"><span className="no">--</span><h2>Meeting</h2></div>
+                {meeting ? (
+                  parseSections(meeting).flatMap((s, i) => [
+                    s.h && <p key={`h${i}`} className="g">{s.h}</p>,
+                    ...s.blocks.map((b, k) => (b.p ? <p key={`${i}p${k}`} className="d">{b.p}</p> : <ul key={`${i}u${k}`} className="ul">{b.ul.map((t, j) => <li key={j}>{t}</li>)}</ul>)),
+                  ])
+                ) : (
+                  <p className="d">Day, time, and room have not been posted here yet. Ask an officer or check the school announcements.</p>
+                )}
+              </div>
+            </article>
+          </div>
+
+          <div className="jf">
+            <section className="pn term">
+              <div className="pane-h"><span><b>join.sh</b> your checklist</span><span>marks stay on this page only</span></div>
+              <pre aria-live="polite">
+                {'$ ./join.sh --status\n'}
+                {mark(1)} 1  parent consent form  <b>required</b>{'\n'}
+                {mark(2)} 2  google classroom{'\n'}
+                {'    3  meeting  '}<b>{meeting ? 'see above' : 'ask an officer'}</b>{'\n\n'}
+                {done.has(1) ? (
+                  <span className="ok">consent marked done. you can attend meetings once it is on file.</span>
+                ) : (
+                  <span className="wt">waiting on step 1. you cannot attend meetings until it is submitted.</span>
+                )}
+              </pre>
+            </section>
+            <section className="pn">
+              <div className="pane-h"><span><b>next.txt</b> while you wait</span></div>
+              <ul className="ul" style={{ padding: '6px 18px 10px' }}>
+                <li><Link className="g" to="/curriculum">Curriculum</Link> : what the weeks look like</li>
+                <li><Link className="g" to="/puzzles">Puzzles</Link> : try the Problem of the Week</li>
+                <li><Link className="g" to="/">Standings</Link> : see how points work in practice</li>
+                <li><Link className="g" to="/about">About</Link> : officers and meeting details</li>
+              </ul>
+            </section>
+          </div>
+        </div>
+      </section>
+    </>
   );
 }

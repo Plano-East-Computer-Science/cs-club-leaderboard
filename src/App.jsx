@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { BrowserRouter, Routes, Route, NavLink, Link, useLocation } from 'react-router-dom';
+import { useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Link, useLocation } from 'react-router-dom';
 
 import Leaderboard from './pages/Leaderboard.jsx';
 import Student from './pages/Student.jsx';
@@ -12,203 +12,127 @@ import Cyber from './pages/Cyber.jsx';
 import Join from './pages/Join.jsx';
 import About from './pages/About.jsx';
 import Admin from './pages/Admin.jsx';
-import { api } from './lib/api.js';
 import { SubscribeBox } from './components/Subscribe.jsx';
+import { TabBar, Dock, Boot, Snow, PAGES } from './components/Chrome.jsx';
+import { DataProvider, useData } from './lib/data.jsx';
 
-const SiteContext = { settings: {} };
+document.documentElement.classList.add('js');
 
-function useSettings() {
-  const [settings, setSettings] = useState(SiteContext.settings);
-  useEffect(() => {
-    api
-      .get('/site')
-      .then((d) => {
-        SiteContext.settings = d.settings;
-        setSettings(d.settings);
-      })
-      .catch(() => {});
-  }, []);
-  return settings;
+// Spotlight border: any `.sp` element follows the pointer.
+window.addEventListener(
+  'pointermove',
+  (e) => {
+    const t = e.target.closest?.('.sp');
+    if (!t) return;
+    const r = t.getBoundingClientRect();
+    t.style.setProperty('--mx', `${e.clientX - r.left}px`);
+    t.style.setProperty('--my', `${e.clientY - r.top}px`);
+  },
+  { passive: true }
+);
+
+/** The mockup's CSS keys a few layouts off body[data-page]. */
+function pageKey(pathname) {
+  if (pathname === '/' || pathname.startsWith('/student')) return 'standings';
+  return pathname.split('/')[1] || 'standings';
 }
 
-const NAV = [
-  { to: '/', label: 'Standings', end: true },
-  { to: '/opportunities', label: 'Opportunities' },
-  { to: '/calendar', label: 'Calendar' },
-  { to: '/curriculum', label: 'Curriculum' },
-  { to: '/competitions', label: 'Competitions' },
-  { to: '/cyber', label: 'Cyber' },
-  { to: '/puzzles', label: 'Puzzles' },
-  { to: '/about', label: 'About' },
-  { to: '/join', label: 'Join' },
-];
-
-function Masthead({ settings }) {
-  const [open, setOpen] = useState(false);
-  const { pathname } = useLocation();
-  useEffect(() => setOpen(false), [pathname]);
-
+function Footer() {
+  const { settings } = useData();
   return (
-    <header
-      className="sticky top-0 z-40 border-b backdrop-blur"
-      style={{ background: 'color-mix(in srgb, var(--paper) 88%, transparent)' }}
-    >
-      <div className="mx-auto flex max-w-6xl items-center gap-4 px-4 py-3 sm:px-6">
-        <Link to="/" className="group flex items-baseline gap-2 no-underline">
-          <span
-            className="mono rounded px-1.5 py-0.5 text-xs font-bold"
-            style={{ background: 'var(--flag)', color: 'light-dark(#fff, #0d1017)' }}
-          >
-            #
-          </span>
-          <span className="display text-[0.95rem] font-extrabold" style={{ color: 'var(--ink)' }}>
-            {settings.club_name || 'CS Club'}
-          </span>
-        </Link>
-
-        {/* Seven public routes plus Admin no longer fit comfortably at the old
-            "sm" breakpoint, so the horizontal bar only takes over at "lg" --
-            everything narrower than that gets the hamburger menu below,
-            which was already built to show the full NAV list. */}
-        <nav className="ml-auto hidden items-center gap-1 lg:flex">
-          {NAV.map((n) => (
-            <NavLink
-              key={n.to}
-              to={n.to}
-              end={n.end}
-              className="mono rounded px-2.5 py-1.5 text-xs font-semibold no-underline transition-colors"
-              style={({ isActive }) => ({
-                color: isActive ? 'var(--ink)' : 'var(--ink-faint)',
-                background: isActive ? 'var(--paper-2)' : 'transparent',
-              })}
-            >
-              {n.label}
-            </NavLink>
-          ))}
-          <Link
-            to="/admin"
-            className="mono ml-2 rounded border px-3 py-1.5 text-xs font-semibold no-underline"
-            style={{ color: 'var(--ink-soft)', borderColor: 'var(--rule)' }}
-          >
-            Admin
-          </Link>
-        </nav>
-
-        {/* `.btn` sets display: inline-flex unconditionally, which beats a
-            same-specificity `lg:hidden` on the button itself at the widths
-            where it should disappear -- CSS gives the later-in-stylesheet
-            rule the win once both are "in effect", regardless of the media
-            query. Putting the responsive visibility on a plain wrapper with
-            no competing display rule sidesteps the fight entirely. */}
-        <span className="ml-auto lg:hidden">
-          <button
-            className="btn btn-ghost"
-            onClick={() => setOpen((v) => !v)}
-            aria-expanded={open}
-            aria-label="Menu"
-          >
-            {open ? 'Close' : 'Menu'}
-          </button>
-        </span>
-      </div>
-
-      {open && (
-        <nav className="grid gap-1 border-t px-4 py-3 lg:hidden">
-          {[...NAV, { to: '/admin', label: 'Admin' }].map((n) => (
-            <NavLink
-              key={n.to}
-              to={n.to}
-              end={n.end}
-              className="mono rounded px-3 py-2 text-sm font-semibold no-underline"
-              style={({ isActive }) => ({
-                color: isActive ? 'var(--ink)' : 'var(--ink-soft)',
-                background: isActive ? 'var(--paper-2)' : 'transparent',
-              })}
-            >
-              {n.label}
-            </NavLink>
-          ))}
-        </nav>
-      )}
-    </header>
-  );
-}
-
-function Footer({ settings }) {
-  return (
-    <footer className="mt-20 border-t">
-      <div
-        className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-8 sm:px-6"
-        style={{ color: 'var(--ink-faint)' }}
-      >
-        <p className="mono text-xs">
-          {settings.school_name || 'Plano East Senior High School'}
-        </p>
-        <p className="mono text-xs">Points update whenever an officer awards them.</p>
-        <div className="basis-full">
-          <SubscribeBox />
+    <footer>
+      <div className="wrap">
+        <div className="fg">
+          <div>
+            <h2>Get the weekly digest</h2>
+            <p className="d" style={{ marginTop: 8, maxWidth: '50ch' }}>
+              New opportunities, deadlines, the problem of the week and the standings, once a week. Use a
+              personal address, not a school one. Confirm by email to subscribe.
+            </p>
+            <SubscribeBox />
+          </div>
+          <div className="links">
+            {PAGES.filter(([n]) => n !== 'admin').map(([n, to]) => (
+              <Link key={n} to={to}>
+                {n}
+              </Link>
+            ))}
+            {settings.discord_url && (
+              <a href={settings.discord_url} target="_blank" rel="noreferrer noopener">
+                discord
+              </a>
+            )}
+            {settings.email && <a href={`mailto:${settings.email}`}>{settings.email}</a>}
+          </div>
         </div>
-        {settings.discord_url && (
-          <a
-            className="mono text-xs no-underline"
-            style={{ color: 'var(--flag)' }}
-            href={settings.discord_url}
-            target="_blank"
-            rel="noreferrer noopener"
-          >
-            Discord
-          </a>
-        )}
-        {settings.email && (
-          <a className="mono text-xs no-underline" style={{ color: 'var(--flag)' }} href={`mailto:${settings.email}`}>
-            {settings.email}
-          </a>
-        )}
+        <p className="fine">
+          {settings.school_name || 'Plano East Senior High School'}. Go Panthers.
+          Points update whenever an officer awards them.
+        </p>
       </div>
     </footer>
   );
 }
 
 function Shell() {
-  const settings = useSettings();
+  const { pathname } = useLocation();
+  useEffect(() => {
+    document.body.dataset.page = pageKey(pathname);
+    if (!location.hash) window.scrollTo(0, 0);
+  }, [pathname]);
+
   return (
-    <div className="flex min-h-dvh flex-col">
-      <Masthead settings={settings} />
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6 sm:py-12">
+    <>
+      <TabBar />
+      <main>
         <Routes>
-          <Route path="/" element={<Leaderboard settings={settings} />} />
+          <Route path="/" element={<Leaderboard />} />
           <Route path="/student/:id" element={<Student />} />
           <Route path="/opportunities" element={<Opportunities />} />
-          <Route path="/calendar" element={<CalendarPage settings={settings} />} />
+          <Route path="/calendar" element={<CalendarPage />} />
           <Route path="/curriculum" element={<Curriculum />} />
           <Route path="/competitions" element={<Competitions />} />
           <Route path="/puzzles" element={<Puzzles />} />
-          <Route path="/join" element={<Join settings={settings} />} />
-          <Route path="/about" element={<About settings={settings} />} />
-          <Route path="/cyber" element={<Cyber settings={settings} />} />
-          <Route path="/admin" element={<Admin />} />
+          <Route path="/join" element={<Join />} />
+          <Route path="/about" element={<About />} />
+          <Route path="/cyber" element={<Cyber />} />
+          <Route
+            path="/admin"
+            element={
+              <div className="page-pad">
+                <Admin />
+              </div>
+            }
+          />
           <Route
             path="*"
             element={
-              <div className="py-24 text-center">
-                <p className="display text-3xl font-extrabold">Nothing here</p>
-                <Link className="mono mt-4 inline-block text-sm" style={{ color: 'var(--flag)' }} to="/">
-                  Back to the standings
+              <div className="state-note">
+                <p className="display" style={{ fontSize: 40, color: 'var(--text)' }}>
+                  Nothing here
+                </p>
+                <Link className="g uline" to="/">
+                  cd ../standings
                 </Link>
               </div>
             }
           />
         </Routes>
       </main>
-      <Footer settings={settings} />
-    </div>
+      {pathname.startsWith('/admin') ? null : <Footer />}
+      <Dock />
+      <Boot />
+      <Snow />
+    </>
   );
 }
 
 export default function App() {
   return (
     <BrowserRouter>
-      <Shell />
+      <DataProvider>
+        <Shell />
+      </DataProvider>
     </BrowserRouter>
   );
 }

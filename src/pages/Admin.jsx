@@ -1428,6 +1428,8 @@ const TEXT_FIELDS = [
   ['tagline', 'Tagline', 'input'],
   ['prize_title', 'Prize name', 'input'],
   ['prize_blurb', 'Prize description', 'textarea'],
+  ['season_start', 'Season start (YYYY-MM-DD, optional)', 'input'],
+  ['season_end', 'Season end (YYYY-MM-DD, optional)', 'input'],
   ['about_heading', 'About page heading', 'input'],
   ['about_body', 'About page text', 'textarea'],
   ['discord_url', 'Discord invite link', 'input'],
