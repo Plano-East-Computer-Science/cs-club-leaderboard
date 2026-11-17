@@ -5,7 +5,7 @@
  * they see forms. See LEARN-DATABASE.md.
  */
 import { Hono } from 'hono';
-import { getCookie, setCookie, deleteCookie } from 'hono/cookie';
+import { setCookie, deleteCookie } from 'hono/cookie';
 
 import {
   all, first, run,
@@ -15,30 +15,40 @@ import {
   listSubscribers, deleteSubscriber, setCurrentPuzzle,
 } from '../db.js';
 import { runDigest } from '../digest.js';
-import {
-  COOKIE, checkPassword, signSession, verifySession, sessionCookieOptions,
-} from '../auth.js';
+import { COOKIE, checkPassword, signSession, sessionCookieOptions } from '../auth.js';
 import { withinRadius, fingerprintOf, RADIUS_MILES } from '../geo.js';
+import { officerOf, requireOfficer, auditWrites, logOfficer, BREAK_GLASS } from '../hub/team.js';
+import { currentUser } from '../hub/users.js';
 
 export const adminRouter = new Hono();
 
 /* ------------------------------- session ------------------------------- */
 
+/**
+ * Who is acting as an officer, if anyone. `user` is the signed-in account even
+ * when it is not an officer, so the sign-in screen can say so plainly.
+ */
 adminRouter.get('/session', async (c) => {
+  const officer = await officerOf(c);
+  const user = await currentUser(c);
   return c.json({
-    authed: await verifySession(c.env, getCookie(c, COOKIE)),
+    authed: Boolean(officer),
+    officer,
+    user: user ? { id: user.id, name: user.name, role: user.role } : null,
     // The scraper lives in GitHub Actions now, so the panel links there
     // instead of running it inline.
     actions_url: c.env.ACTIONS_URL ?? '',
   });
 });
 
+/** The shared password: break-glass only, for when no officer account works. */
 adminRouter.post('/login', async (c) => {
   const body = await c.req.json().catch(() => ({}));
   if (!checkPassword(c.env, body?.password)) {
     return c.json({ error: 'Wrong password.' }, 401);
   }
   setCookie(c, COOKIE, await signSession(c.env), sessionCookieOptions());
+  await logOfficer(c.env.DB, BREAK_GLASS, 'login', 'Signed in with the shared password');
   return c.json({ ok: true });
 });
 
@@ -47,11 +57,9 @@ adminRouter.post('/logout', (c) => {
   return c.json({ ok: true });
 });
 
-// Everything past this line is locked.
-adminRouter.use('*', async (c, next) => {
-  if (await verifySession(c.env, getCookie(c, COOKIE))) return next();
-  return c.json({ error: 'Not signed in.' }, 401);
-});
+// Everything past this line is locked, and every successful write is logged.
+adminRouter.use('*', requireOfficer);
+adminRouter.use('*', auditWrites);
 
 /* ------------------------------- students ------------------------------- */
 

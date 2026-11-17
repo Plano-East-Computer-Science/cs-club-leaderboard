@@ -49,7 +49,10 @@ export default function Admin() {
         <span className="d" style={{ fontSize: 13 }}>
           <b className="g">officer@pehs-cs</b> ~/admin/{tab}
         </span>
-        <button className="btn btn-ghost" onClick={() => api.post('/admin/logout').then(() => setAuthed(false))}>
+        <button
+          className="btn btn-ghost"
+          onClick={() => api.post('/admin/logout').then(() => api.post('/auth/logout')).then(() => setAuthed(false))}
+        >
           sign out
         </button>
       </div>
@@ -115,11 +118,12 @@ function Login({ onIn }) {
         <div className="bd">
       <h1>Sign in</h1>
       <p className="mb-6 text-sm">
-        Officers only. The password is the ADMIN_PASSWORD secret set on the site.
+        Officers sign in with their own club account at <a href="/signin">/signin</a>, then come back here.
+        The shared password below is break-glass only, and its actions are logged as shared login.
       </p>
       <form onSubmit={submit} className="grid gap-3 mt-4">
         <label className="grid gap-1.5">
-          <span className="eyebrow">Password</span>
+          <span className="eyebrow">Shared password</span>
           <input
             className="field"
             type="password"

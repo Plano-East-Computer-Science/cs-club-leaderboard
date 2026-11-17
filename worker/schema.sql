@@ -153,7 +153,8 @@ CREATE TABLE IF NOT EXISTS users (
   name       TEXT    NOT NULL,
   student_id INTEGER REFERENCES students(id) ON DELETE SET NULL,
   created_at TEXT    NOT NULL DEFAULT (datetime('now')),
-  last_seen  TEXT
+  last_seen  TEXT,
+  role       TEXT    NOT NULL DEFAULT 'member'   -- member | officer | lead (A7)
 );
 
 -- One-time sign-in links. Single use, short-lived.
@@ -267,3 +268,16 @@ CREATE TABLE IF NOT EXISTS problems (
   updated_at TEXT    NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_problems_status ON problems(status, difficulty);
+
+/* ================================ A7: officer accounts and roles ================================ */
+
+-- Who did what as an officer. officer_user_id is NULL for the shared
+-- break-glass password, which is logged as 'shared login'.
+CREATE TABLE IF NOT EXISTS officer_log (
+  ts              INTEGER NOT NULL,          -- ms since epoch
+  officer_user_id INTEGER,
+  officer_name    TEXT    NOT NULL,
+  action          TEXT    NOT NULL,          -- login | role | write
+  detail          TEXT    NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS idx_officer_log_ts ON officer_log(ts);

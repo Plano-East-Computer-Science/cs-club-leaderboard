@@ -3,9 +3,8 @@
  * so the original leaderboard routes stay exactly as they were.
  */
 import { Hono } from 'hono';
-import { getCookie } from 'hono/cookie';
 
-import { COOKIE, verifySession } from '../auth.js';
+import { requireOfficer, auditWrites, teamAdminRouter } from './team.js';
 import { usersRouter } from './users.js';
 import { learnRouter } from './learn.js';
 import { roomsRouter, roomsAdminRouter } from './rooms.js';
@@ -21,14 +20,11 @@ import { announceAdminRouter } from './announce.js';
 
 export { Room } from './room-do.js';
 
-/** Officer-only hub controls (rooms, gateway codes). Same cookie as the admin panel. */
+/** Officer-only hub controls (rooms, gateway codes, team). Same guard as the admin panel. */
 const hubAdmin = new Hono();
-hubAdmin.use('*', async (c, next) => {
-  if (!(await verifySession(c.env, getCookie(c, COOKIE)))) {
-    return c.json({ error: 'Sign in as an officer first.' }, 401);
-  }
-  await next();
-});
+hubAdmin.use('*', requireOfficer);
+hubAdmin.use('*', auditWrites);
+hubAdmin.route('/', teamAdminRouter);
 hubAdmin.route('/', roomsAdminRouter);
 hubAdmin.route('/', gatewayAdminRouter);
 hubAdmin.route('/', linksAdminRouter);

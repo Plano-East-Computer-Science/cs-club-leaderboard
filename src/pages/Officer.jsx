@@ -4,6 +4,7 @@ import { api } from '../lib/api.js';
 import { Spinner, ErrorNote, Empty } from '../components/bits.jsx';
 import Problems from './officer/Problems.jsx';
 import Announce from './officer/Announce.jsx';
+import Team from './officer/Team.jsx';
 
 const HOURS = [1, 2, 3, 6, 12];
 
@@ -35,14 +36,22 @@ function CopyButton({ text, label = 'Copy' }) {
 }
 
 export default function Officer() {
-  const [authed, setAuthed] = useState(null);
+  const [session, setSession] = useState(null);
 
-  useEffect(() => {
-    api.get('/admin/session').then((d) => setAuthed(d.authed)).catch(() => setAuthed(false));
+  const check = useCallback(() => {
+    api.get('/admin/session').then(setSession).catch(() => setSession({ authed: false }));
   }, []);
+  useEffect(check, [check]);
 
-  if (authed === null) return <Spinner label="Checking session" />;
-  if (!authed) return <Login onIn={() => setAuthed(true)} />;
+  if (session === null) return <Spinner label="Checking session" />;
+  if (!session.authed) return <Login user={session.user} onIn={check} />;
+
+  const { officer } = session;
+  const signOut = async () => {
+    await api.post('/admin/logout');
+    if (officer.userId) await api.post('/auth/logout');
+    check();
+  };
 
   return (
     <div className="grid gap-12">
@@ -50,15 +59,15 @@ export default function Officer() {
         <div>
           <p className="eyebrow">Officers</p>
           <h1 className="display mt-1 text-3xl font-extrabold">Meeting console</h1>
+          <p className="mono mt-1 text-xs" style={{ color: 'var(--ink-soft)' }}>
+            Signed in as {officer.name} ({officer.role})
+          </p>
         </div>
         <div className="flex gap-2">
           <Link to="/admin" className="btn btn-ghost" style={{ textDecoration: 'none' }}>
             Full admin panel
           </Link>
-          <button
-            className="btn btn-ghost"
-            onClick={() => api.post('/admin/logout').then(() => setAuthed(false))}
-          >
+          <button className="btn btn-ghost" onClick={signOut}>
             Sign out
           </button>
         </div>
@@ -69,14 +78,16 @@ export default function Officer() {
       <Announce />
       <Gateway />
       <Problems />
+      <Team />
     </div>
   );
 }
 
-function Login({ onIn }) {
+function Login({ user, onIn }) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [glass, setGlass] = useState(false);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -96,30 +107,54 @@ function Login({ onIn }) {
     <div className="mx-auto max-w-sm py-16">
       <p className="eyebrow">Officers</p>
       <h1 className="display mt-2 mb-1 text-3xl font-extrabold">Meeting console</h1>
-      <p className="mb-6 text-sm" style={{ color: 'var(--ink-soft)' }}>
-        Officers only. Same password as the admin panel.
-      </p>
-      <form onSubmit={submit} className="card grid gap-3 p-5">
-        <label className="grid gap-1.5">
-          <span className="eyebrow">Password</span>
-          <input
-            className="field"
-            type="password"
-            value={password}
-            autoFocus
-            autoComplete="current-password"
-            onChange={(e) => setPassword(e.target.value)}
-          />
-        </label>
-        {error && (
-          <p className="mono text-xs" style={{ color: '#c42e2e' }}>
-            {error}
+      <div className="card mt-6 grid gap-3 p-5">
+        {user ? (
+          <p className="text-sm">
+            You are signed in as <b>{user.name}</b>, which is not an officer account. Ask a club lead to give
+            you the officer role.
           </p>
+        ) : (
+          <>
+            <p className="text-sm" style={{ color: 'var(--ink-soft)' }}>
+              Officers use their own club account. Sign in, then come back to this page.
+            </p>
+            <Link to="/signin" className="btn btn-primary" style={{ textDecoration: 'none' }}>
+              Sign in with your account
+            </Link>
+          </>
         )}
-        <button className="btn btn-primary" disabled={busy || !password}>
-          {busy ? 'Signing in' : 'Sign in'}
+      </div>
+
+      {!glass ? (
+        <button type="button" className="btn btn-ghost mt-4" onClick={() => setGlass(true)}>
+          Use the shared password (break-glass)
         </button>
-      </form>
+      ) : (
+        <form onSubmit={submit} className="card mt-4 grid gap-3 p-5">
+          <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>
+            For when no officer account works, or to make the first lead. Everything you do is logged as shared login.
+          </p>
+          <label className="grid gap-1.5">
+            <span className="eyebrow">Shared password</span>
+            <input
+              className="field"
+              type="password"
+              value={password}
+              autoFocus
+              autoComplete="current-password"
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          </label>
+          {error && (
+            <p className="mono text-xs" style={{ color: '#c42e2e' }}>
+              {error}
+            </p>
+          )}
+          <button className="btn btn-primary" disabled={busy || !password}>
+            {busy ? 'Signing in' : 'Sign in'}
+          </button>
+        </form>
+      )}
     </div>
   );
 }
