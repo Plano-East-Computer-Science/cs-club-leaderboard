@@ -72,6 +72,46 @@ roomsAdminRouter.post('/rooms/:code/close', async (c) => {
   return c.json({ ok: true });
 });
 
+/**
+ * Give attendance points to everyone who joined and has a linked leaderboard
+ * entry. Safe to press twice: anyone already awarded for this room is skipped.
+ */
+roomsAdminRouter.post('/rooms/:code/award', async (c) => {
+  const db = c.env.DB;
+  const code = normCode(c.req.param('code'));
+  const body = await c.req.json().catch(() => ({}));
+  const points = Math.round(Number(body?.points));
+  if (!(points >= 1 && points <= 100)) return c.json({ error: 'Points must be between 1 and 100.' }, 400);
+
+  const room = await db.prepare('SELECT title FROM rooms WHERE code = ?').bind(code).first();
+  if (!room) return c.json({ error: 'No such room.' }, 404);
+  const reason = `Meeting: ${room.title} (${code})`;
+
+  const rows = (
+    await db
+      .prepare(
+        `SELECT u.student_id FROM room_checkins k JOIN users u ON u.id = k.user_id
+         JOIN students s ON s.id = u.student_id AND s.active = 1
+         WHERE k.code = ?`
+      )
+      .bind(code)
+      .all()
+  ).results;
+  const already = new Set(
+    (await db.prepare('SELECT student_id FROM point_events WHERE reason = ?').bind(reason).all()).results.map((r) => r.student_id)
+  );
+  const fresh = [...new Set(rows.map((r) => r.student_id))].filter((id) => !already.has(id));
+  if (fresh.length) {
+    await db.batch(
+      fresh.map((id) =>
+        db.prepare('INSERT INTO point_events (student_id, delta, reason) VALUES (?, ?, ?)').bind(id, points, reason)
+      )
+    );
+  }
+  const total = (await db.prepare('SELECT COUNT(*) AS n FROM room_checkins WHERE code = ?').bind(code).first()).n;
+  return c.json({ awarded: fresh.length, alreadyHad: already.size, unlinked: total - rows.length });
+});
+
 /* --------------------------------- public ---------------------------------- */
 
 /** Does this code exist and is it open? Used by the join form before connecting. */

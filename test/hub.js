@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 
 import {
-  DEFAULT_HOSTS, hostsFrom, isAllowedHost, isBlockedPath, toGateway, methodAllowed,
+  DEFAULT_HOSTS, hostsFrom, parseHostList, isAllowedHost, isBlockedPath, toGateway, methodAllowed,
 } from '../worker/hub/gateway.js';
 import { COURSES, publicStep } from '../shared/courses.js';
 
@@ -51,6 +51,11 @@ assert.ok(methodAllowed('POST', 'github.com', '/o/r.git/git-receive-pack'));
 assert.ok(!methodAllowed('POST', 'github.com', '/o/r/issues'));
 assert.ok(!methodAllowed('DELETE', 'github.com', '/o/r'));
 assert.ok(methodAllowed('POST', 'api.github.com', '/repos/o/r/issues'));
+
+assert.deepEqual(parseHostList('Docs.Python.org, pypi.org pypi.org').hosts, ['docs.python.org', 'pypi.org']);
+assert.deepEqual(parseHostList('').hosts, []);
+for (const bad of ['localhost', '127.0.0.1', 'evil.com/path', 'a.com:8080', '*.github.com', 'x.internal', 'nodot'])
+  assert.ok(parseHostList(bad).error, `should reject ${bad}`);
 
 /* ------------------------------- dashboard ------------------------------- */
 

@@ -38,6 +38,101 @@ function Snippet({ label, text }) {
   );
 }
 
+const TOKEN_KEY = 'gh_token';
+const readToken = () => { try { return localStorage.getItem(TOKEN_KEY) || ''; } catch { return ''; } };
+
+/**
+ * Use your own GitHub account through the gateway without typing a password.
+ * The personal access token stays in THIS browser (never sent to the club
+ * server for storage) and only travels to GitHub, through the gateway, as an
+ * Authorization header. Sign-in pages stay blocked.
+ */
+function GitHubPanel({ code, host }) {
+  const [token, setToken] = useState(readToken());
+  const [draft, setDraft] = useState('');
+  const [me, setMe] = useState(null);
+  const [repos, setRepos] = useState(null);
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const call = (path, t) =>
+    fetch(`/gw/${code}/api.github.com${path}`, { headers: { Authorization: `Bearer ${t}`, Accept: 'application/vnd.github+json' } });
+
+  useEffect(() => {
+    if (!token) return;
+    let off = false;
+    setError('');
+    (async () => {
+      try {
+        const r = await call('/user', token);
+        if (!r.ok) throw new Error(r.status === 401 ? 'GitHub rejected that token. Make a new one.' : `GitHub said ${r.status}.`);
+        const u = await r.json();
+        const rr = await call('/user/repos?sort=pushed&per_page=20', token);
+        if (!off) {
+          setMe(u);
+          setRepos(rr.ok ? await rr.json() : []);
+        }
+      } catch (e) {
+        if (!off) { setMe(null); setError(e.message); }
+      }
+    })();
+    return () => { off = true; };
+  }, [token, code]);
+
+  const save = (e) => {
+    e.preventDefault();
+    const t = draft.trim();
+    if (!t) return;
+    setBusy(true);
+    try { localStorage.setItem(TOKEN_KEY, t); } catch { /* storage unavailable: token lives for this page only */ }
+    setToken(t);
+    setDraft('');
+    setBusy(false);
+  };
+  const forget = () => {
+    try { localStorage.removeItem(TOKEN_KEY); } catch { /* ignore */ }
+    setToken(''); setMe(null); setRepos(null); setError('');
+  };
+
+  if (!token)
+    return (
+      <form onSubmit={save} className="card grid gap-3 p-4">
+        <p className="eyebrow">Use your GitHub account</p>
+        <p className="text-sm" style={{ color: 'var(--ink-soft)' }}>
+          Paste a personal access token to see your repos and push code. Make one at home or on your phone
+          (GitHub, Settings, Developer settings, Personal access tokens). It stays in this browser and is only sent to GitHub.
+          Never type your GitHub password here.
+        </p>
+        <input className="field mono" type="password" autoComplete="off" spellCheck={false} placeholder="github_pat_..." value={draft} onChange={(e) => setDraft(e.target.value)} />
+        <button className="btn btn-primary justify-self-start" disabled={busy || !draft.trim()}>Connect</button>
+      </form>
+    );
+
+  return (
+    <div className="card grid gap-3 p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="eyebrow">{me ? `Signed in to GitHub as ${me.login}` : 'Checking your token...'}</p>
+        <button type="button" className="btn btn-ghost" onClick={forget}>Forget token</button>
+      </div>
+      {error && <p className="mono text-xs" style={{ color: 'var(--down)' }}>{error}</p>}
+      {repos && repos.length === 0 && <p className="mono text-xs" style={{ color: 'var(--ink-soft)' }}>No repos found for this token.</p>}
+      {repos && repos.length > 0 && (
+        <ul className="grid gap-3">
+          {repos.map((r) => (
+            <li key={r.id} className="grid gap-1.5">
+              <a className="g uline" href={`/gw/${code}/github.com/${r.full_name}`}>{r.full_name}{r.private ? ' (private)' : ''}</a>
+              <Snippet label="Clone with your account" text={`git clone https://x-access-token:${token}@${host}/gw/${code}/github.com/${r.full_name}.git`} />
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="text-xs" style={{ color: 'var(--ink-faint)' }}>
+        Clone and push with the commands above. The token is in the command, so do not paste it anywhere public.
+      </p>
+    </div>
+  );
+}
+
 export default function Gateway() {
   const [input, setInput] = useState('');
   const [code, setCode] = useState(null); // verified active code
@@ -154,6 +249,8 @@ export default function Gateway() {
               <input className="field" value={repo} placeholder="REPO" onChange={(e) => setRepo(e.target.value)} />
             </label>
           </div>
+
+          <GitHubPanel code={code} host={host} />
 
           <Snippet label="Clone a repo" text={`git clone https://${host}/gw/${code}/github.com/${o}/${r}.git`} />
           <Snippet label="Download a zip" text={`https://${host}/gw/${code}/codeload.github.com/${o}/${r}/zip/refs/heads/main`} />

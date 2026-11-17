@@ -69,6 +69,18 @@ export function hostsFrom(settingValue) {
   return custom.length ? custom : DEFAULT_HOSTS;
 }
 
+/** Validates an officer-entered host list. Returns { hosts } or { error }. */
+export function parseHostList(text) {
+  const hosts = [...new Set(String(text ?? '').split(/[\s,]+/).map((h) => h.trim().toLowerCase()).filter(Boolean))];
+  if (hosts.length > 60) return { error: 'That is a lot of hosts. Keep it under 60.' };
+  for (const h of hosts) {
+    // Real public hostnames only: a dot, a letter TLD, no ports, paths, wildcards or IPs.
+    if (!/^(?=.{4,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$/.test(h)) return { error: `"${h}" is not a valid hostname.` };
+    if (h === 'localhost' || h.endsWith('.local') || h.endsWith('.internal')) return { error: `"${h}" is not allowed.` };
+  }
+  return { hosts };
+}
+
 export const isAllowedHost = (hosts, host) => hosts.includes(String(host).toLowerCase());
 
 export const isBlockedPath = (pathname) => BLOCKED_PATH.test(pathname);
@@ -282,6 +294,18 @@ gatewayAdminRouter.post('/gateway', async (c) => {
     .bind(code, label, now, now + hours * 3_600_000)
     .run();
   return c.json({ code, label, expires_at: now + hours * 3_600_000 });
+});
+
+/** Replace the approved-host list. An empty list restores the defaults. */
+gatewayAdminRouter.put('/gateway/hosts', async (c) => {
+  const body = await c.req.json().catch(() => ({}));
+  const parsed = parseHostList(body?.hosts);
+  if (parsed.error) return c.json({ error: parsed.error }, 400);
+  await c.env.DB
+    .prepare(`INSERT INTO settings (key, value) VALUES ('gateway_hosts', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`)
+    .bind(parsed.hosts.join(','))
+    .run();
+  return c.json({ hosts: hostsFrom(parsed.hosts.join(',')) });
 });
 
 gatewayAdminRouter.post('/gateway/:code/revoke', async (c) => {

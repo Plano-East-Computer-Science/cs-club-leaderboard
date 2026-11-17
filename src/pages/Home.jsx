@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { useData } from '../lib/data.jsx';
 import { useUser } from '../lib/useUser.js';
@@ -108,6 +108,24 @@ function Landing() {
 }
 
 /* --------------------------- signed in: dashboard --------------------------- */
+
+/** Type the code from the projector, land in the room. */
+function JoinBox() {
+  const nav = useNavigate();
+  const [code, setCode] = useState('');
+  return (
+    <form
+      className="pn sp"
+      style={{ padding: '14px 18px', display: 'flex', gap: 8, alignItems: 'center' }}
+      onSubmit={(e) => { e.preventDefault(); if (code.trim()) nav(`/room/${code.trim().toUpperCase()}`); }}
+    >
+      <span className="g" style={{ whiteSpace: 'nowrap' }}>join a room</span>
+      <input className="field mono" value={code} maxLength={8} placeholder="ABCD" autoComplete="off" spellCheck={false}
+        onChange={(e) => setCode(e.target.value)} aria-label="Room code" style={{ letterSpacing: '.2em', textTransform: 'uppercase' }} />
+      <button className="btn" disabled={!code.trim()}>go</button>
+    </form>
+  );
+}
 
 /** Ask an officer to connect this account to a leaderboard entry. */
 function LinkPanel() {
@@ -249,10 +267,7 @@ function Dashboard({ user, signOut }) {
           </div>
 
           <div style={{ ...grid, marginTop: 16 }}>
-            <Link to="/room" className="pn sp" style={{ padding: '14px 18px', display: 'block' }}>
-              <span className="g">join a live room</span>
-              <span className="d" style={{ display: 'block', marginTop: 4 }}>at the meeting, enter the code on the board</span>
-            </Link>
+            <JoinBox />
             <Link to="/opportunities" className="pn sp" style={{ padding: '14px 18px', display: 'block' }}>
               <span className="g">opportunities</span>
               <span className="d" style={{ display: 'block', marginTop: 4 }}>contests and hackathons with deadlines</span>

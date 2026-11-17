@@ -193,6 +193,8 @@ function Rooms() {
   const [made, setMade] = useState(null);
   const [open, setOpen] = useState(null);
   const [attendees, setAttendees] = useState({});
+  const [awardMsg, setAwardMsg] = useState({});
+  const [pts, setPts] = useState(5);
 
   const load = useCallback(() => {
     api.get('/admin/hub/rooms').then((d) => setRooms(d.rooms)).catch((e) => setError(e.message));
@@ -220,6 +222,20 @@ function Rooms() {
       load();
     } catch (err) {
       setError(err.message);
+    }
+  };
+
+  const award = async (code) => {
+    try {
+      const d = await api.post(`/admin/hub/rooms/${code}/award`, { points: pts });
+      setAwardMsg((m) => ({
+        ...m,
+        [code]: `Awarded ${pts} points to ${d.awarded} member${d.awarded === 1 ? '' : 's'}` +
+          (d.alreadyHad ? `, ${d.alreadyHad} already had them` : '') +
+          (d.unlinked ? `. ${d.unlinked} joined without a linked leaderboard entry.` : '.'),
+      }));
+    } catch (err) {
+      setAwardMsg((m) => ({ ...m, [code]: err.message }));
     }
   };
 
@@ -316,6 +332,24 @@ function Rooms() {
                         ))}
                       </ul>
                     )}
+                    {attendees[r.code]?.length > 0 && (
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                        <label className="mono text-xs" style={{ color: 'var(--ink-soft)' }}>
+                          points each{' '}
+                          <input
+                            className="field"
+                            style={{ width: 70, display: 'inline-block' }}
+                            type="number"
+                            min="1"
+                            max="100"
+                            value={pts}
+                            onChange={(e) => setPts(e.target.value)}
+                          />
+                        </label>
+                        <button className="btn btn-primary" onClick={() => award(r.code)}>Award attendance points</button>
+                        {awardMsg[r.code] && <span className="mono text-xs" style={{ color: 'var(--up)' }}>{awardMsg[r.code]}</span>}
+                      </div>
+                    )}
                   </div>
                 )}
               </li>
@@ -333,6 +367,38 @@ function codeStatus(c) {
   if (c.revoked) return ['revoked', '#c42e2e'];
   if (c.active) return ['active', '#2f8f5b'];
   return ['expired', 'var(--ink-faint)'];
+}
+
+const NL = String.fromCharCode(10);
+
+function HostEditor({ hosts, onSaved }) {
+  const [text, setText] = useState(hosts.join(NL));
+  const [msg, setMsg] = useState('');
+  const save = async (value) => {
+    setMsg('');
+    try {
+      const d = await api.put('/admin/hub/gateway/hosts', { hosts: value });
+      setText(d.hosts.join(NL));
+      setMsg('Saved.');
+      onSaved();
+    } catch (err) {
+      setMsg(err.message);
+    }
+  };
+  return (
+    <div className="grid gap-2">
+      <p className="eyebrow">Approved hosts, one per line</p>
+      <textarea className="field mono" rows={Math.min(14, Math.max(4, text.split(NL).length))} value={text} onChange={(e) => setText(e.target.value)} spellCheck={false} />
+      <div className="flex flex-wrap items-center gap-2">
+        <button className="btn btn-primary" onClick={() => save(text)}>Save hosts</button>
+        <button className="btn btn-ghost" onClick={() => save('')}>Reset to defaults</button>
+        {msg && <span className="mono text-xs" style={{ color: msg === 'Saved.' ? 'var(--up)' : 'var(--down)' }}>{msg}</span>}
+      </div>
+      <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>
+        Add a docs site or search engine here and it works for every live code. Keep it to sites the district approved.
+      </p>
+    </div>
+  );
 }
 
 function Gateway() {
@@ -448,10 +514,7 @@ function Gateway() {
 
       {data && (
         <div className="mt-4">
-          <p className="eyebrow mb-1.5">Approved hosts</p>
-          <p className="mono text-xs leading-relaxed" style={{ color: 'var(--ink-soft)' }}>
-            {data.hosts.join(' · ')}
-          </p>
+          <HostEditor hosts={data.hosts} onSaved={load} />
           <p className="mt-2 max-w-2xl text-xs" style={{ color: 'var(--ink-faint)' }}>
             Deliberately not an open proxy: every request needs a live code, only these hosts are
             reachable, sign-in pages are blocked, and no cookies are relayed.
