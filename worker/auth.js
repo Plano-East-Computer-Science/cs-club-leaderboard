@@ -1,5 +1,8 @@
 /**
- * Admin authentication.
+ * Admin authentication primitives.
+ *
+ * Officers normally sign in with their own account and an officer role (see
+ * worker/hub/team.js). The shared password below is kept as break-glass.
  *
  * One shared password, stored as a Cloudflare Worker secret (ADMIN_PASSWORD).
  * On success we hand back a signed, httpOnly cookie. The cookie is signed with

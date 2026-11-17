@@ -2,8 +2,9 @@
  * Student accounts: a magic link sent to a personal address, then a signed
  * cookie. No passwords exist, so none can leak or be reused.
  *
- * The officer login (shared password, cookie `cslb_admin`) is untouched; this
- * is a separate, lower-privilege identity (`cslb_user`).
+ * The cookie (`cslb_user`) carries only the user id. An account with role
+ * officer or lead also passes the officer guard (see team.js), which reads the
+ * role fresh from this table on every request.
  */
 import { Hono } from 'hono';
 import { getCookie, setCookie, deleteCookie } from 'hono/cookie';
@@ -34,7 +35,7 @@ export async function currentUser(c) {
   if (!payload) return null;
   const [id, exp] = payload.split(':').map(Number);
   if (!id || !(exp > Date.now())) return null;
-  return c.env.DB.prepare('SELECT id, email, name, student_id, created_at FROM users WHERE id = ?')
+  return c.env.DB.prepare('SELECT id, email, name, student_id, role, created_at FROM users WHERE id = ?')
     .bind(id)
     .first();
 }

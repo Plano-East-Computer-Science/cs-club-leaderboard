@@ -199,6 +199,19 @@ The admin panel's Pending tab already links straight to this workflow.
 4. **Page text** → set the club name, meeting times, Discord link, and officer list.
 5. Give students the plain domain. Keep `/admin` and the password to officers.
 
+### Officer accounts (first lead)
+
+Officers sign in with their own club account; the role on that account decides what they can do
+(`member`, `officer`, `lead`). Only a lead can change roles, and the last lead can never be removed.
+To set up the first lead after running `worker/migrations/004-roles.sql`:
+
+1. The future lead signs in once at `/signin` so their account exists.
+2. Someone with `ADMIN_PASSWORD` opens `/officer`, chooses **Use the shared password (break-glass)**,
+   and signs in. The shared password acts as a lead.
+3. **Team** → search the name → set the role to `lead`.
+4. From then on, leads promote other officers from Team. Keep the shared password for emergencies:
+   every action taken with it is logged as "shared login".
+
 ---
 
 ## Changing things later
@@ -238,6 +251,10 @@ npx wrangler d1 execute cs-club --local --file worker/migrations/001-members-and
 
 ```bash
 npx wrangler d1 execute cs-club --local --file worker/migrations/002-subscribers.sql
+```
+
+```bash
+npx wrangler d1 execute cs-club --local --file worker/migrations/004-roles.sql
 ```
 
 ---

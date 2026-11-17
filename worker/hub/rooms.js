@@ -1,14 +1,13 @@
 /**
- * Meeting rooms. Officers create and close them (admin cookie); students join
+ * Meeting rooms. Officers create and close them (officer guard); students join
  * with the code, signed in, and the WebSocket is handed to the room's
  * Durable Object.
  */
 import { Hono } from 'hono';
-import { getCookie } from 'hono/cookie';
 
-import { COOKIE, verifySession } from '../auth.js';
 import { currentUser } from './users.js';
 import { notify } from './notify.js';
+import { officerOf } from './team.js';
 
 export const roomsRouter = new Hono();
 export const roomsAdminRouter = new Hono();
@@ -133,7 +132,8 @@ roomsRouter.get('/rooms/:code/ws', async (c) => {
   const room = await c.env.DB.prepare('SELECT code, closed_at FROM rooms WHERE code = ?').bind(code).first();
   if (!room) return c.text('No such room', 404);
 
-  const isHost = await verifySession(c.env, getCookie(c, COOKIE));
+  // Same rule as every officer route: an officer account or the shared login hosts.
+  const isHost = Boolean(await officerOf(c));
   const headers = new Headers(c.req.raw.headers);
 
   if (isHost) {
