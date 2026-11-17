@@ -587,7 +587,7 @@ Written before Wave 0 so parallel threads agree on names.
   `src/pages/Officer.jsx` with one import and one line, to keep merges clean.
 - **Schema.** New tables are appended to the end of `worker/schema.sql` under a comment with
   the item ID. Columns added to existing tables use `ALTER TABLE` in
-  `worker/migrations/<NNN>-<name>.sql` as well, because `CREATE TABLE IF NOT EXISTS` will not
+  `worker/migrations/NNN-<name>.sql` (003 is the next free number) as well, because `CREATE TABLE IF NOT EXISTS` will not
   add them to a live database.
 
 ## What I would not build
