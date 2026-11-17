@@ -958,3 +958,11 @@ textarea.fi{resize:vertical;line-height:1.5}
 
 
 }
+
+/* Club-hub pages (learn, rooms, projects...): written with utility classes, framed to match the terminal theme. */
+.hub{max-width:1360px;margin:0 auto;padding:28px 20px 56px}
+.hub *{border-radius:0}
+.hub header .eyebrow::before{content:"$ ";color:var(--gold)}
+.hub h1.display{color:var(--text);text-transform:uppercase}
+.hub .border-b,.hub .border-t,.hub .border,.hub .border-l-2{border-color:var(--line2)}
+.hub a.underline,.hub .uline{text-underline-offset:3px}

@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Link, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Link, Outlet, useLocation } from 'react-router-dom';
 
 import Home from './pages/Home.jsx';
 import Leaderboard from './pages/Leaderboard.jsx';
@@ -45,6 +45,15 @@ window.addEventListener(
 function pageKey(pathname) {
   if (pathname.startsWith('/student')) return 'standings';
   return pathname.split('/')[1] || 'home';
+}
+
+/** Frame for the club-hub pages: site width, padding, terminal-style headings. */
+function HubLayout() {
+  return (
+    <div className="hub">
+      <Outlet />
+    </div>
+  );
 }
 
 function Footer() {
@@ -116,15 +125,17 @@ function Shell() {
           <Route path="/join" element={<Join />} />
           <Route path="/about" element={<About />} />
           <Route path="/cyber" element={<Cyber />} />
-          <Route path="/learn" element={<Learn />} />
-          <Route path="/learn/:slug" element={<Course />} />
-          <Route path="/signin" element={<SignIn />} />
-          <Route path="/room" element={<Room />} />
-          <Route path="/room/:code" element={<Room />} />
-          <Route path="/officer" element={<Officer />} />
-          <Route path="/gateway" element={<Gateway />} />
-          <Route path="/projects" element={<Projects />} />
-          <Route path="/u/:id" element={<Portfolio />} />
+          <Route element={<HubLayout />}>
+            <Route path="/learn" element={<Learn />} />
+            <Route path="/learn/:slug" element={<Course />} />
+            <Route path="/signin" element={<SignIn />} />
+            <Route path="/room" element={<Room />} />
+            <Route path="/room/:code" element={<Room />} />
+            <Route path="/officer" element={<Officer />} />
+            <Route path="/gateway" element={<Gateway />} />
+            <Route path="/projects" element={<Projects />} />
+            <Route path="/u/:id" element={<Portfolio />} />
+          </Route>
           <Route
             path="/admin"
             element={<Admin />}
