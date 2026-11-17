@@ -53,8 +53,8 @@ export default function Admin() {
           sign out
         </button>
       </div>
-      <div className="adm">
-        <nav className="ad-side" role="tablist" aria-label="Admin sections">
+      <div className="ap-shell">
+        <nav className="ap-side" role="tablist" aria-label="Admin sections">
           {TABS.map((t, i) => (
             <button key={t.id} role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)}>
               <b>{String(i + 1).padStart(2, '0')}</b>
@@ -62,11 +62,11 @@ export default function Admin() {
             </button>
           ))}
         </nav>
-        <div className="ad-main">
+        <div className="ap-main">
           <div className={`flash ${flash ? (flash.tone === 'ok' ? 'ok' : 'bad') : ''}`} role="status">
             {flash ? `> ${flash.message}` : '> ready'}
           </div>
-          <div className="ad-body">
+          <div className="ap-body">
             <h2>{cur.label}</h2>
       {tab === 'points' && <PointsTab say={say} />}
       {tab === 'members' && <MembersTab say={say} />}
@@ -109,8 +109,8 @@ function Login({ onIn }) {
   };
 
   return (
-    <div className="ad-login wrap">
-      <div className="ad-box">
+    <div className="ap-login wrap">
+      <div className="ap-box">
         <div className="pane-h"><span><b>admin</b> sudo</span><span>officers only</span></div>
         <div className="bd">
       <h1>Sign in</h1>
@@ -148,7 +148,7 @@ function Login({ onIn }) {
 
 function Section({ title, hint, children, className = '' }) {
   return (
-    <section className={`ad-box2 ${className}`}>
+    <section className={`ap-box2 ${className}`}>
       <div className="pane-h"><span><b>{title}</b></span></div>
       <div className="in">
         {hint && <p className="d" style={{ fontSize: 13 }}>{hint}</p>}
