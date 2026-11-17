@@ -1,10 +1,14 @@
 /**
- * Connecting an account to a leaderboard entry. The student asks, an officer
- * approves: otherwise anyone could claim someone else's points.
+ * Claiming an older leaderboard entry. Since A1 every account gets its own
+ * entry at sign-up, so this is only for members who were on the board before
+ * they had an account. The student asks, an officer approves (otherwise anyone
+ * could claim someone else's points), and approval merges the account's new
+ * entry into the old one.
  */
 import { Hono } from 'hono';
 
 import { requireUser } from './users.js';
+import { mergeStatements } from './ledger.js';
 
 export const linksRouter = new Hono();
 export const linksAdminRouter = new Hono();
@@ -21,13 +25,11 @@ linksRouter.get('/me/link', requireUser, async (c) => {
     .prepare('SELECT s.id, s.name FROM link_requests r JOIN students s ON s.id = r.student_id WHERE r.user_id = ?')
     .bind(user.id)
     .first();
-  const students = user.student_id || pending ? [] : (await db.prepare(CLAIMABLE).all()).results;
+  const students = pending ? [] : (await db.prepare(CLAIMABLE).all()).results;
   return c.json({ linked: Boolean(user.student_id), pending, students });
 });
 
 linksRouter.post('/me/link', requireUser, async (c) => {
-  const user = c.get('user');
-  if (user.student_id) return c.json({ error: 'Already linked.' }, 400);
   const body = await c.req.json().catch(() => ({}));
   const ok = (await c.env.DB.prepare(CLAIMABLE).all()).results.some((s) => s.id === Number(body?.student_id));
   if (!ok) return c.json({ error: 'That entry is not available to link.' }, 400);
@@ -36,7 +38,7 @@ linksRouter.post('/me/link', requireUser, async (c) => {
       `INSERT INTO link_requests (user_id, student_id) VALUES (?, ?)
        ON CONFLICT(user_id) DO UPDATE SET student_id = excluded.student_id, created_at = datetime('now')`
     )
-    .bind(user.id, Number(body.student_id))
+    .bind(c.get('user').id, Number(body.student_id))
     .run();
   return c.json({ ok: true });
 });
@@ -64,14 +66,20 @@ linksAdminRouter.get('/links', async (c) => {
 linksAdminRouter.post('/links/:userId/approve', async (c) => {
   const db = c.env.DB;
   const userId = Number(c.req.param('userId'));
-  const req = await db.prepare('SELECT student_id FROM link_requests WHERE user_id = ?').bind(userId).first();
+  const req = await db
+    .prepare('SELECT r.student_id, u.student_id AS current FROM link_requests r JOIN users u ON u.id = r.user_id WHERE r.user_id = ?')
+    .bind(userId)
+    .first();
   if (!req) return c.json({ error: 'No such request.' }, 404);
   const taken = await db
     .prepare('SELECT 1 AS x FROM users WHERE student_id = ? AND id != ?')
     .bind(req.student_id, userId)
     .first();
   if (taken) return c.json({ error: 'Another account is already linked to that entry.' }, 409);
+  // An account that already has its own (A1) entry brings that entry's history along.
+  const move = req.current && req.current !== req.student_id ? mergeStatements(db, req.student_id, req.current) : [];
   await db.batch([
+    ...move,
     db.prepare('UPDATE users SET student_id = ? WHERE id = ?').bind(req.student_id, userId),
     db.prepare('DELETE FROM link_requests WHERE user_id = ?').bind(userId),
   ]);

@@ -171,18 +171,82 @@ function LinkPanel() {
         </button>
       </>
     );
+  // Every account has its own entry now (A1); this only claims an older one from before accounts.
+  if (!info.students.length) return <p className="d">No older entries are waiting to be claimed.</p>;
   return (
     <>
-      <p>Connect your account to your leaderboard entry so your points show up here.</p>
+      <p className="d">On the board before you made an account? Pick your old entry and an officer will merge it into this one.</p>
       <form onSubmit={send} style={{ display: 'grid', gap: 8 }}>
-        <select className="field" required value={pick} onChange={(e) => setPick(e.target.value)} aria-label="Your leaderboard entry">
+        <select className="field" required value={pick} onChange={(e) => setPick(e.target.value)} aria-label="Your older leaderboard entry">
           <option value="">Pick your name</option>
           {info.students.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
         </select>
-        <button className="btn" disabled={!pick}>Ask an officer to link me</button>
+        <button className="btn" disabled={!pick}>Ask an officer to merge it</button>
       </form>
       {error && <p className="dn" style={{ marginTop: 8 }}>{error}</p>}
     </>
+  );
+}
+
+/* ------------------------------ claims (A3) ------------------------------ */
+
+const CLAIM_KINDS = [['compete', 'I competed'], ['place', 'I placed'], ['ship', 'I shipped a project']];
+const CLAIM_WORD = { compete: 'competed', place: 'placed', ship: 'shipped' };
+
+function ClaimsPanel() {
+  const [d, setD] = useState(null);
+  const [form, setForm] = useState({ kind: 'compete', title: '', proof_url: '', place: '' });
+  const [msg, setMsg] = useState(null);
+  const load = () => api.get('/me/claims').then(setD).catch((e) => setMsg({ bad: true, text: e.message }));
+  useEffect(() => { load(); }, []);
+
+  const send = async (body) => {
+    setMsg(null);
+    try {
+      const r = await api.post('/claims', body);
+      setMsg({ text: r.status === 'approved' ? `Approved, ${r.awarded} points.` : 'Sent. An officer will check it.' });
+      setForm({ kind: 'compete', title: '', proof_url: '', place: '' });
+      load();
+    } catch (err) {
+      setMsg({ bad: true, text: err.message });
+    }
+  };
+  const submit = (e) => {
+    e.preventDefault();
+    send({ ...form, place: form.kind === 'place' ? form.place : '' });
+  };
+  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  const pending = d?.claims.filter((c) => c.status === 'pending').length ?? 0;
+  return (
+    <Pane file="claims" meta={pending ? `${pending} waiting` : 'competed, placed, shipped'}>
+      <div className="pn-b">
+        {d?.interests.map((o) => (
+          <p key={o.id} style={{ display: 'flex', gap: 10, alignItems: 'baseline', flexWrap: 'wrap' }}>
+            <span style={{ flex: 1 }}>Did you compete in <b style={{ color: 'var(--text)' }}>{o.title}</b>?</span>
+            <button className="btn" onClick={() => send({ kind: 'compete', ref: `opp:${o.id}`, title: o.title })}>I competed</button>
+          </p>
+        ))}
+        <form onSubmit={submit} style={{ display: 'grid', gap: 8 }}>
+          <select className="field" value={form.kind} onChange={set('kind')} aria-label="What you are claiming">
+            {CLAIM_KINDS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+          </select>
+          <input className="field" required minLength={3} maxLength={120} value={form.title} onChange={set('title')} placeholder="What was it, e.g. USACO December" aria-label="What it was" />
+          {form.kind === 'place' && (
+            <input className="field" type="number" min="1" max="1000" required value={form.place} onChange={set('place')} placeholder="Your place, e.g. 2" aria-label="Your place" />
+          )}
+          <input className="field" type="url" pattern="https://.*" maxLength={500} value={form.proof_url} onChange={set('proof_url')} placeholder="Proof link, https:// (optional)" aria-label="Proof link" />
+          <button className="btn">Send claim</button>
+        </form>
+        {msg && <p className={msg.bad ? 'dn' : 'up'} role="status" style={{ marginTop: 8 }}>{msg.text}</p>}
+        {d?.claims.slice(0, 4).map((c) => (
+          <p key={c.id} className="d" style={{ fontSize: 13, marginTop: 8, marginBottom: 0 }}>
+            {CLAIM_WORD[c.kind]} {c.title}: {c.status === 'approved' ? `+${c.points}` : c.status}
+            {c.reject_reason ? ` (${c.reject_reason})` : ''}
+          </p>
+        ))}
+      </div>
+    </Pane>
   );
 }
 
@@ -251,12 +315,18 @@ function Dashboard({ user, signOut }) {
                       <span className="d">of {d.standing.of}, {d.standing.points} points</span>
                     </p>
                     <Link className="g uline" to={`/student/${user.student_id}`}>your leaderboard page</Link>
+                    <details style={{ marginTop: 12 }}>
+                      <summary className="d" style={{ cursor: 'pointer', fontSize: 13 }}>claim an older entry</summary>
+                      <div style={{ marginTop: 8 }}><LinkPanel /></div>
+                    </details>
                   </>
                 ) : (
                   <LinkPanel />
                 )}
               </div>
             </Pane>
+
+            <ClaimsPanel />
 
             <Pane file="progress" meta={`${d.courses.length} started`}>
               <div className="pn-b">

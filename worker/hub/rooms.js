@@ -5,9 +5,10 @@
  */
 import { Hono } from 'hono';
 
-import { currentUser } from './users.js';
+import { currentUser, ensureStudent } from './users.js';
 import { notify } from './notify.js';
 import { officerOf } from './team.js';
+import { recordActivity } from './ledger.js';
 
 export const roomsRouter = new Hono();
 export const roomsAdminRouter = new Hono();
@@ -65,52 +66,56 @@ roomsAdminRouter.get('/rooms/:code/attendance', async (c) => {
   return c.json({ attendees: rows });
 });
 
-roomsAdminRouter.post('/rooms/:code/close', async (c) => {
-  await c.env.DB
-    .prepare(`UPDATE rooms SET closed_at = datetime('now') WHERE code = ? AND closed_at IS NULL`)
-    .bind(normCode(c.req.param('code')))
-    .run();
-  return c.json({ ok: true });
-});
-
 /**
- * Give attendance points to everyone who joined and has a linked leaderboard
- * entry. Safe to press twice: anyone already awarded for this room is skipped.
+ * Closing a room pays attendance: every check-in becomes an `attend` activity
+ * (A2) and the ledger applies the rules. The activity ref is the room code, so
+ * running this again (the Award button) only pays anyone not yet paid.
  */
-roomsAdminRouter.post('/rooms/:code/award', async (c) => {
-  const db = c.env.DB;
-  const code = normCode(c.req.param('code'));
-  const body = await c.req.json().catch(() => ({}));
-  const points = Math.round(Number(body?.points));
-  if (!(points >= 1 && points <= 100)) return c.json({ error: 'Points must be between 1 and 100.' }, 400);
-
+export async function awardAttendance(db, code) {
   const room = await db.prepare('SELECT title FROM rooms WHERE code = ?').bind(code).first();
-  if (!room) return c.json({ error: 'No such room.' }, 404);
-  const reason = `Meeting: ${room.title} (${code})`;
-
+  if (!room) return null;
   const rows = (
     await db
-      .prepare(
-        `SELECT u.student_id FROM room_checkins k JOIN users u ON u.id = k.user_id
-         JOIN students s ON s.id = u.student_id AND s.active = 1
-         WHERE k.code = ?`
-      )
+      .prepare('SELECT u.id, u.name, u.student_id, k.joined_at FROM room_checkins k JOIN users u ON u.id = k.user_id WHERE k.code = ?')
       .bind(code)
       .all()
   ).results;
-  const already = new Set(
-    (await db.prepare('SELECT student_id FROM point_events WHERE reason = ?').bind(reason).all()).results.map((r) => r.student_id)
+  // Rooms paid by the old Award button (before A2) were logged by this reason.
+  const legacy = new Set(
+    (await db.prepare('SELECT student_id FROM point_events WHERE reason = ?').bind(`Meeting: ${room.title} (${code})`).all())
+      .results.map((r) => r.student_id)
   );
-  const fresh = [...new Set(rows.map((r) => r.student_id))].filter((id) => !already.has(id));
-  if (fresh.length) {
-    await db.batch(
-      fresh.map((id) =>
-        db.prepare('INSERT INTO point_events (student_id, delta, reason) VALUES (?, ?, ?)').bind(id, points, reason)
-      )
-    );
+  const out = { awarded: 0, alreadyHad: 0, unlinked: 0 };
+  const seen = new Set();
+  for (const u of rows) {
+    const sid = u.student_id ?? (await ensureStudent(db, u));
+    if (!sid) { out.unlinked++; continue; }
+    if (seen.has(sid)) continue;
+    seen.add(sid);
+    if (legacy.has(sid)) { out.alreadyHad++; continue; }
+    const r = await recordActivity(db, { studentId: sid, kind: 'attend', ref: `room:${code}`, meta: { title: room.title } }, u.joined_at);
+    if (r.duplicate) out.alreadyHad++;
+    else out.awarded++;
   }
-  const total = (await db.prepare('SELECT COUNT(*) AS n FROM room_checkins WHERE code = ?').bind(code).first()).n;
-  return c.json({ awarded: fresh.length, alreadyHad: already.size, unlinked: total - rows.length });
+  return out;
+}
+
+roomsAdminRouter.post('/rooms/:code/close', async (c) => {
+  const code = normCode(c.req.param('code'));
+  await c.env.DB
+    .prepare(`UPDATE rooms SET closed_at = datetime('now') WHERE code = ? AND closed_at IS NULL`)
+    .bind(code)
+    .run();
+  const result = await awardAttendance(c.env.DB, code);
+  if (!result) return c.json({ error: 'No such room.' }, 404);
+  return c.json({ ok: true, ...result });
+});
+
+/** Re-runs the attendance award. Safe to press any number of times. */
+roomsAdminRouter.post('/rooms/:code/award', async (c) => {
+  const result = await awardAttendance(c.env.DB, normCode(c.req.param('code')));
+  if (!result) return c.json({ error: 'No such room.' }, 404);
+  return c.json(result);
 });
 
 /* --------------------------------- public ---------------------------------- */
