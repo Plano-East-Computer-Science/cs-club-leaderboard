@@ -483,6 +483,8 @@ test('settings read back what was written', async () => {
 test('devpost deadline strings become ISO dates', () => {
   assert.equal(parseDevpostDeadline('Mar 01 - Apr 15, 2026'), '2026-04-15');
   assert.equal(parseDevpostDeadline('Jan 05, 2027'), '2027-01-05');
+  assert.equal(parseDevpostDeadline('Nov 15 - 17, 2026'), '2026-11-17');
+  assert.equal(parseDevpostDeadline('Dec 20, 2026 - Jan 03, 2027'), '2027-01-03');
   assert.equal(parseDevpostDeadline('sometime soon'), null);
   assert.equal(parseDevpostDeadline(null), null);
 });
