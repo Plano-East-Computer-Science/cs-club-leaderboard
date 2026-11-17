@@ -140,6 +140,7 @@ export default function Gateway() {
   const [busy, setBusy] = useState(false);
   const [owner, setOwner] = useState('');
   const [repo, setRepo] = useState('');
+  const [query, setQuery] = useState('');
 
   const check = async (raw) => {
     const c = raw.trim().toUpperCase();
@@ -231,6 +232,24 @@ export default function Gateway() {
 
       {code && (
         <section className="grid gap-5">
+          <form
+            className="card flex flex-wrap items-end gap-3 p-4"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (query.trim()) location.href = `/gw/${code}/html.duckduckgo.com/html/?q=${encodeURIComponent(query.trim())}`;
+            }}
+          >
+            <label className="grid min-w-48 flex-1 gap-1.5">
+              <span className="eyebrow">Search the web</span>
+              <input className="field" value={query} placeholder="python list comprehension" onChange={(e) => setQuery(e.target.value)} />
+            </label>
+            <button className="btn btn-primary" disabled={!query.trim()}>Search</button>
+            <p className="w-full text-xs" style={{ color: 'var(--ink-soft)' }}>
+              Results open only if the site is on the approved list (docs, tutorials, GitHub). Others show a notice;
+              ask an officer to add them.
+            </p>
+          </form>
+
           <a
             className="btn btn-primary justify-self-start"
             style={{ textDecoration: 'none' }}

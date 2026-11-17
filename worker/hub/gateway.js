@@ -35,6 +35,22 @@ export const DEFAULT_HOSTS = [
   'gist.githubusercontent.com',
   'pypi.org',
   'files.pythonhosted.org',
+  // Search, plus the docs sites programming questions usually land on.
+  'html.duckduckgo.com',
+  'duckduckgo.com',
+  'docs.python.org',
+  'developer.mozilla.org',
+  'stackoverflow.com',
+  'en.wikipedia.org',
+  'docs.github.com',
+  'en.cppreference.com',
+  'www.w3schools.com',
+  'www.geeksforgeeks.org',
+  'realpython.com',
+  'www.freecodecamp.org',
+  'www.programiz.com',
+  'learn.microsoft.com',
+  'cp-algorithms.com',
 ];
 
 const MAX_PER_MINUTE = 3000; // per code; a safety valve, not a quota
@@ -81,6 +97,21 @@ export function parseHostList(text) {
   return { hosts };
 }
 
+/**
+ * DuckDuckGo result links go through /l/?uddg=<real url> and then a JS redirect
+ * to the real site, which would leave the gateway. We resolve them ourselves.
+ * Returns the target URL or null.
+ */
+export function ddgTarget(host, pathname, search) {
+  if (host !== 'duckduckgo.com' || pathname !== '/l/') return null;
+  try {
+    const u = new URL(new URLSearchParams(search).get('uddg') ?? '');
+    return u.protocol === 'https:' || u.protocol === 'http:' ? u : null;
+  } catch {
+    return null;
+  }
+}
+
 export const isAllowedHost = (hosts, host) => hosts.includes(String(host).toLowerCase());
 
 export const isBlockedPath = (pathname) => BLOCKED_PATH.test(pathname);
@@ -105,6 +136,7 @@ export function methodAllowed(method, host, pathname) {
   if (method === 'GET' || method === 'HEAD') return true;
   if (method === 'POST' && GIT_WRITE.test(pathname)) return true;
   if (host === 'api.github.com') return true; // token-authenticated API calls
+  if (method === 'POST' && host === 'html.duckduckgo.com' && pathname === '/html/') return true; // search paging
   return false;
 }
 
@@ -165,6 +197,13 @@ async function proxy(c, rawCode, host) {
   if (isBlockedPath(path)) return denied(403, 'sign-in and account pages are blocked here');
   if (!methodAllowed(c.req.method, host, path)) return denied(405, 'that kind of request is not allowed');
 
+  const hit = ddgTarget(host, path, reqUrl.search);
+  if (hit) {
+    const mapped = toGateway(hit.href, hit.href, rawCode, hosts);
+    if (!mapped) return denied(403, `${hit.hostname} is not on the approved list. Ask an officer to add it`);
+    return c.redirect(mapped);
+  }
+
   const upstream = new URL(`https://${host}${path}${reqUrl.search}`);
 
   const headers = new Headers();
@@ -208,7 +247,11 @@ async function proxy(c, rawCode, host) {
   const loc = res.headers.get('location');
   if (loc) {
     const mapped = toGateway(loc, upstream, rawCode, hosts);
-    if (!mapped) return denied(403, 'that link leaves the approved sites');
+    if (!mapped) {
+      let where = 'another site';
+      try { where = new URL(loc, upstream).hostname; } catch { /* keep the generic name */ }
+      return denied(403, `${where} is not on the approved list. Ask an officer to add it`);
+    }
     out.set('location', mapped);
   }
   // Keep the browser from treating gateway pages as the club site itself.

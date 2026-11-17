@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 
 import {
-  DEFAULT_HOSTS, hostsFrom, parseHostList, isAllowedHost, isBlockedPath, toGateway, methodAllowed,
+  DEFAULT_HOSTS, hostsFrom, parseHostList, ddgTarget, isAllowedHost, isBlockedPath, toGateway, methodAllowed,
 } from '../worker/hub/gateway.js';
 import { COURSES, publicStep } from '../shared/courses.js';
 
@@ -50,12 +50,20 @@ assert.ok(methodAllowed('GET', 'github.com', '/x'));
 assert.ok(methodAllowed('POST', 'github.com', '/o/r.git/git-receive-pack'));
 assert.ok(!methodAllowed('POST', 'github.com', '/o/r/issues'));
 assert.ok(!methodAllowed('DELETE', 'github.com', '/o/r'));
+assert.ok(methodAllowed('POST', 'html.duckduckgo.com', '/html/'));
+assert.ok(!methodAllowed('POST', 'duckduckgo.com', '/html/'));
+assert.ok(!methodAllowed('POST', 'html.duckduckgo.com', '/other'));
 assert.ok(methodAllowed('POST', 'api.github.com', '/repos/o/r/issues'));
 
 assert.deepEqual(parseHostList('Docs.Python.org, pypi.org pypi.org').hosts, ['docs.python.org', 'pypi.org']);
 assert.deepEqual(parseHostList('').hosts, []);
 for (const bad of ['localhost', '127.0.0.1', 'evil.com/path', 'a.com:8080', '*.github.com', 'x.internal', 'nodot'])
   assert.ok(parseHostList(bad).error, `should reject ${bad}`);
+
+assert.equal(ddgTarget('duckduckgo.com', '/l/', '?uddg=https%3A%2F%2Frealpython.com%2Fx&rut=1').hostname, 'realpython.com');
+assert.equal(ddgTarget('duckduckgo.com', '/l/', '?uddg=javascript%3Aalert(1)'), null);
+assert.equal(ddgTarget('duckduckgo.com', '/html/', '?uddg=https%3A%2F%2Fa.com'), null);
+assert.equal(ddgTarget('evil.com', '/l/', '?uddg=https%3A%2F%2Fa.com'), null);
 
 /* ------------------------------- dashboard ------------------------------- */
 
