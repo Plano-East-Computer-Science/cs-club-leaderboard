@@ -12,6 +12,15 @@ import Cyber from './pages/Cyber.jsx';
 import Join from './pages/Join.jsx';
 import About from './pages/About.jsx';
 import Admin from './pages/Admin.jsx';
+import Learn from './pages/Learn.jsx';
+import Course from './pages/Course.jsx';
+import SignIn from './pages/SignIn.jsx';
+import Room from './pages/Room.jsx';
+import Host from './pages/Host.jsx';
+import Officer from './pages/Officer.jsx';
+import Gateway from './pages/Gateway.jsx';
+import Projects from './pages/Projects.jsx';
+import Portfolio from './pages/Portfolio.jsx';
 import { SubscribeBox } from './components/Subscribe.jsx';
 import { TabBar, Dock, Boot, Snow, PAGES } from './components/Chrome.jsx';
 import { DataProvider, useData } from './lib/data.jsx';
@@ -81,6 +90,15 @@ function Shell() {
     if (!location.hash) window.scrollTo(0, 0);
   }, [pathname]);
 
+  // The projector page is full-screen, no site chrome.
+  if (pathname.startsWith('/host/')) {
+    return (
+      <Routes>
+        <Route path="/host/:code" element={<Host />} />
+      </Routes>
+    );
+  }
+
   return (
     <>
       <TabBar />
@@ -96,6 +114,15 @@ function Shell() {
           <Route path="/join" element={<Join />} />
           <Route path="/about" element={<About />} />
           <Route path="/cyber" element={<Cyber />} />
+          <Route path="/learn" element={<Learn />} />
+          <Route path="/learn/:slug" element={<Course />} />
+          <Route path="/signin" element={<SignIn />} />
+          <Route path="/room" element={<Room />} />
+          <Route path="/room/:code" element={<Room />} />
+          <Route path="/officer" element={<Officer />} />
+          <Route path="/gateway" element={<Gateway />} />
+          <Route path="/projects" element={<Projects />} />
+          <Route path="/u/:id" element={<Portfolio />} />
           <Route
             path="/admin"
             element={<Admin />}

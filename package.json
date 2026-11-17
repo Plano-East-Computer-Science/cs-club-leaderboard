@@ -5,19 +5,22 @@
   "type": "module",
   "description": "Plano East Senior High School CS Club leaderboard and STEM opportunity board",
   "scripts": {
+    "prebuild": "node scripts/copy-pyodide.mjs",
     "build": "vite build",
     "dev": "npm run build && wrangler dev",
     "deploy": "npm run build && wrangler deploy",
+    "sync:live": "node scripts/sync-from-live.mjs",
     "build:seed": "node scripts/build-seed-sql.mjs",
     "db:schema": "wrangler d1 execute cs-club --remote --file worker/schema.sql",
     "db:seed": "wrangler d1 execute cs-club --remote --file worker/seed.sql",
     "db:schema:local": "wrangler d1 execute cs-club --local --file worker/schema.sql",
     "db:seed:local": "wrangler d1 execute cs-club --local --file worker/seed.sql",
     "ingest": "node ingest/run.js",
-    "test": "node --disable-warning=ExperimentalWarning test/selftest.js"
+    "test": "node --disable-warning=ExperimentalWarning test/selftest.js && node test/hub.js"
   },
   "dependencies": {
-    "hono": "^4.13.3"
+    "hono": "^4.13.3",
+    "pyodide": "^0.27.7"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.11",

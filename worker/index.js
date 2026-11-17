@@ -12,8 +12,14 @@ import { adminRouter } from './routes/admin.js';
 import { ingestRouter } from './routes/ingest.js';
 import { subscribeRouter } from './routes/subscribe.js';
 import { runDigest } from './digest.js';
+import { mountHub } from './hub/index.js';
+
+// Durable Object classes must be exported from the Worker's entry module.
+export { Room } from './hub/index.js';
 
 const app = new Hono();
+
+mountHub(app);
 
 app.route('/api/admin', adminRouter);
 app.route('/api/subscribe', subscribeRouter);

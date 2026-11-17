@@ -31,7 +31,16 @@ not_found_handling = "none"
 # regardless of what the path looks like. Caught when the ICS calendar feed
 # 404'd in production despite working locally and every other /api/* route
 # working fine (none of those happened to have a dotted extension).
-run_worker_first = ["/api/*"]
+run_worker_first = ["/api/*", "/gw/*"]
+
+# Live meeting rooms: one Durable Object per room code (hub feature).
+[[durable_objects.bindings]]
+name = "ROOMS"
+class_name = "Room"
+
+[[migrations]]
+tag = "v1-rooms"
+new_sqlite_classes = ["Room"]
 
 # The database. D1 is SQLite, which is why none of the SQL had to change.
 #

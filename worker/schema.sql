@@ -142,3 +142,83 @@ CREATE TABLE IF NOT EXISTS subscribers (
   confirm_sent_at   TEXT,
   created_at        TEXT    NOT NULL DEFAULT (datetime('now'))
 );
+
+/* ============================ club hub (accounts, learn, rooms, gateway, projects) ============================ */
+
+-- Student accounts. Sign-in is a magic link sent to a PERSONAL address (the
+-- district filters club mail to @mypisd.net). Nothing else is collected.
+CREATE TABLE IF NOT EXISTS users (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  email      TEXT    NOT NULL UNIQUE,
+  name       TEXT    NOT NULL,
+  student_id INTEGER REFERENCES students(id) ON DELETE SET NULL,
+  created_at TEXT    NOT NULL DEFAULT (datetime('now')),
+  last_seen  TEXT
+);
+
+-- One-time sign-in links. Single use, short-lived.
+CREATE TABLE IF NOT EXISTS login_tokens (
+  token      TEXT PRIMARY KEY,
+  email      TEXT NOT NULL,
+  name       TEXT NOT NULL DEFAULT '',
+  created_at INTEGER NOT NULL,           -- ms since epoch
+  used       INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_login_email ON login_tokens(email, created_at);
+
+-- Course content lives in shared/courses.js (versioned in git). This table
+-- only records what each student has passed.
+CREATE TABLE IF NOT EXISTS step_progress (
+  user_id   INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  course    TEXT    NOT NULL,
+  step      TEXT    NOT NULL,
+  passed_at TEXT,
+  attempts  INTEGER NOT NULL DEFAULT 0,
+  code      TEXT    NOT NULL DEFAULT '',   -- last code submitted, so a reload keeps work
+  PRIMARY KEY (user_id, course, step)
+);
+
+-- Live meeting rooms. The realtime state lives in a Durable Object; this row
+-- is the durable record (and the code lookup).
+CREATE TABLE IF NOT EXISTS rooms (
+  code       TEXT PRIMARY KEY,
+  title      TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  closed_at  TEXT
+);
+CREATE TABLE IF NOT EXISTS room_checkins (
+  code      TEXT    NOT NULL REFERENCES rooms(code) ON DELETE CASCADE,
+  user_id   INTEGER NOT NULL REFERENCES users(id)   ON DELETE CASCADE,
+  joined_at TEXT    NOT NULL DEFAULT (datetime('now')),
+  PRIMARY KEY (code, user_id)
+);
+
+-- Gateway access codes. An officer mints one for a meeting; it expires.
+CREATE TABLE IF NOT EXISTS gateway_codes (
+  code       TEXT PRIMARY KEY,
+  label      TEXT NOT NULL DEFAULT '',
+  created_at INTEGER NOT NULL,
+  expires_at INTEGER NOT NULL,
+  revoked    INTEGER NOT NULL DEFAULT 0
+);
+-- Minimal audit trail: which allowlisted host, when. No paths, no queries, no headers.
+CREATE TABLE IF NOT EXISTS gateway_log (
+  ts     INTEGER NOT NULL,
+  code   TEXT    NOT NULL,
+  host   TEXT    NOT NULL,
+  status INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_gwlog_code_ts ON gateway_log(code, ts);
+
+CREATE TABLE IF NOT EXISTS projects (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  title       TEXT    NOT NULL,
+  description TEXT    NOT NULL DEFAULT '',
+  track       TEXT    NOT NULL DEFAULT '',
+  repo_url    TEXT    NOT NULL DEFAULT '',
+  demo_url    TEXT    NOT NULL DEFAULT '',
+  hidden      INTEGER NOT NULL DEFAULT 0,
+  created_at  TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_projects_user ON projects(user_id);
