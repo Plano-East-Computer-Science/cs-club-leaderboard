@@ -109,7 +109,8 @@ assert.equal(new Set(rows.map((x) => x.slug)).size, rows.length, 'imported slugs
 for (const row of rows) assert.ok(validateProblem(row).value, `${row.slug} passes validation`);
 
 // The committed SQL is current, loads into the schema, and loading twice adds nothing.
-const sql = fs.readFileSync(new URL('../worker/seed-problems.sql', import.meta.url), 'utf8');
+// Git on Windows may check the file out with CRLF line endings; compare content, not bytes.
+const sql = fs.readFileSync(new URL('../worker/seed-problems.sql', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 assert.equal(sql, toSql(rows), 'worker/seed-problems.sql is stale: run npm run build:problems');
 const db = makeTestDb(schema);
 db.exec(sql);
