@@ -12,7 +12,17 @@ import Cyber from './pages/Cyber.jsx';
 import Join from './pages/Join.jsx';
 import About from './pages/About.jsx';
 import Admin from './pages/Admin.jsx';
+import Learn from './pages/Learn.jsx';
+import Course from './pages/Course.jsx';
+import SignIn from './pages/SignIn.jsx';
+import Room from './pages/Room.jsx';
+import Host from './pages/Host.jsx';
+import Officer from './pages/Officer.jsx';
+import Gateway from './pages/Gateway.jsx';
+import Projects from './pages/Projects.jsx';
+import Portfolio from './pages/Portfolio.jsx';
 import { api } from './lib/api.js';
+import { useUser } from './lib/useUser.js';
 import { SubscribeBox } from './components/Subscribe.jsx';
 
 const SiteContext = { settings: {} };
@@ -31,6 +41,7 @@ function useSettings() {
   return settings;
 }
 
+// The live site's own navigation, unchanged.
 const NAV = [
   { to: '/', label: 'Standings', end: true },
   { to: '/opportunities', label: 'Opportunities' },
@@ -42,8 +53,15 @@ const NAV = [
   { to: '/about', label: 'About' },
   { to: '/join', label: 'Join' },
 ];
+// The hub: where the club actually runs. Shown as its own strip under the bar.
+const HUB = [
+  { to: '/learn', label: 'Learn' },
+  { to: '/projects', label: 'Projects' },
+  { to: '/room', label: 'Join a room' },
+  { to: '/gateway', label: 'Gateway' },
+];
 
-function Masthead({ settings }) {
+function Masthead({ settings, user }) {
   const [open, setOpen] = useState(false);
   const { pathname } = useLocation();
   useEffect(() => setOpen(false), [pathname]);
@@ -112,9 +130,37 @@ function Masthead({ settings }) {
         </span>
       </div>
 
+      {/* Hub strip: hidden on small screens, where the menu below lists everything. */}
+      <div className="hidden border-t lg:block" style={{ background: 'var(--paper-2)' }}>
+        <nav className="mx-auto flex max-w-6xl items-center gap-1 px-4 py-1.5 sm:px-6">
+          <span className="eyebrow mr-2">Club hub</span>
+          {HUB.map((n) => (
+            <NavLink
+              key={n.to}
+              to={n.to}
+              className="mono rounded px-2.5 py-1 text-xs font-semibold no-underline"
+              style={({ isActive }) => ({
+                color: isActive ? 'var(--ink)' : 'var(--ink-soft)',
+                background: isActive ? 'var(--card)' : 'transparent',
+              })}
+            >
+              {n.label}
+            </NavLink>
+          ))}
+          <span className="ml-auto flex items-center gap-1">
+            <Link to="/signin" className="mono rounded px-2.5 py-1 text-xs font-semibold no-underline" style={{ color: 'var(--flag)' }}>
+              {user ? user.name : 'Sign in'}
+            </Link>
+            <Link to="/officer" className="mono rounded px-2.5 py-1 text-xs font-semibold no-underline" style={{ color: 'var(--ink-soft)' }}>
+              Officers
+            </Link>
+          </span>
+        </nav>
+      </div>
+
       {open && (
         <nav className="grid gap-1 border-t px-4 py-3 lg:hidden">
-          {[...NAV, { to: '/admin', label: 'Admin' }].map((n) => (
+          {[...NAV, ...HUB, { to: '/signin', label: user ? user.name : 'Sign in' }, { to: '/officer', label: 'Officers' }, { to: '/admin', label: 'Admin' }].map((n) => (
             <NavLink
               key={n.to}
               to={n.to}
@@ -171,9 +217,19 @@ function Footer({ settings }) {
 
 function Shell() {
   const settings = useSettings();
+  const { user } = useUser();
+  const { pathname } = useLocation();
+  // The projector view is a full-bleed screen: no site chrome around it.
+  if (pathname.startsWith('/host/')) {
+    return (
+      <Routes>
+        <Route path="/host/:code" element={<Host />} />
+      </Routes>
+    );
+  }
   return (
     <div className="flex min-h-dvh flex-col">
-      <Masthead settings={settings} />
+      <Masthead settings={settings} user={user} />
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6 sm:py-12">
         <Routes>
           <Route path="/" element={<Leaderboard settings={settings} />} />
@@ -187,6 +243,15 @@ function Shell() {
           <Route path="/about" element={<About settings={settings} />} />
           <Route path="/cyber" element={<Cyber settings={settings} />} />
           <Route path="/admin" element={<Admin />} />
+          <Route path="/learn" element={<Learn />} />
+          <Route path="/learn/:slug" element={<Course />} />
+          <Route path="/signin" element={<SignIn />} />
+          <Route path="/room" element={<Room />} />
+          <Route path="/room/:code" element={<Room />} />
+          <Route path="/officer" element={<Officer />} />
+          <Route path="/gateway" element={<Gateway />} />
+          <Route path="/projects" element={<Projects />} />
+          <Route path="/u/:id" element={<Portfolio />} />
           <Route
             path="*"
             element={
