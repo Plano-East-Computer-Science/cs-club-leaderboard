@@ -13,20 +13,22 @@ import { setXmas, useXmas, xmasOn } from '../lib/xmas.js';
 export const PAGES = [
   ['home', '/'],
   ['standings', '/standings'],
+  ['learn', '/learn'],
+  ['projects', '/projects'],
+  ['room', '/room'],
   ['opportunities', '/opportunities'],
   ['calendar', '/calendar'],
+  // Below here the tab bar tucks pages into a "more" menu.
   ['curriculum', '/curriculum'],
   ['competitions', '/competitions'],
   ['cyber', '/cyber'],
   ['puzzles', '/puzzles'],
-  ['learn', '/learn'],
-  ['projects', '/projects'],
-  ['room', '/room'],
   ['gateway', '/gateway'],
   ['about', '/about'],
   ['join', '/join'],
   ['admin', '/admin'],
 ];
+const MAIN = 7; // how many tabs stay on the bar
 const ALIAS = { opps: 'opportunities', comps: 'competitions', lb: 'standings', board: 'standings', home: 'home' };
 
 const Logo = () => (
@@ -41,11 +43,28 @@ export function TabBar() {
   const { pathname } = useLocation();
   const on = useXmas();
   const navRef = useRef(null);
+  const moreRef = useRef(null);
+  const [open, setOpen] = useState(false);
   const cur = (to) => (to === '/' ? pathname === '/' : to === '/standings' ? pathname.startsWith('/standings') || pathname.startsWith('/student') : pathname.startsWith(to));
 
+  const main = PAGES.slice(0, MAIN);
+  const more = PAGES.slice(MAIN).filter(([n]) => n !== 'admin');
+  const admin = PAGES.find(([n]) => n === 'admin');
+  const moreActive = more.some(([, to]) => cur(to));
+
   useEffect(() => {
+    setOpen(false);
     navRef.current?.querySelector('[aria-current]')?.scrollIntoView({ inline: 'center', block: 'nearest' });
   }, [pathname]);
+
+  useEffect(() => {
+    if (!open) return;
+    const away = (e) => { if (!moreRef.current?.contains(e.target)) setOpen(false); };
+    const esc = (e) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('pointerdown', away);
+    document.addEventListener('keydown', esc);
+    return () => { document.removeEventListener('pointerdown', away); document.removeEventListener('keydown', esc); };
+  }, [open]);
 
   return (
     <header className="tabs">
@@ -54,10 +73,10 @@ export function TabBar() {
         PEHS//CS
       </Link>
       <nav aria-label="Primary" ref={navRef}>
-        {PAGES.map(([name, to], i) => {
+        {main.map(([name, to], i) => {
           const active = cur(to);
           return (
-            <Link key={name} to={to} className={name === 'admin' ? 'admin' : undefined} aria-current={active ? 'page' : undefined}>
+            <Link key={name} to={to} aria-current={active ? 'page' : undefined}>
               <b>{i}</b>
               {name}
               {active ? '*' : ''}
@@ -65,6 +84,23 @@ export function TabBar() {
           );
         })}
       </nav>
+      <div className="more" ref={moreRef}>
+        <button type="button" className={moreActive ? 'on' : undefined} aria-expanded={open} aria-haspopup="true" onClick={() => setOpen(!open)}>
+          more<span aria-hidden="true">{open ? ' ▴' : ' ▾'}</span>
+        </button>
+        {open && (
+          <div className="more-menu" role="menu">
+            {more.map(([name, to]) => (
+              <Link key={name} to={to} role="menuitem" aria-current={cur(to) ? 'page' : undefined}>
+                {name}
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
+      <Link className={`adm${cur(admin[1]) ? ' on' : ''}`} to={admin[1]} aria-current={cur(admin[1]) ? 'page' : undefined}>
+        admin
+      </Link>
       <div className="hint">
         <kbd>/</kbd>command
         <button className="xtog" type="button" title="Toggle holiday theme" aria-pressed={on} onClick={() => setXmas(!on)}>
