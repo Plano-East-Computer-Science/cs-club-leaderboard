@@ -35,9 +35,37 @@ export async function currentUser(c) {
   if (!payload) return null;
   const [id, exp] = payload.split(':').map(Number);
   if (!id || !(exp > Date.now())) return null;
-  return c.env.DB.prepare('SELECT id, email, name, student_id, role, created_at FROM users WHERE id = ?')
+  const user = await c.env.DB.prepare('SELECT id, email, name, student_id, role, created_at FROM users WHERE id = ?')
     .bind(id)
     .first();
+  // Accounts from before A1 get their entry lazily, the first time they are seen.
+  if (user && !user.student_id) user.student_id = await ensureStudent(c.env.DB, user);
+  return user;
+}
+
+/**
+ * A1: every account has a leaderboard entry. Creates one named after the
+ * account if it has none, and returns the student id. Skipped (returns null)
+ * while the account has an open link request from before A1, so approving
+ * that request still links to the entry the member asked for.
+ *
+ * Both statements carry the same conditions inside one transaction, so two
+ * requests racing on a brand-new account cannot create two entries.
+ */
+export async function ensureStudent(db, user) {
+  if (user.student_id) return user.student_id;
+  const needs = `EXISTS (SELECT 1 FROM users WHERE id = ? AND student_id IS NULL)
+    AND NOT EXISTS (SELECT 1 FROM link_requests WHERE user_id = ?)`;
+  const name = String(user.name || 'Member').slice(0, 40);
+  await db.batch([
+    db
+      .prepare(`INSERT INTO students (name, avatar_seed) SELECT ?, ? WHERE ${needs}`)
+      .bind(name, name.toLowerCase().replace(/\W+/g, ''), user.id, user.id),
+    db
+      .prepare(`UPDATE users SET student_id = (SELECT MAX(id) FROM students) WHERE id = ? AND ${needs}`)
+      .bind(user.id, user.id, user.id),
+  ]);
+  return (await db.prepare('SELECT student_id FROM users WHERE id = ?').bind(user.id).first())?.student_id ?? null;
 }
 
 /** Hono middleware: 401 unless signed in. Puts the row on c.get('user'). */
@@ -58,7 +86,8 @@ export async function startSession(c, email, name) {
     )
     .bind(email, name)
     .run();
-  const user = await db.prepare('SELECT id FROM users WHERE email = ?').bind(email).first();
+  const user = await db.prepare('SELECT id, name, student_id FROM users WHERE email = ?').bind(email).first();
+  await ensureStudent(db, user);
   setCookie(c, USER_COOKIE, await signValue(c.env, `${user.id}:${Date.now() + SESSION_MS}`), cookieOpts(c));
   return user.id;
 }

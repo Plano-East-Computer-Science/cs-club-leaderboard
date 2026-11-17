@@ -5,6 +5,8 @@ import { Spinner, ErrorNote, Empty } from '../components/bits.jsx';
 import Problems from './officer/Problems.jsx';
 import Announce from './officer/Announce.jsx';
 import Team from './officer/Team.jsx';
+import Claims from './officer/Claims.jsx';
+import Merge from './officer/Merge.jsx';
 
 const HOURS = [1, 2, 3, 6, 12];
 
@@ -73,7 +75,9 @@ export default function Officer() {
         </div>
       </header>
       <Rooms />
+      <Claims />
       <LinkRequests />
+      <Merge />
       <IdeasAdmin />
       <Announce />
       <Gateway />
@@ -269,6 +273,12 @@ function IdeasAdmin() {
 
 /* --------------------------------- rooms --------------------------------- */
 
+/** Attendance is paid by the ledger when a room closes (A2); this reports what happened. */
+const paid = (d) =>
+  `Paid attendance to ${d.awarded} member${d.awarded === 1 ? '' : 's'}` +
+  (d.alreadyHad ? `, ${d.alreadyHad} already paid` : '') +
+  (d.unlinked ? `. ${d.unlinked} still waiting on a link request.` : '.');
+
 function Rooms() {
   const [rooms, setRooms] = useState(null);
   const [error, setError] = useState(null);
@@ -278,7 +288,6 @@ function Rooms() {
   const [open, setOpen] = useState(null);
   const [attendees, setAttendees] = useState({});
   const [awardMsg, setAwardMsg] = useState({});
-  const [pts, setPts] = useState(5);
 
   const load = useCallback(() => {
     api.get('/admin/hub/rooms').then((d) => setRooms(d.rooms)).catch((e) => setError(e.message));
@@ -302,7 +311,8 @@ function Rooms() {
 
   const close = async (code) => {
     try {
-      await api.post(`/admin/hub/rooms/${code}/close`);
+      const d = await api.post(`/admin/hub/rooms/${code}/close`);
+      setAwardMsg((m) => ({ ...m, [code]: paid(d) }));
       load();
     } catch (err) {
       setError(err.message);
@@ -311,13 +321,8 @@ function Rooms() {
 
   const award = async (code) => {
     try {
-      const d = await api.post(`/admin/hub/rooms/${code}/award`, { points: pts });
-      setAwardMsg((m) => ({
-        ...m,
-        [code]: `Awarded ${pts} points to ${d.awarded} member${d.awarded === 1 ? '' : 's'}` +
-          (d.alreadyHad ? `, ${d.alreadyHad} already had them` : '') +
-          (d.unlinked ? `. ${d.unlinked} joined without a linked leaderboard entry.` : '.'),
-      }));
+      const d = await api.post(`/admin/hub/rooms/${code}/award`);
+      setAwardMsg((m) => ({ ...m, [code]: paid(d) }));
     } catch (err) {
       setAwardMsg((m) => ({ ...m, [code]: err.message }));
     }
@@ -337,7 +342,8 @@ function Rooms() {
   return (
     <section>
       <SectionHead eyebrow="Live rooms" title="Run a meeting">
-        Open a room, share the code, and attendance is taken as people join.
+        Open a room, share the code, and attendance is taken as people join. Closing the room pays attendance
+        points by the club's rules.
       </SectionHead>
 
       <form onSubmit={create} className="card mb-4 flex flex-wrap items-end gap-3 p-4">
@@ -398,6 +404,9 @@ function Rooms() {
                     </button>
                   )}
                 </div>
+                {awardMsg[r.code] && (
+                  <p className="mono mt-2 text-xs" role="status" style={{ color: 'var(--up)' }}>{awardMsg[r.code]}</p>
+                )}
                 {open === r.code && (
                   <div className="mt-3 border-t pt-3">
                     {!attendees[r.code] ? (
@@ -418,20 +427,7 @@ function Rooms() {
                     )}
                     {attendees[r.code]?.length > 0 && (
                       <div className="mt-3 flex flex-wrap items-center gap-2">
-                        <label className="mono text-xs" style={{ color: 'var(--ink-soft)' }}>
-                          points each{' '}
-                          <input
-                            className="field"
-                            style={{ width: 70, display: 'inline-block' }}
-                            type="number"
-                            min="1"
-                            max="100"
-                            value={pts}
-                            onChange={(e) => setPts(e.target.value)}
-                          />
-                        </label>
-                        <button className="btn btn-primary" onClick={() => award(r.code)}>Award attendance points</button>
-                        {awardMsg[r.code] && <span className="mono text-xs" style={{ color: 'var(--up)' }}>{awardMsg[r.code]}</span>}
+                        <button className="btn btn-ghost" onClick={() => award(r.code)}>Re-run attendance points</button>
                       </div>
                     )}
                   </div>

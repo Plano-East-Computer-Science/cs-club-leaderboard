@@ -265,6 +265,7 @@ export async function getAllSettings(db) {
 const BACKUP_TABLES = [
   'students',
   'point_events',
+  'activity', // after students: it references them; older backups without it restore as empty
   'badges',
   'student_badges',
   'opportunities',

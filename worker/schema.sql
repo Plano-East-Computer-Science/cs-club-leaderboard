@@ -281,3 +281,34 @@ CREATE TABLE IF NOT EXISTS officer_log (
   detail          TEXT    NOT NULL DEFAULT ''
 );
 CREATE INDEX IF NOT EXISTS idx_officer_log_ts ON officer_log(ts);
+/* ============================ A2/A3: activity ledger and claims ============================ */
+
+-- One row per thing a member did. Points come from the rules in
+-- shared/points.js, never typed in: approving a row writes exactly one
+-- point_events row and records its id here, so every automatic award traces
+-- back to its activity. (student_id, kind, ref) is unique, which makes
+-- recording idempotent: closing the same room twice cannot pay twice.
+CREATE TABLE IF NOT EXISTS activity (
+  id             INTEGER PRIMARY KEY AUTOINCREMENT,
+  student_id     INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+  kind           TEXT    NOT NULL,                   -- KINDS in shared/points.js
+  ref            TEXT    NOT NULL,                   -- e.g. room:ABCD, opp:12, comp:3
+  meta           TEXT    NOT NULL DEFAULT '{}',      -- JSON: title, proof_url, note, ...
+  status         TEXT    NOT NULL DEFAULT 'pending', -- pending | approved | rejected
+  points         INTEGER NOT NULL DEFAULT 0,
+  point_event_id INTEGER,                            -- no FK: a backup restores point_events on its own
+  decided_by     INTEGER,                            -- officer's users.id, NULL for the shared login
+  decided_name   TEXT,
+  decided_at     TEXT,
+  created_at     TEXT    NOT NULL DEFAULT (datetime('now')),
+  UNIQUE (student_id, kind, ref)
+);
+CREATE INDEX IF NOT EXISTS idx_activity_status ON activity(status, decided_at);
+
+-- "I'm doing this" on an opportunity; the dashboard later asks "did you compete?".
+CREATE TABLE IF NOT EXISTS opportunity_interest (
+  user_id        INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  opportunity_id INTEGER NOT NULL REFERENCES opportunities(id) ON DELETE CASCADE,
+  created_at     TEXT    NOT NULL DEFAULT (datetime('now')),
+  PRIMARY KEY (user_id, opportunity_id)
+);

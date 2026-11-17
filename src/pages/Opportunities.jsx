@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
+import { api } from '../lib/api.js';
+import { useUser } from '../lib/useUser.js';
 import { useData } from '../lib/data.jsx';
 import { formatDate, daysUntil, TYPE_LABELS, FORMAT_LABELS, COST_LABELS } from '../lib/format.js';
 import { useMedia } from '../lib/ui.js';
@@ -322,9 +324,43 @@ function Detail({ o, radius, on, onSave, onBack }) {
             <Bookmark on={on} />
             {on ? 'saved' : 'save for later'}
           </button>
+          <Doing id={o.id} />
         </div>
         <p className="kh"><kbd>j</kbd> <kbd>k</kbd> move through the list, <kbd>s</kbd> saves.</p>
       </div>
     </div>
+  );
+}
+
+/**
+ * "I'm doing this" (A3). Signed-in members mark an opportunity; after it, the
+ * dashboard asks "did you compete?" so the claim is one more tap.
+ */
+function Doing({ id }) {
+  const { user, loading } = useUser();
+  const [on, setOn] = useState(null);
+  const [err, setErr] = useState('');
+  useEffect(() => {
+    if (user) api.get('/me/interests').then((d) => setOn(d.ids.includes(id))).catch(() => setOn(false));
+  }, [user, id]);
+
+  if (loading) return null;
+  if (!user) return <Link className="sv" to="/signin">sign in to track this</Link>;
+  const flip = async () => {
+    setErr('');
+    try {
+      await (on ? api.del(`/me/interests/${id}`) : api.post(`/me/interests/${id}`));
+      setOn(!on);
+    } catch (e) {
+      setErr(e.message);
+    }
+  };
+  return (
+    <>
+      <button className={`sv ${on ? 'on' : ''}`} aria-pressed={Boolean(on)} disabled={on === null} onClick={flip}>
+        {on ? "you're doing this" : "I'm doing this"}
+      </button>
+      {err && <span className="dn" role="status" style={{ fontSize: 12 }}>{err}</span>}
+    </>
   );
 }
