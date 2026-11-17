@@ -141,7 +141,7 @@ usersRouter.get('/auth/verify', async (c) => {
   const user = await db.prepare('SELECT id FROM users WHERE email = ?').bind(row.email).first();
 
   setCookie(c, USER_COOKIE, await signValue(c.env, `${user.id}:${Date.now() + SESSION_MS}`), cookieOpts(c));
-  return c.redirect('/learn');
+  return c.redirect('/');
 });
 
 usersRouter.post('/auth/logout', (c) => {

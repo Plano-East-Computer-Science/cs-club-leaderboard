@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Link, useLocation } from 'react-router-dom';
 
+import Home from './pages/Home.jsx';
 import Leaderboard from './pages/Leaderboard.jsx';
 import Student from './pages/Student.jsx';
 import Opportunities from './pages/Opportunities.jsx';
@@ -42,8 +43,8 @@ window.addEventListener(
 
 /** The mockup's CSS keys a few layouts off body[data-page]. */
 function pageKey(pathname) {
-  if (pathname === '/' || pathname.startsWith('/student')) return 'standings';
-  return pathname.split('/')[1] || 'standings';
+  if (pathname.startsWith('/student')) return 'standings';
+  return pathname.split('/')[1] || 'home';
 }
 
 function Footer() {
@@ -104,7 +105,8 @@ function Shell() {
       <TabBar />
       <main>
         <Routes>
-          <Route path="/" element={<Leaderboard />} />
+          <Route path="/" element={<Home />} />
+          <Route path="/standings" element={<Leaderboard />} />
           <Route path="/student/:id" element={<Student />} />
           <Route path="/opportunities" element={<Opportunities />} />
           <Route path="/calendar" element={<CalendarPage />} />

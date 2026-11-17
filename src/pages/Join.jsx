@@ -111,7 +111,7 @@ export default function Join() {
               <ul className="ul" style={{ padding: '6px 18px 10px' }}>
                 <li><Link className="g" to="/curriculum">Curriculum</Link> : what the weeks look like</li>
                 <li><Link className="g" to="/puzzles">Puzzles</Link> : try the Problem of the Week</li>
-                <li><Link className="g" to="/">Standings</Link> : see how points work in practice</li>
+                <li><Link className="g" to="/standings">Standings</Link> : see how points work in practice</li>
                 <li><Link className="g" to="/about">About</Link> : officers and meeting details</li>
               </ul>
             </section>

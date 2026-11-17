@@ -52,6 +52,15 @@ assert.ok(!methodAllowed('POST', 'github.com', '/o/r/issues'));
 assert.ok(!methodAllowed('DELETE', 'github.com', '/o/r'));
 assert.ok(methodAllowed('POST', 'api.github.com', '/repos/o/r/issues'));
 
+/* ------------------------------- dashboard ------------------------------- */
+
+import { streakOf } from '../worker/hub/dashboard.js';
+const noon = Date.parse('2026-11-16T12:00:00Z');
+assert.equal(streakOf([], noon), 0);
+assert.equal(streakOf(['2026-11-16 09:00:00', '2026-11-15 20:00:00', '2026-11-14 01:00:00'], noon), 3);
+assert.equal(streakOf(['2026-11-15 20:00:00'], noon), 1); // yesterday still counts
+assert.equal(streakOf(['2026-11-13 20:00:00'], noon), 0); // gap breaks it
+
 /* -------------------------------- courses -------------------------------- */
 
 const slugs = new Set();

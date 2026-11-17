@@ -57,7 +57,7 @@ export default function Student() {
         <br />
         <button className="btn btn-ghost" onClick={load}>Try again</button>
         {' '}
-        <Link className="btn btn-ghost" to="/">cd ../standings</Link>
+        <Link className="btn btn-ghost" to="/standings">cd ../standings</Link>
       </div>
     );
   if (!data) return <div className="state-note">loading profile...</div>;
@@ -79,7 +79,7 @@ export default function Student() {
   return (
     <div className="wrap">
       <div className="pf-crumb">
-        <Link className="back" to="/#roster">&larr; cd ../standings</Link>
+        <Link className="back" to="/standings#roster">&larr; cd ../standings</Link>
         <div className="pf-nav" role="navigation" aria-label="Members">
           <Link className={pv ? '' : 'off'} to={pv ? `/student/${pv.id}` : '#'} aria-label="Previous member"><kbd>&larr;</kbd>{pv ? first(pv.name).toLowerCase() : 'start'}</Link>
           <span className="mid"><b className="cur">{String(idx + 1).padStart(2, '0')}</b>&nbsp;/ {String(students.length).padStart(2, '0')}</span>

@@ -11,7 +11,8 @@ import { reducedMotion } from '../lib/ui.js';
 import { setXmas, useXmas, xmasOn } from '../lib/xmas.js';
 
 export const PAGES = [
-  ['standings', '/'],
+  ['home', '/'],
+  ['standings', '/standings'],
   ['opportunities', '/opportunities'],
   ['calendar', '/calendar'],
   ['curriculum', '/curriculum'],
@@ -26,7 +27,7 @@ export const PAGES = [
   ['join', '/join'],
   ['admin', '/admin'],
 ];
-const ALIAS = { opps: 'opportunities', comps: 'competitions', lb: 'standings', board: 'standings', home: 'standings' };
+const ALIAS = { opps: 'opportunities', comps: 'competitions', lb: 'standings', board: 'standings', home: 'home' };
 
 const Logo = () => (
   <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
@@ -40,7 +41,7 @@ export function TabBar() {
   const { pathname } = useLocation();
   const on = useXmas();
   const navRef = useRef(null);
-  const cur = (to) => (to === '/' ? pathname === '/' || pathname.startsWith('/student') : pathname.startsWith(to));
+  const cur = (to) => (to === '/' ? pathname === '/' : to === '/standings' ? pathname.startsWith('/standings') || pathname.startsWith('/student') : pathname.startsWith(to));
 
   useEffect(() => {
     navRef.current?.querySelector('[aria-current]')?.scrollIntoView({ inline: 'center', block: 'nearest' });
@@ -183,7 +184,7 @@ export function Dock() {
         const m = students[i];
         const ti = tierOf(m.points);
         const nx = TIERS[ti + 1];
-        if (pathname === '/') window.dispatchEvent(new CustomEvent('select-member', { detail: i }));
+        if (pathname === '/standings') window.dispatchEvent(new CustomEvent('select-member', { detail: i }));
         return out(
           `#${m.rank}  ${m.name}  ${m.grade ? `grade ${m.grade}` : 'member'}\n${m.points} pts  tier ${TIERS[ti].name.toUpperCase()}\n${
             nx ? `${nx.min - m.points} pts to ${nx.name}` : 'top tier reached'

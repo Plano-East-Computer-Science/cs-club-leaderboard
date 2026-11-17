@@ -11,6 +11,7 @@ import { learnRouter } from './learn.js';
 import { roomsRouter, roomsAdminRouter } from './rooms.js';
 import { gatewayRouter, gatewayInfoRouter, gatewayAdminRouter } from './gateway.js';
 import { projectsRouter } from './projects.js';
+import { dashboardRouter } from './dashboard.js';
 
 export { Room } from './room-do.js';
 
@@ -34,4 +35,5 @@ export function mountHub(app) {
   app.route('/api', roomsRouter);
   app.route('/api', gatewayInfoRouter);
   app.route('/api', projectsRouter);
+  app.route('/api', dashboardRouter);
 }

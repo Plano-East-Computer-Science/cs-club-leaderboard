@@ -82,7 +82,7 @@ export default function About() {
               <div className="pn-b">
                 <Link className="btn pri" to="/join">How to join</Link>
                 <Link className="btn" to="/cyber">Cybersecurity Committee</Link>
-                <Link className="btn" to="/">See the standings</Link>
+                <Link className="btn" to="/standings">See the standings</Link>
                 {settings.discord_url && <a className="btn" href={settings.discord_url} target="_blank" rel="noreferrer noopener">Join the Discord</a>}
                 {settings.email && <a className="btn" href={`mailto:${settings.email}`}>Email an officer</a>}
               </div>
