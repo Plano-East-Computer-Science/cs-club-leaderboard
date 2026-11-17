@@ -196,6 +196,91 @@ const hackclub = {
   },
 };
 
-export const SOURCES = [devpost, mlh, hackclub];
+/**
+ * CTFtime: capture-the-flag contests in the next 90 days. Open API, no key, but
+ * it asks for a descriptive User-Agent. Onsite events are dropped because there
+ * are no coordinates to filter by.
+ */
+const FEED_UA = 'PlanoEastCSClub/1.0 (+https://peshcompsci.org)';
+
+async function getJson(url) {
+  const res = await fetch(url, { headers: { 'User-Agent': FEED_UA }, signal: AbortSignal.timeout(20_000) });
+  if (!res.ok) throw new Error(`${url} returned HTTP ${res.status}`);
+  return res.json().catch(() => null);
+}
+
+export function parseCtftime(list) {
+  if (!Array.isArray(list)) return [];
+  const out = [];
+  for (const e of list) {
+    const title = clean(e.title);
+    const url = e.url || e.ctftime_url;
+    if (!title || !/^https?:\/\//.test(url ?? '') || e.onsite) continue;
+    out.push({
+      title,
+      org: 'CTFtime',
+      description: clean(`Online CTF (cybersecurity contest), ${clean(e.format)} format. ${(e.description ?? '').slice(0, 200)}`),
+      url,
+      type: 'competition',
+      cost: 'free',
+      format: 'online',
+      location: '',
+      deadline: e.start ? String(e.start).slice(0, 10) : null,
+      age_min: 14,
+      age_max: 18,
+    });
+  }
+  return out;
+}
+
+const ctftime = {
+  id: 'ctftime',
+  label: 'CTFtime - online CTF contests',
+  async fetchAll() {
+    const now = Math.floor(Date.now() / 1000);
+    return parseCtftime(
+      await getJson(`https://ctftime.org/api/v1/events/?limit=50&start=${now}&finish=${now + 90 * 86400}`)
+    );
+  },
+};
+
+/**
+ * Hack Club's official events API (ru.hackclub.com): online programs and
+ * hackathons. In-person-only events are skipped (no coordinates). The deadline
+ * is the end date, or the start date when no end is announced.
+ */
+export function parseHackClubEvents(json) {
+  const list = Array.isArray(json?.data) ? json.data : [];
+  const out = [];
+  for (const e of list) {
+    const title = clean(e.name);
+    if (!title || !/^https?:\/\//.test(e.url ?? '')) continue;
+    if (e.status === 'ended' || e.format === 'in-person') continue;
+    out.push({
+      title,
+      org: 'Hack Club',
+      description: clean(e.description) || 'Hack Club event for teenagers. Runs online.',
+      url: e.url,
+      type: 'competition',
+      cost: 'free',
+      format: 'online',
+      location: '',
+      deadline: (e.endDate ?? e.startDate ?? '').slice(0, 10) || null,
+      age_min: 14,
+      age_max: 18,
+    });
+  }
+  return out;
+}
+
+const hackclubEvents = {
+  id: 'hackclub-events',
+  label: 'Hack Club - events API',
+  async fetchAll() {
+    return parseHackClubEvents(await getJson('https://ru.hackclub.com/api/v1/events?status=upcoming,ongoing&limit=100'));
+  },
+};
+
+export const SOURCES = [devpost, mlh, hackclub, ctftime, hackclubEvents];
 
 export const SOURCES_BY_ID = Object.fromEntries(SOURCES.map((s) => [s.id, s]));

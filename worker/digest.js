@@ -26,14 +26,23 @@ const originOf = (env) => (env.SITE_ORIGIN || 'https://peshcompsci.org').replace
  * as last week and nagging weekly is what gets a sender muted.
  */
 export async function buildDigest(db, since) {
-  const [points, opportunities, deadlines] = await Promise.all([
+  const [points, opportunities, deadlines, rawNotes] = await Promise.all([
     pointEventsSince(db, since),
     opportunitiesSince(db, since),
     deadlinesWithin(db, DEADLINE_WINDOW_DAYS),
+    getSetting(db, 'digest_notes', '[]'),
   ]);
+  // Officer announcements queued from the Announce screen (G3). An officer
+  // wrote them on purpose, so a note alone is worth an email.
+  let notes = [];
+  try {
+    notes = JSON.parse(rawNotes || '[]').filter((n) => typeof n === 'string' && n.trim());
+  } catch {
+    /* a corrupt setting just means no notes */
+  }
 
-  if (!points.length && !opportunities.length) return null;
-  return { since, points, opportunities, deadlines };
+  if (!points.length && !opportunities.length && !notes.length) return null;
+  return { since, points, opportunities, deadlines, notes };
 }
 
 /* ---------------------------------- render --------------------------------- */
@@ -47,6 +56,11 @@ const fmtDate = (iso) =>
 
 function renderText(digest, origin, unsubscribeUrl) {
   const lines = ['Plano East CS Club — this week', ''];
+
+  if (digest.notes?.length) {
+    lines.push('FROM THE OFFICERS');
+    for (const n of digest.notes) lines.push(`  ${n.replace(/\n/g, '\n  ')}`, '');
+  }
 
   if (digest.points.length) {
     lines.push('POINTS AWARDED');
@@ -80,6 +94,15 @@ function renderHtml(digest, origin, unsubscribeUrl) {
     `<h2 style="font:600 13px/1.4 system-ui;letter-spacing:.08em;text-transform:uppercase;color:#6b7689;margin:28px 0 8px">${title}</h2>${body}`;
 
   const parts = [];
+
+  if (digest.notes?.length) {
+    parts.push(
+      section(
+        'From the officers',
+        digest.notes.map((n) => `<p style="margin:0 0 10px;white-space:pre-wrap">${esc(n)}</p>`).join('')
+      )
+    );
+  }
 
   if (digest.points.length) {
     parts.push(
@@ -183,7 +206,10 @@ export async function runDigest(env, { dry = false } = {}) {
     results.push(dry ? { ok: true, to: m.email } : { ...(await sendEmail(env, preview)), to: m.email });
   }
 
-  if (!dry) await setSetting(db, 'last_digest_at', new Date().toISOString());
+  if (!dry) {
+    await setSetting(db, 'last_digest_at', new Date().toISOString());
+    if (digest.notes.length) await setSetting(db, 'digest_notes', '[]');
+  }
 
   return {
     sent: results.filter((r) => r.ok).length,
@@ -204,5 +230,6 @@ function subjectFor(digest) {
   const bits = [];
   if (digest.points.length) bits.push(`${digest.points.length} point award${digest.points.length === 1 ? '' : 's'}`);
   if (digest.opportunities.length) bits.push(`${digest.opportunities.length} new opportunit${digest.opportunities.length === 1 ? 'y' : 'ies'}`);
+  if (digest.notes?.length) bits.push('club news');
   return `CS Club — ${bits.join(', ')}`;
 }

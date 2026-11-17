@@ -139,6 +139,10 @@ const CMDS = [
   ['open <page>', 'jump to a page'],
   ['rank <name>', 'show a member rank and tier'],
   ['grep <text>', 'search the opportunity board'],
+  ['join <code>', 'enter a meeting room, e.g. join ABCD'],
+  ['daily', 'today\'s problem'],
+  ['next', 'back to today'],
+  ['claim', 'link your account to a leaderboard entry'],
   ['top', 'print the top three'],
   ['prize', 'what first place wins'],
   ['tiers', 'list the 7 tiers'],
@@ -254,6 +258,21 @@ export function Dock() {
           }`
         );
       }
+      case 'join': {
+        const code = a.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
+        if (!code) return out('join: give a room code, e.g. join ABCD');
+        navigate(`/room/${code}`);
+        return close();
+      }
+      case 'daily':
+        navigate('/learn'); // TODO(C3): point at /daily once the daily problem page exists
+        return close();
+      case 'next':
+        navigate('/');
+        return close();
+      case 'claim':
+        navigate('/?claim=1');
+        return close();
       case 'grep':
       case 'find':
       case 'search':

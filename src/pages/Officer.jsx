@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { Spinner, ErrorNote, Empty } from '../components/bits.jsx';
 import Problems from './officer/Problems.jsx';
+import Announce from './officer/Announce.jsx';
 
 const HOURS = [1, 2, 3, 6, 12];
 
@@ -65,6 +66,7 @@ export default function Officer() {
       <Rooms />
       <LinkRequests />
       <IdeasAdmin />
+      <Announce />
       <Gateway />
       <Problems />
     </div>
