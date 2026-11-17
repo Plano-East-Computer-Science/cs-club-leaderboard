@@ -7,6 +7,7 @@ import Announce from './officer/Announce.jsx';
 import Team from './officer/Team.jsx';
 import Claims from './officer/Claims.jsx';
 import Merge from './officer/Merge.jsx';
+import DailyAdmin from './officer/Daily.jsx';
 
 const HOURS = [1, 2, 3, 6, 12];
 
@@ -81,6 +82,7 @@ export default function Officer() {
       <IdeasAdmin />
       <Announce />
       <Gateway />
+      <DailyAdmin />
       <Problems />
       <Team />
     </div>
