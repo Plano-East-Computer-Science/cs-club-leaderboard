@@ -8,6 +8,7 @@ import { getCookie } from 'hono/cookie';
 
 import { COOKIE, verifySession } from '../auth.js';
 import { currentUser } from './users.js';
+import { notify } from './notify.js';
 
 export const roomsRouter = new Hono();
 export const roomsAdminRouter = new Hono();
@@ -30,6 +31,7 @@ roomsAdminRouter.post('/rooms', async (c) => {
     const code = makeCode();
     try {
       await c.env.DB.prepare('INSERT INTO rooms (code, title) VALUES (?, ?)').bind(code, title).run();
+      await notify(c.env, c.env.DB, `Room ${code} is open: ${title}. Join at ${new URL(c.req.url).origin}/room`);
       return c.json({ code, title });
     } catch {
       /* code collision: try another */

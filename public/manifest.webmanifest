@@ -1,0 +1,15 @@
+{
+  "name": "PEHS CS Club",
+  "short_name": "PEHS CS",
+  "description": "Plano East Senior High School computer science club.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "theme_color": "#0a0a08",
+  "background_color": "#0a0a08",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

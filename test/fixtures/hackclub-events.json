@@ -1,0 +1,78 @@
+{
+ "data": [
+  {
+   "id": "recUgBelqSX4STUgf",
+   "name": "Bashed",
+   "description": "write shell scripts, conquer challenges, get awesome loot!",
+   "url": "https://bashed.hackclub.com",
+   "status": "ongoing",
+   "startDate": "2026-11-10",
+   "endDate": "2027-02-28",
+   "format": "online",
+   "inPerson": null
+  },
+  {
+   "id": "recznby8D4DZZd4hm",
+   "name": "Hacklet",
+   "description": "Build a creative JavaScript bookmarklet in two hours and earn $10 for a domain!",
+   "url": "https://hacklet.hackclub.com",
+   "status": "ongoing",
+   "startDate": "2026-11-01",
+   "endDate": "2027-02-01",
+   "format": "online",
+   "inPerson": null
+  },
+  {
+   "id": "rec2J2yJYThoQVrwG",
+   "name": "Molten",
+   "description": "Molten is the coziest hackathon around, happening in Reykjavík in February 2027. RSVP now!",
+   "url": "https://molten.hackclub.com",
+   "status": "ongoing",
+   "startDate": "2026-11-14",
+   "endDate": null,
+   "format": "both",
+   "inPerson": {
+    "start": null,
+    "end": null,
+    "location": "Reykjavík, Iceland"
+   }
+  },
+  {
+   "id": "recwyD5RhnTkSq5KV",
+   "name": "Crossroads",
+   "description": "6 cities, 5 days, 30 teens.\na life-changing journey across Europe by train.  Earn stamps you can spend on your event ticket and prizes like laptops, and 3D printers. We'll wait for you at the station...",
+   "url": "https://crossroads.hackclub.com",
+   "status": "ongoing",
+   "startDate": "2026-11-06",
+   "endDate": "2027-02-28",
+   "format": "both",
+   "inPerson": null
+  },
+  {
+   "id": "recGbfov976IrojBD",
+   "name": "Club Shop",
+   "description": "Don't run your programming club alone, make it a Hack Club! \nRun workshops, ship projects, get rewards with friends for free!",
+   "url": "https://clubs.hackclub.com/",
+   "status": "ongoing",
+   "startDate": "2026-08-07",
+   "endDate": null,
+   "format": "in-person",
+   "inPerson": {
+    "start": null,
+    "end": null,
+    "location": "Your Local Club!"
+   }
+  },
+  {
+   "id": "recwCVkYneF7oU9Ae",
+   "name": "Wonders",
+   "description": null,
+   "url": "https://wonders.hackclub.com",
+   "status": "upcoming",
+   "startDate": "2027-01-01",
+   "endDate": "2027-03-01",
+   "format": null,
+   "inPerson": null
+  }
+ ]
+}

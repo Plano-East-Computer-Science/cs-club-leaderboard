@@ -1424,6 +1424,7 @@ const TEXT_FIELDS = [
   ['meetings_calendar_embed_url', 'Meetings calendar embed URL', 'input'],
   ['meetings_calendar_subscribe_url', 'Meetings calendar subscribe (ICS) URL', 'input'],
   ['firecrawl_urls', 'Firecrawl pages to scrape', 'textarea'],
+  ['discord_webhook_url', 'Discord webhook URL', 'input'],
 ];
 
 function TextTab({ say }) {
@@ -1453,7 +1454,9 @@ function TextTab({ say }) {
             hint={
               key === 'firecrawl_urls'
                 ? 'One URL per line. The weekly scraper reads these, and only uses them if a Firecrawl key is configured.'
-                : key === 'meetings_calendar_embed_url'
+                : key === 'discord_webhook_url'
+                  ? 'Discord channel settings, Integrations, Webhooks, Copy URL. Must start with https://discord.com/api/webhooks/. Room openings and announcements post here. Leave blank to turn it off.'
+                  : key === 'meetings_calendar_embed_url'
                   ? "From Google Calendar: Settings → your calendar → Integrate calendar → copy the URL inside src=\"...\" from the embed code. The calendar must be set to public first."
                   : key === 'meetings_calendar_subscribe_url'
                     ? 'Same settings page, further down: "Public URL to this calendar." Lets a student add it to their own calendar, not just view it here.'
