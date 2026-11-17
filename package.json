@@ -16,7 +16,7 @@
     "db:schema:local": "wrangler d1 execute cs-club --local --file worker/schema.sql",
     "db:seed:local": "wrangler d1 execute cs-club --local --file worker/seed.sql",
     "ingest": "node ingest/run.js",
-    "test": "node --disable-warning=ExperimentalWarning test/selftest.js && node test/hub.js"
+    "test": "node test/run.js"
   },
   "dependencies": {
     "hono": "^4.13.3",
