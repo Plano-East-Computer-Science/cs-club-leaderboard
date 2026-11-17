@@ -109,6 +109,52 @@ function Landing() {
 
 /* --------------------------- signed in: dashboard --------------------------- */
 
+/** Ask an officer to connect this account to a leaderboard entry. */
+function LinkPanel() {
+  const [info, setInfo] = useState(null);
+  const [pick, setPick] = useState('');
+  const [error, setError] = useState('');
+  const load = () => api.get('/me/link').then(setInfo).catch((e) => setError(e.message));
+  useEffect(() => { load(); }, []);
+
+  const send = async (e) => {
+    e.preventDefault();
+    setError('');
+    try {
+      await api.post('/me/link', { student_id: Number(pick) });
+      load();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+  const cancel = () => api.del('/me/link').then(load).catch((e) => setError(e.message));
+
+  if (!info) return <p className="d">loading...</p>;
+  if (info.pending)
+    return (
+      <>
+        <p>Waiting for an officer to confirm you are <b className="g">{info.pending.name}</b>.</p>
+        <p className="d">It shows up here once approved, usually at the next meeting.</p>
+        <button type="button" className="g uline" onClick={cancel} style={{ background: 'none', border: 0, cursor: 'pointer', font: 'inherit' }}>
+          cancel request
+        </button>
+      </>
+    );
+  return (
+    <>
+      <p>Connect your account to your leaderboard entry so your points show up here.</p>
+      <form onSubmit={send} style={{ display: 'grid', gap: 8 }}>
+        <select className="field" required value={pick} onChange={(e) => setPick(e.target.value)} aria-label="Your leaderboard entry">
+          <option value="">Pick your name</option>
+          {info.students.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+        </select>
+        <button className="btn" disabled={!pick}>Ask an officer to link me</button>
+      </form>
+      {error && <p className="dn" style={{ marginTop: 8 }}>{error}</p>}
+    </>
+  );
+}
+
 function Dashboard({ user, signOut }) {
   const [d, setD] = useState(null);
   const [error, setError] = useState('');
@@ -163,11 +209,7 @@ function Dashboard({ user, signOut }) {
                     <Link className="g uline" to={`/student/${user.student_id}`}>your leaderboard page</Link>
                   </>
                 ) : (
-                  <>
-                    <p>Your account is not linked to a leaderboard entry yet.</p>
-                    <p className="d">Ask an officer to link you at the next meeting and your points show up here.</p>
-                    <Link className="g uline" to="/standings">see the standings</Link>
-                  </>
+                  <LinkPanel />
                 )}
               </div>
             </Pane>

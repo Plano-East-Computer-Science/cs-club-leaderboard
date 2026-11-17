@@ -12,6 +12,7 @@ import { roomsRouter, roomsAdminRouter } from './rooms.js';
 import { gatewayRouter, gatewayInfoRouter, gatewayAdminRouter } from './gateway.js';
 import { projectsRouter } from './projects.js';
 import { dashboardRouter } from './dashboard.js';
+import { linksRouter, linksAdminRouter } from './links.js';
 
 export { Room } from './room-do.js';
 
@@ -25,6 +26,7 @@ hubAdmin.use('*', async (c, next) => {
 });
 hubAdmin.route('/', roomsAdminRouter);
 hubAdmin.route('/', gatewayAdminRouter);
+hubAdmin.route('/', linksAdminRouter);
 
 /** Call BEFORE the catch-all `/api` and static handlers. */
 export function mountHub(app) {
@@ -36,4 +38,5 @@ export function mountHub(app) {
   app.route('/api', gatewayInfoRouter);
   app.route('/api', projectsRouter);
   app.route('/api', dashboardRouter);
+  app.route('/api', linksRouter);
 }

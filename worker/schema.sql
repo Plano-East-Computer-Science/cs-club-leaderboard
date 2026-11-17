@@ -222,3 +222,11 @@ CREATE TABLE IF NOT EXISTS projects (
   created_at  TEXT    NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_projects_user ON projects(user_id);
+
+-- A student asks to connect their account to a leaderboard entry; an officer
+-- approves (sets users.student_id) or rejects. One open request per account.
+CREATE TABLE IF NOT EXISTS link_requests (
+  user_id    INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  student_id INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+  created_at TEXT    NOT NULL DEFAULT (datetime('now'))
+);

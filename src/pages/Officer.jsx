@@ -62,6 +62,7 @@ export default function Officer() {
         </div>
       </header>
       <Rooms />
+      <LinkRequests />
       <Gateway />
     </div>
   );
@@ -129,6 +130,56 @@ function SectionHead({ eyebrow, title, children }) {
         </p>
       )}
     </div>
+  );
+}
+
+/* ----------------------------- link requests ----------------------------- */
+
+function LinkRequests() {
+  const [reqs, setReqs] = useState(null);
+  const [error, setError] = useState(null);
+  const load = useCallback(() => {
+    api.get('/admin/hub/links').then((d) => setReqs(d.requests)).catch((e) => setError(e.message));
+  }, []);
+  useEffect(load, [load]);
+
+  const act = async (userId, verb) => {
+    setError(null);
+    try {
+      await api.post(`/admin/hub/links/${userId}/${verb}`);
+      load();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  return (
+    <section>
+      <SectionHead eyebrow="Accounts" title="Leaderboard link requests">
+        A student asked to connect their account to a leaderboard entry. Approve only if you know it is really them.
+      </SectionHead>
+      {error && <p className="mono mb-3 text-xs" style={{ color: 'var(--down)' }}>{error}</p>}
+      {!reqs ? (
+        <Spinner />
+      ) : reqs.length === 0 ? (
+        <p className="mono text-xs" style={{ color: 'var(--ink-soft)' }}>No pending requests.</p>
+      ) : (
+        <ul className="grid gap-2">
+          {reqs.map((r) => (
+            <li key={r.user_id} className="card flex flex-wrap items-center justify-between gap-3 p-3 text-sm">
+              <span>
+                <b>{r.user_name}</b> <span style={{ color: 'var(--ink-soft)' }}>({r.email})</span> wants to be{' '}
+                <b style={{ color: 'var(--flag)' }}>{r.student_name}</b>
+              </span>
+              <span className="flex gap-2">
+                <button className="btn btn-primary" onClick={() => act(r.user_id, 'approve')}>Approve</button>
+                <button className="btn btn-ghost" onClick={() => act(r.user_id, 'reject')}>Reject</button>
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
 
