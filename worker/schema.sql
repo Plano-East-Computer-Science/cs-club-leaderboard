@@ -246,3 +246,24 @@ CREATE TABLE IF NOT EXISTS idea_votes (
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   PRIMARY KEY (idea_id, user_id)
 );
+
+-- C2. Problem bank. One bank feeds duels, the daily problem, labs and contests.
+-- `solution` never leaves the server except to officers (publicProblem strips it).
+-- Judging runs in the browser, so `cases` ships with the problem.
+CREATE TABLE IF NOT EXISTS problems (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  slug       TEXT    NOT NULL UNIQUE,
+  title      TEXT    NOT NULL,
+  body       TEXT    NOT NULL DEFAULT '',          -- markdown
+  difficulty INTEGER NOT NULL DEFAULT 1 CHECK (difficulty BETWEEN 1 AND 5),
+  tags       TEXT    NOT NULL DEFAULT '',          -- comma list
+  starter    TEXT    NOT NULL DEFAULT '',
+  cases      TEXT    NOT NULL DEFAULT '[]',        -- JSON [{stdin, stdout}]
+  solution   TEXT    NOT NULL DEFAULT '',
+  source_url TEXT    NOT NULL DEFAULT '',
+  status     TEXT    NOT NULL DEFAULT 'draft',     -- draft | live | retired
+  created_by TEXT    NOT NULL DEFAULT '',
+  created_at TEXT    NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_problems_status ON problems(status, difficulty);
