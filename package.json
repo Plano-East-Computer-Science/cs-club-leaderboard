@@ -15,6 +15,8 @@
     "db:seed": "wrangler d1 execute cs-club --remote --file worker/seed.sql",
     "db:schema:local": "wrangler d1 execute cs-club --local --file worker/schema.sql",
     "db:seed:local": "wrangler d1 execute cs-club --local --file worker/seed.sql",
+    "build:problems": "node scripts/import-problems.mjs",
+    "db:problems:local": "wrangler d1 execute cs-club --local --file worker/seed-problems.sql",
     "ingest": "node ingest/run.js",
     "test": "node test/run.js"
   },

@@ -16,6 +16,7 @@ import { linksRouter, linksAdminRouter } from './links.js';
 import { googleRouter } from './google.js';
 import { questsRouter } from './quests.js';
 import { ideasRouter, ideasAdminRouter } from './ideas.js';
+import { problemsRouter, problemsAdminRouter } from './problems.js';
 
 export { Room } from './room-do.js';
 
@@ -31,6 +32,7 @@ hubAdmin.route('/', roomsAdminRouter);
 hubAdmin.route('/', gatewayAdminRouter);
 hubAdmin.route('/', linksAdminRouter);
 hubAdmin.route('/', ideasAdminRouter);
+hubAdmin.route('/', problemsAdminRouter);
 
 /** Call BEFORE the catch-all `/api` and static handlers. */
 export function mountHub(app) {
@@ -46,4 +48,5 @@ export function mountHub(app) {
   app.route('/api', googleRouter);
   app.route('/api', questsRouter);
   app.route('/api', ideasRouter);
+  app.route('/api', problemsRouter);
 }

@@ -24,7 +24,7 @@ function Inline({ text }) {
 }
 
 /** ``` fences, "## " headings, "- " bullets, **bold**, `code`. Never HTML. */
-function Body({ text = '' }) {
+export function Body({ text = '' }) {
   const blocks = [];
   let code = null;
   let list = null;

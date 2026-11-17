@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { Spinner, ErrorNote, Empty } from '../components/bits.jsx';
+import Problems from './officer/Problems.jsx';
 
 const HOURS = [1, 2, 3, 6, 12];
 
@@ -65,6 +66,7 @@ export default function Officer() {
       <LinkRequests />
       <IdeasAdmin />
       <Gateway />
+      <Problems />
     </div>
   );
 }
