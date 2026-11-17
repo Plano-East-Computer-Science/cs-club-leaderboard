@@ -7,24 +7,12 @@ import { Hono } from 'hono';
 import { COURSES } from '../../shared/courses.js';
 import { getLeaderboard } from '../db.js';
 import { requireUser } from './users.js';
+import { questProgress } from '../../shared/quests.js';
+import { statsFor, streakOf } from './quests.js';
+
+export { streakOf };
 
 export const dashboardRouter = new Hono();
-
-const DAY = 86_400_000;
-const dayKey = (iso) => Math.floor(new Date(iso.replace(' ', 'T') + 'Z').getTime() / DAY);
-
-/** Consecutive days with a passed step, ending today or yesterday. */
-export function streakOf(passedAts, now = Date.now()) {
-  const days = new Set(passedAts.map(dayKey));
-  let d = Math.floor(now / DAY);
-  if (!days.has(d)) d -= 1; // not having practised yet today does not break it
-  let n = 0;
-  while (days.has(d)) {
-    n++;
-    d--;
-  }
-  return n;
-}
 
 dashboardRouter.get('/me/dashboard', requireUser, async (c) => {
   const user = c.get('user');
@@ -72,7 +60,8 @@ dashboardRouter.get('/me/dashboard', requireUser, async (c) => {
       .bind(user.id)
       .all()
   ).results;
-  const meetings = await db.prepare('SELECT COUNT(*) AS n FROM room_checkins WHERE user_id = ?').bind(user.id).first();
+  const stats = await statsFor(db, user.id);
+  const q = questProgress(stats);
 
   return c.json({
     user,
@@ -82,6 +71,13 @@ dashboardRouter.get('/me/dashboard', requireUser, async (c) => {
     streak: streakOf(rows.map((r) => r.passed_at)),
     next,
     projects,
-    meetings: meetings.n,
+    meetings: stats.meetings,
+    xp: q.xp,
+    rank: q.rank,
+    nextRank: q.next,
+    // The closest unfinished quests, so the dashboard always has a next thing to do.
+    quests: q.quests.filter((x) => !x.done).sort((a, b) => b.have / b.need - a.have / a.need).slice(0, 3),
+    questsDone: q.quests.filter((x) => x.done).length,
+    questsTotal: q.quests.length,
   });
 });

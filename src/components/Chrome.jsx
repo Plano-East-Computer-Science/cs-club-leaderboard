@@ -5,20 +5,23 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useData } from '../lib/data.jsx';
+import { api } from '../lib/api.js';
 import { TIERS } from '../lib/tiers.js';
 import { formatDate, daysUntil } from '../lib/format.js';
 import { reducedMotion } from '../lib/ui.js';
 import { setXmas, useXmas, xmasOn } from '../lib/xmas.js';
 
+// Every page, flat. The command bar (`open <page>`) and the footer read this.
 export const PAGES = [
   ['home', '/'],
   ['standings', '/standings'],
   ['learn', '/learn'],
-  ['projects', '/projects'],
+  ['quests', '/quests'],
   ['room', '/room'],
+  ['projects', '/projects'],
   ['opportunities', '/opportunities'],
   ['calendar', '/calendar'],
-  // Below here the tab bar tucks pages into a "more" menu.
+  ['ideas', '/ideas'],
   ['curriculum', '/curriculum'],
   ['competitions', '/competitions'],
   ['cyber', '/cyber'],
@@ -28,7 +31,17 @@ export const PAGES = [
   ['join', '/join'],
   ['admin', '/admin'],
 ];
-const MAIN = 7; // how many tabs stay on the bar
+const BAR = ['home', 'standings', 'learn', 'quests', 'room', 'projects', 'opportunities']; // always on the bar
+
+// The "all" panel: the whole site as a directory listing, grouped by what you came to do.
+const GROUPS = [
+  ['meet', [['room', 'join the live meeting'], ['calendar', 'meetings and deadlines'], ['ideas', 'tell us what to run next']]],
+  ['learn', [['learn', 'lessons that run in the page'], ['quests', 'earn xp and a rank'], ['puzzles', 'problem of the week'], ['curriculum', 'what we teach, by track']]],
+  ['build', [['projects', 'post what you made'], ['gateway', 'GitHub on school wifi']]],
+  ['compete', [['standings', 'points, tiers, the prize'], ['competitions', 'USACO, UIL, BOT and more'], ['opportunities', 'contests, programs, internships'], ['cyber', 'the cyber team']]],
+  ['club', [['about', 'who runs this'], ['join', 'how to get involved']]],
+];
+const pathOf = (name) => PAGES.find((x) => x[0] === name)[1];
 const ALIAS = { opps: 'opportunities', comps: 'competitions', lb: 'standings', board: 'standings', home: 'home' };
 
 const Logo = () => (
@@ -43,23 +56,22 @@ export function TabBar() {
   const { pathname } = useLocation();
   const on = useXmas();
   const navRef = useRef(null);
-  const moreRef = useRef(null);
+  const barRef = useRef(null);
   const [open, setOpen] = useState(false);
+  const [user, setUser] = useState(null);
   const cur = (to) => (to === '/' ? pathname === '/' : to === '/standings' ? pathname.startsWith('/standings') || pathname.startsWith('/student') : pathname.startsWith(to));
-
-  const main = PAGES.slice(0, MAIN);
-  const more = PAGES.slice(MAIN).filter(([n]) => n !== 'admin');
-  const admin = PAGES.find(([n]) => n === 'admin');
-  const moreActive = more.some(([, to]) => cur(to));
+  const elsewhere = !BAR.some((n) => cur(pathOf(n))); // current page lives only in the panel
 
   useEffect(() => {
     setOpen(false);
     navRef.current?.querySelector('[aria-current]')?.scrollIntoView({ inline: 'center', block: 'nearest' });
+    // Cheap, and keeps the account chip honest after signing in or out.
+    api.get('/me').then((r) => setUser(r.user)).catch(() => setUser(null));
   }, [pathname]);
 
   useEffect(() => {
     if (!open) return;
-    const away = (e) => { if (!moreRef.current?.contains(e.target)) setOpen(false); };
+    const away = (e) => { if (!barRef.current?.contains(e.target)) setOpen(false); };
     const esc = (e) => { if (e.key === 'Escape') setOpen(false); };
     document.addEventListener('pointerdown', away);
     document.addEventListener('keydown', esc);
@@ -67,16 +79,16 @@ export function TabBar() {
   }, [open]);
 
   return (
-    <header className="tabs">
+    <header className="tabs" ref={barRef}>
       <Link className="brand" to="/">
         <Logo />
         PEHS//CS
       </Link>
       <nav aria-label="Primary" ref={navRef}>
-        {main.map(([name, to], i) => {
-          const active = cur(to);
+        {BAR.map((name, i) => {
+          const active = cur(pathOf(name));
           return (
-            <Link key={name} to={to} aria-current={active ? 'page' : undefined}>
+            <Link key={name} to={pathOf(name)} aria-current={active ? 'page' : undefined}>
               <b>{i}</b>
               {name}
               {active ? '*' : ''}
@@ -84,22 +96,11 @@ export function TabBar() {
           );
         })}
       </nav>
-      <div className="more" ref={moreRef}>
-        <button type="button" className={moreActive ? 'on' : undefined} aria-expanded={open} aria-haspopup="true" onClick={() => setOpen(!open)}>
-          more<span aria-hidden="true">{open ? ' ▴' : ' ▾'}</span>
-        </button>
-        {open && (
-          <div className="more-menu" role="menu">
-            {more.map(([name, to]) => (
-              <Link key={name} to={to} role="menuitem" aria-current={cur(to) ? 'page' : undefined}>
-                {name}
-              </Link>
-            ))}
-          </div>
-        )}
-      </div>
-      <Link className={`adm${cur(admin[1]) ? ' on' : ''}`} to={admin[1]} aria-current={cur(admin[1]) ? 'page' : undefined}>
-        admin
+      <button type="button" className={`allb${elsewhere || open ? ' on' : ''}`} aria-expanded={open} aria-controls="site-map" onClick={() => setOpen(!open)}>
+        <span className="hide-xs">ls </span>all<span aria-hidden="true">{open ? ' ▴' : ' ▾'}</span>
+      </button>
+      <Link className={`acct${user ? ' in' : ''}`} to={user ? '/' : '/signin'} title={user ? 'Your hub' : 'Sign in'}>
+        {user ? <><i aria-hidden="true" />{user.name.split(' ')[0]}</> : 'sign in'}
       </Link>
       <div className="hint">
         <kbd>/</kbd>command
@@ -107,6 +108,26 @@ export function TabBar() {
           {on ? 'xmas: on' : 'xmas: off'}
         </button>
       </div>
+      {open && (
+        <div className="mega" id="site-map">
+          <div className="mega-g">
+            {GROUPS.map(([group, items]) => (
+              <section key={group}>
+                <h3>{group}/</h3>
+                {items.map(([name, desc]) => (
+                  <Link key={name} to={pathOf(name)} aria-current={cur(pathOf(name)) ? 'page' : undefined}>
+                    <b>{name}</b>
+                    <span>{desc}</span>
+                  </Link>
+                ))}
+              </section>
+            ))}
+          </div>
+          <p className="mega-f">
+            officers: <Link to="/officer">run a meeting</Link> <Link to="/admin">admin panel</Link>
+          </p>
+        </div>
+      )}
       <div className="lights" aria-hidden="true" />
     </header>
   );

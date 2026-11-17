@@ -230,3 +230,19 @@ CREATE TABLE IF NOT EXISTS link_requests (
   student_id INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
   created_at TEXT    NOT NULL DEFAULT (datetime('now'))
 );
+
+-- Ideas board: what members want the club to teach, build or host. Anyone can
+-- read it; posting and voting need an account. Officers set the status.
+CREATE TABLE IF NOT EXISTS ideas (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  kind       TEXT    NOT NULL DEFAULT 'lesson',
+  body       TEXT    NOT NULL,
+  status     TEXT    NOT NULL DEFAULT 'open',   -- open | planned | done | hidden
+  created_at TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+CREATE TABLE IF NOT EXISTS idea_votes (
+  idea_id INTEGER NOT NULL REFERENCES ideas(id) ON DELETE CASCADE,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  PRIMARY KEY (idea_id, user_id)
+);

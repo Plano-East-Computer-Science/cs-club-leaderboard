@@ -220,6 +220,23 @@ function Live({ code }) {
             <Question q={q} left={left} frac={frac} onAnswer={(choice) => send({ t: 'answer', choice })} />
           )}
 
+          {state.stage?.length > 0 && (
+            <section className="card p-4" aria-label="Today">
+              <p className="eyebrow mb-2">Today</p>
+              <ol className="grid gap-1">
+                {state.stage.map((it, i) => (
+                  <li key={i} className="flex items-baseline gap-3">
+                    <span className="mono" style={{ color: 'var(--ink-faint)' }}>{i + 1}</span>
+                    {/* New tab, so this page keeps its place in the room. */}
+                    <a href={it.url} target="_blank" rel="noreferrer noopener" className="underline" style={{ color: 'var(--flag)' }}>
+                      {it.label}
+                    </a>
+                  </li>
+                ))}
+              </ol>
+            </section>
+          )}
+
           <section aria-label="How is the pace?">
             <p className="eyebrow mb-2">How is the pace?</p>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -240,6 +257,8 @@ function Live({ code }) {
             </div>
           </section>
 
+          <AskBox sent={state.myAsks ?? 0} onSend={(text) => send({ t: 'question', text })} />
+
           <section className="card p-4">
             <p className="eyebrow mb-2">Leaderboard</p>
             <Board board={state.board} />
@@ -247,6 +266,42 @@ function Live({ code }) {
         </div>
       )}
     </div>
+  );
+}
+
+/** A question for the officers. Only they see it, without your name on the projector. */
+function AskBox({ sent, onSend }) {
+  const [text, setText] = useState('');
+  const full = sent >= 3;
+  return (
+    <form
+      className="card grid gap-2 p-4"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (text.trim().length < 3) return;
+        onSend(text.trim());
+        setText('');
+      }}
+    >
+      <label className="eyebrow" htmlFor="ask-box">Ask the officers</label>
+      <div className="flex gap-2">
+        <input
+          id="ask-box"
+          className="field"
+          maxLength={200}
+          value={text}
+          disabled={full}
+          onChange={(e) => setText(e.target.value)}
+          placeholder={full ? 'Wait for one to be answered' : 'Stuck? Curious? Type it here'}
+        />
+        <button className="btn btn-ghost" disabled={full || text.trim().length < 3}>Send</button>
+      </div>
+      {sent > 0 && (
+        <p className="mono text-xs" role="status" style={{ color: 'var(--ink-soft)' }}>
+          {sent} waiting for an answer. Only officers can see it.
+        </p>
+      )}
+    </form>
   );
 }
 

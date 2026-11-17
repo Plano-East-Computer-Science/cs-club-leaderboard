@@ -22,6 +22,8 @@ import Officer from './pages/Officer.jsx';
 import Gateway from './pages/Gateway.jsx';
 import Projects from './pages/Projects.jsx';
 import Portfolio from './pages/Portfolio.jsx';
+import Quests from './pages/Quests.jsx';
+import Ideas from './pages/Ideas.jsx';
 import { SubscribeBox } from './components/Subscribe.jsx';
 import { TabBar, Dock, Boot, Snow, PAGES } from './components/Chrome.jsx';
 import { DataProvider, useData } from './lib/data.jsx';
@@ -104,7 +106,7 @@ function Shell() {
   if (pathname.startsWith('/host/')) {
     return (
       <Routes>
-        <Route path="/host/:code" element={<Host />} />
+        <Route path="/host/:code" element={<div className="hub"><Host /></div>} />
       </Routes>
     );
   }
@@ -125,6 +127,8 @@ function Shell() {
           <Route path="/join" element={<Join />} />
           <Route path="/about" element={<About />} />
           <Route path="/cyber" element={<Cyber />} />
+          <Route path="/quests" element={<Quests />} />
+          <Route path="/ideas" element={<Ideas />} />
           <Route element={<HubLayout />}>
             <Route path="/learn" element={<Learn />} />
             <Route path="/learn/:slug" element={<Course />} />

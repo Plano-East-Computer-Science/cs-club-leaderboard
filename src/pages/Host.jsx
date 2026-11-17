@@ -59,6 +59,68 @@ function NeedOfficer() {
   );
 }
 
+/** Today's links, pinned for everyone in the room: the lesson, the problems, the gateway. */
+function Agenda({ stage, onChange }) {
+  const [courses, setCourses] = useState([]);
+  const [label, setLabel] = useState('');
+  const [url, setUrl] = useState('');
+  useEffect(() => {
+    api.get('/learn').then((d) => setCourses(d.courses)).catch(() => {});
+  }, []);
+
+  const add = (item) => onChange([...stage, item]);
+  const okUrl = /^(https:\/\/\S+|\/[^/]\S*)$/.test(url.trim());
+
+  return (
+    <section className="card grid gap-3 p-5" aria-label="Agenda">
+      <p className="eyebrow">Today (everyone in the room sees these)</p>
+      {stage.length > 0 && (
+        <ol className="grid gap-1">
+          {stage.map((it, i) => (
+            <li key={i} className="flex items-baseline gap-3 text-xl">
+              <span className="mono" style={{ color: 'var(--ink-faint)' }}>{i + 1}</span>
+              <span className="flex-1 truncate">{it.label}</span>
+              <button className="mono text-xs underline" style={{ color: 'var(--ink-soft)' }} onClick={() => onChange(stage.filter((_, j) => j !== i))}>
+                remove
+              </button>
+            </li>
+          ))}
+        </ol>
+      )}
+      <div className="flex flex-wrap gap-2">
+        <select
+          className="field"
+          style={{ flex: '1 1 14rem', width: 'auto' }}
+          value=""
+          aria-label="Add a lesson"
+          onChange={(e) => {
+            const c = courses.find((x) => x.slug === e.target.value);
+            if (c) add({ label: c.title, url: `/learn/${c.slug}` });
+          }}
+        >
+          <option value="">+ lesson from the site</option>
+          {courses.map((c) => <option key={c.slug} value={c.slug}>{c.title}</option>)}
+        </select>
+        <button type="button" className="btn btn-ghost" onClick={() => add({ label: 'GitHub at school (gateway)', url: '/gateway' })}>+ gateway</button>
+        <button type="button" className="btn btn-ghost" onClick={() => add({ label: 'Ideas board: vote for next week', url: '/ideas' })}>+ ideas vote</button>
+      </div>
+      <form
+        className="flex flex-wrap gap-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          add({ label: label.trim(), url: url.trim() });
+          setLabel('');
+          setUrl('');
+        }}
+      >
+        <input className="field" style={{ flex: '1 1 9rem', width: 'auto' }} maxLength={60} placeholder="Label, e.g. CSES Sum of Two" value={label} onChange={(e) => setLabel(e.target.value)} aria-label="Link label" />
+        <input className="field" style={{ flex: '2 1 12rem', width: 'auto' }} maxLength={300} placeholder="https://..." value={url} onChange={(e) => setUrl(e.target.value)} aria-label="Link address" />
+        <button className="btn btn-ghost" disabled={!label.trim() || !okUrl || stage.length >= 8}>Add link</button>
+      </form>
+    </section>
+  );
+}
+
 function Console({ code }) {
   const { state, status, refused, skew, send } = useRoomSocket(code);
   const [draft, setDraft] = useState({ text: '', options: ['', '', '', ''], correct: null, seconds: 20 });
@@ -161,6 +223,25 @@ function Console({ code }) {
                   <button className="btn btn-ghost" disabled={!q.open} onClick={() => send({ t: 'close' })}>Close</button>
                   <button className="btn btn-primary" disabled={q.revealed} onClick={() => send({ t: 'reveal' })}>Reveal</button>
                 </div>
+              </section>
+            )}
+
+            <Agenda stage={state.stage ?? []} onChange={(items) => send({ t: 'stage', items })} />
+
+            {state.asks?.length > 0 && (
+              <section className="card p-5" aria-label="Questions from the room">
+                <p className="eyebrow mb-3">Questions ({state.asks.length})</p>
+                <ul className="grid gap-3">
+                  {state.asks.map((a) => (
+                    <li key={a.id} className="flex items-start gap-3">
+                      <div className="flex-1">
+                        <p className="text-xl leading-snug">{a.text}</p>
+                        <p className="mono text-xs" style={{ color: 'var(--ink-faint)' }}>{a.name}</p>
+                      </div>
+                      <button className="btn btn-ghost" onClick={() => send({ t: 'ask_done', id: a.id })}>Answered</button>
+                    </li>
+                  ))}
+                </ul>
               </section>
             )}
 

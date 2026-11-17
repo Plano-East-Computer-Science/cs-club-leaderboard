@@ -63,6 +63,7 @@ export default function Officer() {
       </header>
       <Rooms />
       <LinkRequests />
+      <IdeasAdmin />
       <Gateway />
     </div>
   );
@@ -175,6 +176,50 @@ function LinkRequests() {
                 <button className="btn btn-primary" onClick={() => act(r.user_id, 'approve')}>Approve</button>
                 <button className="btn btn-ghost" onClick={() => act(r.user_id, 'reject')}>Reject</button>
               </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+/* --------------------------------- ideas --------------------------------- */
+
+function IdeasAdmin() {
+  const [ideas, setIdeas] = useState(null);
+  const [error, setError] = useState(null);
+  const load = useCallback(() => {
+    api.get('/ideas').then((d) => setIdeas(d.ideas)).catch((e) => setError(e.message));
+  }, []);
+  useEffect(load, [load]);
+
+  const set = (id, status) =>
+    api.post(`/admin/hub/ideas/${id}/status`, { status }).then(load).catch((e) => setError(e.message));
+
+  return (
+    <section>
+      <SectionHead eyebrow="Ideas board" title="What members asked for">
+        Mark an idea planned when it is on the schedule and done once it has run. Hide anything that should not be public.
+      </SectionHead>
+      {error && <ErrorNote onRetry={load}>{error}</ErrorNote>}
+      {!ideas && !error && <Spinner label="Loading ideas" />}
+      {ideas && ideas.length === 0 && <Empty title="No ideas yet">Point members at /ideas during a meeting.</Empty>}
+      {ideas && ideas.length > 0 && (
+        <ul className="card divide-y">
+          {ideas.slice(0, 30).map((i) => (
+            <li key={i.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 p-4">
+              <span className="mono w-10 text-sm font-bold">{i.votes}</span>
+              <span className="min-w-40 flex-1 text-sm">
+                {i.body}
+                <span className="mono ml-2 text-xs" style={{ color: 'var(--ink-faint)' }}>{i.kind} · {i.author}</span>
+              </span>
+              <select className="field" style={{ width: 'auto' }} value={i.status} onChange={(e) => set(i.id, e.target.value)} aria-label={`Status of: ${i.body}`}>
+                <option value="open">open</option>
+                <option value="planned">planned</option>
+                <option value="done">done</option>
+                <option value="hidden">hide</option>
+              </select>
             </li>
           ))}
         </ul>

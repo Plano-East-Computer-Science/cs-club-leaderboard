@@ -16,9 +16,19 @@ const fresh = () => ({
   scores: {}, // uid -> { name, pts }
   pulse: {}, // uid -> one of PULSE
   names: {}, // uid -> name (everyone who has connected)
+  stage: [], // today's agenda: [{ label, url }] the host pins for everyone
+  asks: [], // question box: [{ id, uid, text }], only the host sees it
   ended: false,
   seq: 0,
 });
+
+/** Agenda links: a label plus a page on this site ("/learn/...") or an https URL. Nothing else. */
+export function cleanStage(items) {
+  return (Array.isArray(items) ? items : [])
+    .map((it) => ({ label: String(it?.label ?? '').trim().slice(0, 60), url: String(it?.url ?? '').trim().slice(0, 300) }))
+    .filter((it) => it.label && (/^\/[^/\\]/.test(it.url) || /^https:\/\/\S+$/.test(it.url)))
+    .slice(0, 8);
+}
 
 export class Room {
   constructor(ctx) {
@@ -87,6 +97,10 @@ export class Room {
       } else if (m.t === 'reveal' && s.q) {
         if (s.q.open) this.closeQuestion();
         s.q.revealed = true;
+      } else if (m.t === 'stage') {
+        s.stage = cleanStage(m.items);
+      } else if (m.t === 'ask_done') {
+        s.asks = (s.asks ?? []).filter((a) => a.id !== m.id);
       } else if (m.t === 'clear_pulse') {
         s.pulse = {};
       } else if (m.t === 'end') {
@@ -100,6 +114,12 @@ export class Room {
         s.answers[uid] = { choice, ms: Date.now() - s.q.openedAt };
       } else if (m.t === 'pulse' && PULSE.includes(m.v)) {
         s.pulse[uid] = m.v;
+      } else if (m.t === 'question') {
+        const text = String(m.text ?? '').replace(/\s+/g, ' ').trim().slice(0, 200);
+        s.asks ??= [];
+        // A few open questions each, so one phone cannot flood the host.
+        if (text.length < 3 || s.asks.filter((a) => a.uid === uid).length >= 3 || s.asks.length >= 60) return;
+        s.asks.push({ id: ++s.seq, uid, text });
       } else return;
     }
 
@@ -155,6 +175,9 @@ export class Room {
       answered: Object.keys(s.answers).length,
       pulse,
       board,
+      stage: s.stage ?? [],
+      asks: role === 'host' ? (s.asks ?? []).map((a) => ({ id: a.id, text: a.text, name: s.names[a.uid] ?? 'Student' })) : undefined,
+      myAsks: role === 'student' ? (s.asks ?? []).filter((a) => a.uid === uid).length : undefined,
       q: q && {
         id: q.id,
         text: q.text,

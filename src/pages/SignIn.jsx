@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { useUser } from '../lib/useUser.js';
@@ -13,7 +13,65 @@ export default function SignIn() {
         <p className="eyebrow">Members</p>
         <h1 className="display mt-2 text-[clamp(2.2rem,6vw,3.5rem)] leading-[0.95] font-extrabold">Sign in</h1>
       </header>
-      {loading ? <Spinner /> : user ? <Account user={user} refresh={refresh} signOut={signOut} /> : <RequestLink />}
+      {loading ? <Spinner /> : user ? <Account user={user} refresh={refresh} signOut={signOut} /> : (
+        <>
+          <GoogleButton />
+          <RequestLink />
+        </>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Google's own button. Only drawn when an officer has set GOOGLE_CLIENT_ID;
+ * otherwise the page is just the email form, as before.
+ */
+function GoogleButton() {
+  const slot = useRef(null);
+  const [clientId, setClientId] = useState(null);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    api.get('/auth/config').then((r) => setClientId(r.googleClientId)).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!clientId) return undefined;
+    const draw = () => {
+      window.google.accounts.id.initialize({
+        client_id: clientId,
+        callback: async ({ credential }) => {
+          try {
+            await api.post('/auth/google', { credential });
+            window.location.assign('/');
+          } catch (err) {
+            setError(err.message);
+          }
+        },
+      });
+      window.google.accounts.id.renderButton(slot.current, { theme: 'filled_black', size: 'large', text: 'continue_with', shape: 'rectangular', width: 320 });
+    };
+    if (window.google?.accounts?.id) return void draw();
+    const s = document.createElement('script');
+    s.src = 'https://accounts.google.com/gsi/client';
+    s.async = true;
+    s.onload = draw;
+    s.onerror = () => setError('Could not load Google sign-in on this network. Use the email link below.');
+    document.head.appendChild(s);
+    return undefined;
+  }, [clientId]);
+
+  if (!clientId) return null;
+  return (
+    <div className="card mb-4 grid gap-3 p-6">
+      <p className="eyebrow">Fastest</p>
+      <div ref={slot} style={{ minHeight: 44, colorScheme: 'light' }} />
+      <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>
+        Any Google account works, school or personal. We only read your name and email address.
+      </p>
+      {error && <p role="alert" className="text-sm" style={{ color: '#c42e2e' }}>{error}</p>}
+      <p className="mono text-xs" style={{ color: 'var(--ink-faint)' }}>or get a link by email:</p>
     </div>
   );
 }

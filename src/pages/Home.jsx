@@ -5,6 +5,7 @@ import { useData } from '../lib/data.jsx';
 import { useUser } from '../lib/useUser.js';
 import { Pane, PageHead } from '../components/Pane.jsx';
 import { useReveal } from '../lib/ui.js';
+import { QuestRow, RankBar } from './Quests.jsx';
 
 const grid = { display: 'grid', gap: 16, gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,300px),1fr))' };
 const bar = (n, of) => `[${'#'.repeat(Math.round((n / (of || 1)) * 16))}${'-'.repeat(16 - Math.round((n / (of || 1)) * 16))}]`;
@@ -59,7 +60,7 @@ function Landing() {
       <section className="sec">
         <div className="wrap">
           <h2>What an account gets you <small>cat features.md</small></h2>
-          <p className="sub">No password. We email you a one-time link to a personal address.</p>
+          <p className="sub">No password to remember. Sign in with Google, or get a one-time link by email.</p>
           <div style={grid}>
             <Pane file="learn" meta="lessons that run here">
               <div className="pn-b">
@@ -77,6 +78,18 @@ function Landing() {
               <div className="pn-b">
                 <p>Post what you build. You get a public page to put on a college application.</p>
                 <Link className="g uline" to="/projects">see projects</Link>
+              </div>
+            </Pane>
+            <Pane file="quests" meta="xp and ranks">
+              <div className="pn-b">
+                <p>Lessons, meetings and projects tick off quests and raise your rank, from recruit up to root. It shows on your portfolio.</p>
+                <Link className="g uline" to="/quests">see the quests</Link>
+              </div>
+            </Pane>
+            <Pane file="ideas" meta="you pick what we run">
+              <div className="pn-b">
+                <p>Want a meeting on LLMs, data, game dev? Post it and vote. Officers plan from the top of the list.</p>
+                <Link className="g uline" to="/ideas">open the board</Link>
               </div>
             </Pane>
             <Pane file="gateway" meta="GitHub at school">
@@ -193,8 +206,8 @@ function Dashboard({ user, signOut }) {
         lead="Pick up where you left off, check where you stand, and keep your projects in one place."
         kv={
           <div className="kv">
+            <div><span>rank</span><strong>{d.rank}</strong></div>
             <div><span>day streak</span><strong>{d.streak}</strong></div>
-            <div><span>steps passed</span><strong>{d.stepsPassed}</strong></div>
             <div><span>meetings</span><strong>{d.meetings}</strong></div>
           </div>
         }
@@ -213,6 +226,19 @@ function Dashboard({ user, signOut }) {
                 ) : (
                   <p>You have finished every lesson. Nice. New ones are on the way.</p>
                 )}
+              </div>
+            </Pane>
+
+            <Pane file="quests" meta={`${d.questsDone}/${d.questsTotal} done · ${d.xp} xp`}>
+              <div className="pn-b" style={{ paddingBottom: 12 }}>
+                <p className="d" style={{ fontSize: 13, marginBottom: 0 }}>
+                  {d.nextRank ? <><b className="g">{d.rank}</b> to {d.nextRank.id}: {d.nextRank.min - d.xp} xp to go</> : <>You are <b className="g">root</b>.</>}
+                </p>
+                <RankBar xp={d.xp} rank={d.rank} next={d.nextRank} />
+              </div>
+              <div className="ql" style={{ borderTop: '1px solid var(--line)' }}>
+                {d.quests.map((q) => <QuestRow key={q.id} q={q} />)}
+                <Link to="/quests" style={{ display: 'block' }}><span className="g uline">all quests</span></Link>
               </div>
             </Pane>
 
@@ -271,6 +297,10 @@ function Dashboard({ user, signOut }) {
             <Link to="/opportunities" className="pn sp" style={{ padding: '14px 18px', display: 'block' }}>
               <span className="g">opportunities</span>
               <span className="d" style={{ display: 'block', marginTop: 4 }}>contests and hackathons with deadlines</span>
+            </Link>
+            <Link to="/ideas" className="pn sp" style={{ padding: '14px 18px', display: 'block' }}>
+              <span className="g">ideas board</span>
+              <span className="d" style={{ display: 'block', marginTop: 4 }}>vote on what the next meeting covers</span>
             </Link>
             <Link to="/gateway" className="pn sp" style={{ padding: '14px 18px', display: 'block' }}>
               <span className="g">GitHub at school</span>

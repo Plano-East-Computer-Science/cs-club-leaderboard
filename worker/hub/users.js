@@ -47,6 +47,21 @@ export async function requireUser(c, next) {
   await next();
 }
 
+/** Creates the account on first sight, then sets the session cookie. Shared by every sign-in method. */
+export async function startSession(c, email, name) {
+  const db = c.env.DB;
+  await db
+    .prepare(
+      `INSERT INTO users (email, name, last_seen) VALUES (?, ?, datetime('now'))
+       ON CONFLICT(email) DO UPDATE SET last_seen = datetime('now')`
+    )
+    .bind(email, name)
+    .run();
+  const user = await db.prepare('SELECT id FROM users WHERE email = ?').bind(email).first();
+  setCookie(c, USER_COOKIE, await signValue(c.env, `${user.id}:${Date.now() + SESSION_MS}`), cookieOpts(c));
+  return user.id;
+}
+
 const cleanName = (s) => String(s ?? '').replace(/\s+/g, ' ').trim().slice(0, 40);
 
 usersRouter.get('/me', async (c) => {
@@ -131,16 +146,7 @@ usersRouter.get('/auth/verify', async (c) => {
   }
 
   await db.prepare('UPDATE login_tokens SET used = 1 WHERE token = ?').bind(token).run();
-  await db
-    .prepare(
-      `INSERT INTO users (email, name, last_seen) VALUES (?, ?, datetime('now'))
-       ON CONFLICT(email) DO UPDATE SET last_seen = datetime('now')`
-    )
-    .bind(row.email, row.name || row.email.split('@')[0])
-    .run();
-  const user = await db.prepare('SELECT id FROM users WHERE email = ?').bind(row.email).first();
-
-  setCookie(c, USER_COOKIE, await signValue(c.env, `${user.id}:${Date.now() + SESSION_MS}`), cookieOpts(c));
+  await startSession(c, row.email, row.name || row.email.split('@')[0]);
   return c.redirect('/');
 });
 

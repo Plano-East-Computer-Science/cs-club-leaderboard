@@ -74,6 +74,91 @@ assert.equal(streakOf(['2026-11-16 09:00:00', '2026-11-15 20:00:00', '2026-11-14
 assert.equal(streakOf(['2026-11-15 20:00:00'], noon), 1); // yesterday still counts
 assert.equal(streakOf(['2026-11-13 20:00:00'], noon), 0); // gap breaks it
 
+/* ------------------------------ quests, ranks ------------------------------ */
+
+import { QUESTS, RANKS, questProgress, rankFor } from '../shared/quests.js';
+import { stepStats } from '../worker/hub/quests.js';
+import { cleanStage } from '../worker/hub/room-do.js';
+import { verifyGoogleIdToken } from '../worker/hub/google.js';
+
+const zero = { steps: 0, coursesDone: 0, tracks: 0, flags: 0, meetings: 0, projects: 0, ideas: 0, streak: 0, linked: false };
+assert.equal(questProgress(zero).xp, 0);
+assert.equal(questProgress(zero).rank, 'guest');
+assert.equal(new Set(QUESTS.map((q) => q.id)).size, QUESTS.length, 'quest ids must be unique');
+// One step: 10 base + the 20 bonus for "first-step".
+assert.equal(questProgress({ ...zero, steps: 1 }).xp, 30);
+// Ideas stop paying after five, so the board is not an XP farm.
+assert.equal(questProgress({ ...zero, ideas: 50 }).xp, questProgress({ ...zero, ideas: 5 }).xp);
+// Progress never reads above the target.
+assert.ok(questProgress({ ...zero, meetings: 99 }).quests.every((q) => q.have <= q.need));
+assert.equal(rankFor(RANKS[2].min).rank, RANKS[2].id);
+assert.equal(rankFor(RANKS[2].min - 1).rank, RANKS[1].id);
+assert.equal(rankFor(1e9).next, null);
+
+const demo = [
+  { slug: 'a', track: 'cp', steps: [{ id: 'x', kind: 'code' }, { id: 'y', kind: 'flag' }] },
+  { slug: 'b', track: 'data', steps: [{ id: 'x', kind: 'read' }] },
+];
+const at = '2026-11-16 09:00:00';
+const st = stepStats(
+  [{ course: 'a', step: 'x', passed_at: at }, { course: 'a', step: 'y', passed_at: at }, { course: 'a', step: 'deleted', passed_at: at }, { course: 'gone', step: 'x', passed_at: at }],
+  demo,
+  noon
+);
+assert.deepEqual(st, { steps: 2, coursesDone: 1, flags: 1, tracks: 1, streak: 1 });
+
+/* ------------------------------- room agenda ------------------------------- */
+
+assert.deepEqual(
+  cleanStage([
+    { label: 'Lesson', url: '/learn/python-contests' },
+    { label: 'CSES', url: 'https://cses.fi/problemset' },
+    { label: 'other site', url: '//evil.com' },
+    { label: 'script', url: 'javascript:alert(1)' },
+    { label: 'plain http', url: 'http://example.com' },
+    { label: '', url: '/x' },
+  ]).map((i) => i.url),
+  ['/learn/python-contests', 'https://cses.fi/problemset']
+);
+assert.deepEqual(cleanStage('nope'), []);
+
+/* ------------------------------ Google sign-in ------------------------------ */
+
+{
+  const b64 = (buf) => Buffer.from(buf).toString('base64url');
+  const pair = await crypto.subtle.generateKey(
+    { name: 'RSASSA-PKCS1-v1_5', modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: 'SHA-256' },
+    true,
+    ['sign', 'verify']
+  );
+  const keys = [{ ...(await crypto.subtle.exportKey('jwk', pair.publicKey)), kid: 'k1' }];
+  const mint = async (claims, key = pair.privateKey, alg = 'RS256') => {
+    const head = b64(JSON.stringify({ alg, kid: 'k1' }));
+    const body = b64(JSON.stringify(claims));
+    const sig = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', key, new TextEncoder().encode(`${head}.${body}`));
+    return `${head}.${body}.${b64(sig)}`;
+  };
+  const now = Date.now();
+  const good = { iss: 'https://accounts.google.com', aud: 'client-1', exp: now / 1000 + 600, email: 'a@b.c', email_verified: true, name: 'A' };
+  const check = (t, id = 'client-1') => verifyGoogleIdToken(t, id, { keys, now });
+
+  assert.equal((await check(await mint(good)))?.email, 'a@b.c');
+  assert.equal(await check(await mint(good), 'another-site'), null, 'token minted for a different site');
+  assert.equal(await check(await mint({ ...good, exp: now / 1000 - 1 })), null, 'expired');
+  assert.equal(await check(await mint({ ...good, iss: 'https://evil.example' })), null, 'wrong issuer');
+  assert.equal(await check(await mint({ ...good, email_verified: false })), null, 'unverified email');
+  const other = await crypto.subtle.generateKey(
+    { name: 'RSASSA-PKCS1-v1_5', modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: 'SHA-256' },
+    true,
+    ['sign', 'verify']
+  );
+  assert.equal(await check(await mint(good, other.privateKey)), null, 'signed by someone else');
+  const [h, , sg] = (await mint(good)).split('.');
+  assert.equal(await check(`${h}.${b64(JSON.stringify({ ...good, email: 'x@y.z' }))}.${sg}`), null, 'tampered body');
+  assert.equal(await check('garbage'), null);
+  assert.equal(await check(await mint(good), ''), null, 'no client id configured');
+}
+
 /* -------------------------------- courses -------------------------------- */
 
 const slugs = new Set();

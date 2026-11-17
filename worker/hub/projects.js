@@ -6,6 +6,8 @@ import { Hono } from 'hono';
 
 import { COURSES } from '../../shared/courses.js';
 import { requireUser } from './users.js';
+import { questProgress } from '../../shared/quests.js';
+import { statsFor } from './quests.js';
 
 export const projectsRouter = new Hono();
 
@@ -96,8 +98,12 @@ projectsRouter.get('/portfolio/:id', async (c) => {
       .all()
   ).results;
 
+  const q = questProgress(await statsFor(c.env.DB, id));
   return c.json({
     name: user.name,
+    rank: q.rank,
+    xp: q.xp,
+    badges: q.quests.filter((x) => x.done).map((x) => x.title),
     since: user.created_at,
     meetings: rooms.n,
     courses: courses.map((x) => ({ ...x, complete: x.passed === x.steps })),

@@ -14,12 +14,17 @@
  * system, which is fine for a club (a student can only cheat themselves).
  */
 
+import dataCourses from './courses/data.js';
+import llmCourses from './courses/llm.js';
+import labCourses from './courses/labs.js';
+
 export const TRACKS = [
   { id: 'cp', name: 'Competitive programming', blurb: 'USACO, UIL, BOT. Contest-style problems you solve and check right here.' },
   { id: 'cyber', name: 'Cybersecurity', blurb: 'CTF-style flags: decode, find, capture. The skills behind CyberPatriot and picoCTF.' },
   { id: 'projects', name: 'Projects and tools', blurb: 'Git, GitHub and shipping something real that goes on your portfolio.' },
-  { id: 'llm', name: 'LLMs and AI', blurb: 'Prompting, evaluating and building with language models.', soon: true },
-  { id: 'data', name: 'Data analysis', blurb: 'Python and real datasets, from spreadsheets to charts.', soon: true },
+  { id: 'llm', name: 'LLMs and AI', blurb: 'How language models work, built from scratch, and how to prompt them like an engineer.' },
+  { id: 'data', name: 'Data analysis', blurb: 'Python and real datasets, from raw rows to charts.' },
+  { id: 'labs', name: 'Labs', blurb: 'Short build-it sessions like the ones in CS class. One sitting each.' },
   { id: 'circuits', name: 'Circuits and hardware', blurb: 'Build and simulate circuits, then wire up microcontrollers.', soon: true },
 ];
 
@@ -246,6 +251,9 @@ Never type your GitHub password into a page loaded through the gateway. Sign-in 
       },
     ],
   },
+  ...labCourses,
+  ...dataCourses,
+  ...llmCourses,
 ];
 
 /** What browsers are allowed to see: no answers, flags or solutions. */
