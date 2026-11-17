@@ -236,7 +236,7 @@ export default function Gateway() {
             className="card flex flex-wrap items-end gap-3 p-4"
             onSubmit={(e) => {
               e.preventDefault();
-              if (query.trim()) location.href = `/gw/${code}/html.duckduckgo.com/html/?q=${encodeURIComponent(query.trim())}`;
+              if (query.trim()) location.href = `/gw/${code}/www.bing.com/search?q=${encodeURIComponent(query.trim())}`;
             }}
           >
             <label className="grid min-w-48 flex-1 gap-1.5">

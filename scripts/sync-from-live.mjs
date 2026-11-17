@@ -46,7 +46,12 @@ const sql = [
 
 const file = path.join(os.tmpdir(), 'cs-club-sync-live.sql');
 fs.writeFileSync(file, sql);
-execFileSync('npx', ['wrangler', 'd1', 'execute', 'cs-club', '--local', '--file', file], {
+// Default is the local database. SYNC_PREVIEW=1 targets the separate preview
+// database instead; the live database is never a target.
+const target = process.env.SYNC_PREVIEW
+  ? ['cs-club-preview', '--remote', '--config', 'wrangler.preview.toml']
+  : ['cs-club', '--local'];
+execFileSync('npx', ['wrangler', 'd1', 'execute', ...target, '--file', file], {
   stdio: 'inherit',
   shell: true,
 });

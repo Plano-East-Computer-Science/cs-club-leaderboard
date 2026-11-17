@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 
 import {
-  DEFAULT_HOSTS, hostsFrom, parseHostList, ddgTarget, isAllowedHost, isBlockedPath, toGateway, methodAllowed,
+  DEFAULT_HOSTS, hostsFrom, parseHostList, searchTarget, isAllowedHost, isBlockedPath, toGateway, methodAllowed,
 } from '../worker/hub/gateway.js';
 import { COURSES, publicStep } from '../shared/courses.js';
 
@@ -50,9 +50,6 @@ assert.ok(methodAllowed('GET', 'github.com', '/x'));
 assert.ok(methodAllowed('POST', 'github.com', '/o/r.git/git-receive-pack'));
 assert.ok(!methodAllowed('POST', 'github.com', '/o/r/issues'));
 assert.ok(!methodAllowed('DELETE', 'github.com', '/o/r'));
-assert.ok(methodAllowed('POST', 'html.duckduckgo.com', '/html/'));
-assert.ok(!methodAllowed('POST', 'duckduckgo.com', '/html/'));
-assert.ok(!methodAllowed('POST', 'html.duckduckgo.com', '/other'));
 assert.ok(methodAllowed('POST', 'api.github.com', '/repos/o/r/issues'));
 
 assert.deepEqual(parseHostList('Docs.Python.org, pypi.org pypi.org').hosts, ['docs.python.org', 'pypi.org']);
@@ -60,10 +57,13 @@ assert.deepEqual(parseHostList('').hosts, []);
 for (const bad of ['localhost', '127.0.0.1', 'evil.com/path', 'a.com:8080', '*.github.com', 'x.internal', 'nodot'])
   assert.ok(parseHostList(bad).error, `should reject ${bad}`);
 
-assert.equal(ddgTarget('duckduckgo.com', '/l/', '?uddg=https%3A%2F%2Frealpython.com%2Fx&rut=1').hostname, 'realpython.com');
-assert.equal(ddgTarget('duckduckgo.com', '/l/', '?uddg=javascript%3Aalert(1)'), null);
-assert.equal(ddgTarget('duckduckgo.com', '/html/', '?uddg=https%3A%2F%2Fa.com'), null);
-assert.equal(ddgTarget('evil.com', '/l/', '?uddg=https%3A%2F%2Fa.com'), null);
+const bing = (u) => `?u=a1${u}&ntb=1`;
+assert.equal(searchTarget('www.bing.com', '/ck/a', bing('aHR0cHM6Ly9yZWFscHl0aG9uLmNvbS9saXN0LWNvbXByZWhlbnNpb24tcHl0aG9uLz94PTE')).hostname, 'realpython.com');
+assert.equal(searchTarget('www.bing.com', '/ck/a', bing('amF2YXNjcmlwdDphbGVydCgxKQ')), null);
+assert.equal(searchTarget('www.bing.com', '/ck/a', bing('L2ltYWdlcy9zZWFyY2g_cT14')).pathname, '/images/search');
+assert.equal(searchTarget('www.bing.com', '/search', bing('aHR0cHM6Ly9yZWFscHl0aG9uLmNvbS9saXN0LWNvbXByZWhlbnNpb24tcHl0aG9uLz94PTE')), null);
+assert.equal(searchTarget('evil.com', '/ck/a', bing('aHR0cHM6Ly9yZWFscHl0aG9uLmNvbS9saXN0LWNvbXByZWhlbnNpb24tcHl0aG9uLz94PTE')), null);
+assert.equal(searchTarget('www.bing.com', '/ck/a', '?u=notencoded'), null);
 
 /* ------------------------------- dashboard ------------------------------- */
 

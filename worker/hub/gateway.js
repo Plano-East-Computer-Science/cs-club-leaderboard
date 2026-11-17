@@ -36,8 +36,9 @@ export const DEFAULT_HOSTS = [
   'pypi.org',
   'files.pythonhosted.org',
   // Search, plus the docs sites programming questions usually land on.
-  'html.duckduckgo.com',
-  'duckduckgo.com',
+  'www.bing.com',
+  'th.bing.com',
+  'r.bing.com',
   'docs.python.org',
   'developer.mozilla.org',
   'stackoverflow.com',
@@ -49,6 +50,7 @@ export const DEFAULT_HOSTS = [
   'realpython.com',
   'www.freecodecamp.org',
   'www.programiz.com',
+  'www.tutorialspoint.com',
   'learn.microsoft.com',
   'cp-algorithms.com',
 ];
@@ -98,15 +100,18 @@ export function parseHostList(text) {
 }
 
 /**
- * DuckDuckGo result links go through /l/?uddg=<real url> and then a JS redirect
- * to the real site, which would leave the gateway. We resolve them ourselves.
- * Returns the target URL or null.
+ * Bing result links go through /ck/a?...&u=a1<base64url of the real URL> and
+ * then redirect off to the real site, which would leave the gateway. We decode
+ * them ourselves. Returns the target URL or null.
  */
-export function ddgTarget(host, pathname, search) {
-  if (host !== 'duckduckgo.com' || pathname !== '/l/') return null;
+export function searchTarget(host, pathname, search) {
+  if (host !== 'www.bing.com' || pathname !== '/ck/a') return null;
+  const u = new URLSearchParams(search).get('u') ?? '';
+  if (!u.startsWith('a1')) return null;
   try {
-    const u = new URL(new URLSearchParams(search).get('uddg') ?? '');
-    return u.protocol === 'https:' || u.protocol === 'http:' ? u : null;
+    const b64 = u.slice(2).replace(/-/g, '+').replace(/_/g, '/');
+    const target = new URL(atob(b64 + '='.repeat((4 - (b64.length % 4)) % 4)), 'https://www.bing.com'); // some are Bing-internal, relative
+    return target.protocol === 'https:' || target.protocol === 'http:' ? target : null;
   } catch {
     return null;
   }
@@ -136,7 +141,6 @@ export function methodAllowed(method, host, pathname) {
   if (method === 'GET' || method === 'HEAD') return true;
   if (method === 'POST' && GIT_WRITE.test(pathname)) return true;
   if (host === 'api.github.com') return true; // token-authenticated API calls
-  if (method === 'POST' && host === 'html.duckduckgo.com' && pathname === '/html/') return true; // search paging
   return false;
 }
 
@@ -197,7 +201,7 @@ async function proxy(c, rawCode, host) {
   if (isBlockedPath(path)) return denied(403, 'sign-in and account pages are blocked here');
   if (!methodAllowed(c.req.method, host, path)) return denied(405, 'that kind of request is not allowed');
 
-  const hit = ddgTarget(host, path, reqUrl.search);
+  const hit = searchTarget(host, path, reqUrl.search);
   if (hit) {
     const mapped = toGateway(hit.href, hit.href, rawCode, hosts);
     if (!mapped) return denied(403, `${hit.hostname} is not on the approved list. Ask an officer to add it`);
