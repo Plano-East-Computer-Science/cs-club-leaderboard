@@ -24,6 +24,7 @@ export const PAGES = [
   ['opportunities', '/opportunities'],
   ['calendar', '/calendar'],
   ['ideas', '/ideas'],
+  ['compass', '/compass'],
   ['curriculum', '/curriculum'],
   ['competitions', '/competitions'],
   ['cyber', '/cyber'],
@@ -41,7 +42,7 @@ const GROUPS = [
   ['arena', [['arena', 'the board: your next problem, per track'], ['daily', 'one problem a day'], ['courses', 'the club\'s own lessons'], ['quests', 'earn xp and a rank'], ['puzzles', 'problem of the week'], ['curriculum', 'what we teach, by track']]],
   ['build', [['projects', 'post what you made'], ['gateway', 'GitHub on school wifi']]],
   ['compete', [['standings', 'points, tiers, the prize'], ['competitions', 'USACO, UIL, BOT and more'], ['opportunities', 'contests, programs, internships'], ['cyber', 'the cyber team']]],
-  ['club', [['about', 'who runs this'], ['join', 'how to get involved']]],
+  ['club', [['compass', 'find your path'], ['about', 'who runs this'], ['join', 'how to get involved']]],
 ];
 const pathOf = (name) => PAGES.find((x) => x[0] === name)[1];
 // `learn` and `board` used to mean the course list and the standings; both now land on the Arena.

@@ -27,6 +27,7 @@ import Portfolio from './pages/Portfolio.jsx';
 import Quests from './pages/Quests.jsx';
 import Ideas from './pages/Ideas.jsx';
 import Daily from './pages/Daily.jsx';
+import Compass from './pages/Compass.jsx';
 import { SubscribeBox } from './components/Subscribe.jsx';
 import { TabBar, Dock, Boot, Snow, PAGES } from './components/Chrome.jsx';
 import { DataProvider, useData } from './lib/data.jsx';
@@ -134,6 +135,7 @@ function Shell() {
           <Route path="/ideas" element={<Ideas />} />
           <Route path="/daily" element={<Daily />} />
           <Route path="/arena" element={<Arena />} />
+          <Route path="/compass" element={<Compass />} />
           <Route element={<HubLayout />}>
             <Route path="/p/:slug" element={<Problem />} />
             <Route path="/learn" element={<Learn />} />

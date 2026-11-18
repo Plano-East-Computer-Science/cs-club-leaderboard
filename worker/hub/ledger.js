@@ -10,6 +10,7 @@
 import { Hono } from 'hono';
 
 import { KINDS, pointsFor, rulesFrom, cleanRules, sqlTime } from '../../shared/points.js';
+import { currentUser } from './users.js';
 
 export const ledgerRouter = new Hono();
 export const ledgerAdminRouter = new Hono();
@@ -169,19 +170,30 @@ export async function mergeStudents(db, keep, from) {
 
 const firstName = (s) => String(s ?? '').trim().split(/\s+/)[0] || 'Someone';
 
-/** Latest approved activity for the club feed (F2). First names only, no emails, no proof links. */
+/**
+ * Latest approved activity for the club feed (F2). First names only, no emails,
+ * no proof links. `kudos` is the count; `mine` and `own` (your kudos, your
+ * activity) are only filled in for a signed-in caller.
+ */
 ledgerRouter.get('/feed', async (c) => {
+  const user = await currentUser(c);
   const rows = (
     await c.env.DB
       .prepare(
-        `SELECT a.id, a.kind, a.points, a.decided_at AS at, json_extract(a.meta, '$.title') AS title, s.name
+        `SELECT a.id, a.kind, a.points, a.decided_at AS at, json_extract(a.meta, '$.title') AS title, s.name,
+                (SELECT COUNT(*) FROM kudos k WHERE k.activity_id = a.id) AS kudos,
+                EXISTS (SELECT 1 FROM kudos k WHERE k.activity_id = a.id AND k.user_id = ?) AS mine,
+                a.student_id = ? AS own
          FROM activity a JOIN students s ON s.id = a.student_id AND s.active = 1
          WHERE a.status = 'approved'
          ORDER BY a.decided_at DESC, a.id DESC LIMIT 30`
       )
+      .bind(user?.id ?? 0, user?.student_id ?? 0)
       .all()
   ).results;
-  return c.json({ feed: rows.map(({ name, ...r }) => ({ ...r, title: r.title ?? '', name: firstName(name) })) });
+  return c.json({
+    feed: rows.map(({ name, mine, own, ...r }) => ({ ...r, title: r.title ?? '', name: firstName(name), mine: Boolean(mine), own: Boolean(own) })),
+  });
 });
 
 ledgerAdminRouter.post('/students/merge', async (c) => {

@@ -18,6 +18,13 @@ class Stmt {
   }
 
   bind(...params) {
+    // D1 accepts numbered params (?1 used twice); node:sqlite does not bind those
+    // positionally, so expand them to plain ? with the values repeated.
+    if (/\?\d/.test(this.sql)) {
+      const out = [];
+      const sql = this.sql.replace(/\?(\d+)/g, (_, n) => (out.push(params[Number(n) - 1]), '?'));
+      return new Stmt(this.db, sql, out);
+    }
     return new Stmt(this.db, this.sql, params);
   }
 

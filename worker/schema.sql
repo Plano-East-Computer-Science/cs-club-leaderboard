@@ -154,7 +154,12 @@ CREATE TABLE IF NOT EXISTS users (
   student_id INTEGER REFERENCES students(id) ON DELETE SET NULL,
   created_at TEXT    NOT NULL DEFAULT (datetime('now')),
   last_seen  TEXT,
-  role       TEXT    NOT NULL DEFAULT 'member'   -- member | officer | lead (A7)
+  role       TEXT    NOT NULL DEFAULT 'member',  -- member | officer | lead (A7)
+  -- E1 compass: the answers (JSON), the path they lead to, and when it was
+  -- answered or skipped. compass_at NULL means Today sends them to /compass once.
+  compass    TEXT,
+  path       TEXT,                               -- contest | builder | ai | data | cyber | explorer
+  compass_at TEXT
 );
 
 -- One-time sign-in links. Single use, short-lived.
@@ -385,3 +390,14 @@ CREATE TABLE IF NOT EXISTS duel_results (
   UNIQUE (room_code, round, user_id)
 );
 CREATE INDEX IF NOT EXISTS idx_duel_results_slug ON duel_results(slug, solved_ms);
+
+/* ================================ F2: kudos on the club feed ================================ */
+
+-- One tap of recognition on an approved activity. Worth no points; the
+-- primary key makes a second tap a no-op.
+CREATE TABLE IF NOT EXISTS kudos (
+  activity_id INTEGER NOT NULL REFERENCES activity(id) ON DELETE CASCADE,
+  user_id     INTEGER NOT NULL REFERENCES users(id)    ON DELETE CASCADE,
+  created_at  TEXT    NOT NULL DEFAULT (datetime('now')),
+  PRIMARY KEY (activity_id, user_id)
+);
