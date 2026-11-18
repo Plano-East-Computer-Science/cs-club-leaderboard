@@ -13,6 +13,11 @@ const COST_NOTE = {
   paid: 'Fees apply. Ask about financial aid.',
   stipend: 'You are paid to take part.',
 };
+/** "in 12 days", "tomorrow", "closed". */
+const countdown = (iso) => {
+  const d = daysUntil(iso);
+  return d < 0 ? 'closed' : d === 0 ? 'today' : d === 1 ? 'tomorrow' : `in ${d} days`;
+};
 const ddl = (o) => (o.deadline ? formatDate(o.deadline).replace(/, \d{4}$/, '') : 'Rolling');
 
 const Bookmark = ({ on }) => (
@@ -43,6 +48,9 @@ export default function Opportunities() {
   const [fmt, setFmt] = useState('');
   const [cost, setCost] = useState('');
   const [onlySaved, setOnlySaved] = useState(false);
+  const [onlyMine, setOnlyMine] = useState(false);
+  // E2: who in the club is doing what. mine = my "I'm doing this" ids.
+  const [ints, setInts] = useState({ counts: {}, names: {}, mine: [], signedIn: false });
   const [sel, setSel] = useState(() => Number((location.hash.match(/o=(\d+)/) || [])[1] ?? -1));
   const [open, setOpen] = useState(false);
   const [saved, setSaved] = useState(() => {
@@ -56,6 +64,17 @@ export default function Opportunities() {
   const wide = useMedia('(min-width:960px)');
   const [teams, setTeams] = useState({}); // D4: open teammate posts per opportunity
   useEffect(() => { api.get('/team-posts/counts').then((r) => setTeams(r.counts)).catch(() => {}); }, []);
+
+  useEffect(() => {
+    api.get('/opp-interest').then(setInts).catch(() => {});
+  }, []);
+  const mine = useMemo(() => new Set(ints.mine), [ints.mine]);
+  const setDoing = (id, on) =>
+    setInts((i) => ({
+      ...i,
+      mine: on ? [...new Set([...i.mine, id])] : i.mine.filter((x) => x !== id),
+      counts: { ...i.counts, [id]: Math.max(0, (i.counts[id] ?? 0) + (on ? 1 : -1)) },
+    }));
 
   // The `grep` command (and calendar links) arrive as ?q=
   useEffect(() => setQ(urlQ), [urlQ]);
@@ -75,11 +94,16 @@ export default function Opportunities() {
       (!fmt || o.format === fmt) &&
       (!cost || o.cost === cost) &&
       (!onlySaved || saved.has(o.id)) &&
+      (!onlyMine || mine.has(o.id)) &&
       (!needle || `${o.title} ${o.org} ${o.description} ${o.type} ${o.format} ${o.cost} ${o.location}`.toLowerCase().includes(needle))
     );
   };
 
-  const vis = useMemo(() => all.filter((o) => pass(o)), [all, q, type, fmt, cost, onlySaved, saved]); // eslint-disable-line
+  const vis = useMemo(() => {
+    const v = all.filter((o) => pass(o));
+    // My list reads as a to-do: soonest deadline first, rolling ones last.
+    return onlyMine ? v.sort((a, b) => (a.deadline ? 0 : 1) - (b.deadline ? 0 : 1) || String(a.deadline).localeCompare(String(b.deadline))) : v;
+  }, [all, q, type, fmt, cost, onlySaved, onlyMine, saved, mine]); // eslint-disable-line
   const types = TYPE_ORDER.filter((t) => all.some((o) => o.type === t)).concat([...new Set(all.map((o) => o.type))].filter((t) => !TYPE_ORDER.includes(t)));
   const count = (k) => all.filter((o) => pass(o, 'type') && (!k || o.type === k)).length;
   const cur = vis.find((o) => o.id === sel) ?? vis[0] ?? null;
@@ -130,6 +154,7 @@ export default function Opportunities() {
     setFmt('');
     setCost('');
     setOnlySaved(false);
+    setOnlyMine(false);
   };
 
   return (
@@ -147,6 +172,11 @@ export default function Opportunities() {
               <Bookmark on={false} />
               saved <b>{saved.size}</b>
             </button>
+            {ints.signedIn && (
+              <button className="svb" aria-pressed={onlyMine} onClick={() => setOnlyMine(!onlyMine)}>
+                my list <b>{mine.size}</b>
+              </button>
+            )}
           </div>
           <div className="row2">
             <div className="grepbar">
@@ -213,6 +243,8 @@ export default function Opportunities() {
                       </span>
                       <span>{ddl(o)}</span>
                       {teams[o.id] > 0 && <span className="tmc">{teams[o.id]} looking for a team</span>}
+                      {mine.has(o.id) && o.deadline && <span className="cdn">{countdown(o.deadline)}</span>}
+                      {ints.counts[o.id] > 0 && <span className="dc">{ints.counts[o.id]} doing</span>}
                     </div>
                     <button
                       className={`bk ${saved.has(o.id) ? 'on' : ''}`}
@@ -230,13 +262,13 @@ export default function Opportunities() {
               ) : (
                 <div className="empty">
                   <b>grep: no lines match.</b>
-                  {onlySaved ? 'Bookmark something first.' : 'Clear a filter, or try "free".'}
+                  {onlyMine ? "Press \"I'm doing this\" on an opportunity to add it here." : onlySaved ? 'Bookmark something first.' : 'Clear a filter, or try "free".'}
                 </div>
               )}
             </div>
             <article className={`dt sp ${open ? 'open' : ''}`} aria-live="polite">
               {cur ? (
-                <Detail key={cur.id} o={cur} radius={radius} on={saved.has(cur.id)} onSave={() => toggleSave(cur.id)} onBack={() => setOpen(false)} />
+                <Detail key={cur.id} o={cur} radius={radius} ints={ints} setDoing={setDoing} on={saved.has(cur.id)} onSave={() => toggleSave(cur.id)} onBack={() => setOpen(false)} />
               ) : (
                 <div className="empty"><b>Pick an opportunity</b>Details show up here.</div>
               )}
@@ -248,7 +280,7 @@ export default function Opportunities() {
   );
 }
 
-function Detail({ o, radius, on, onSave, onBack }) {
+function Detail({ o, radius, ints, setDoing, on, onSave, onBack }) {
   const [w, setW] = useState(0);
   const mi = o.distance_mi != null ? Number(o.distance_mi) : null;
   const scale = radius / 0.75; // the 15 mile tick sits at 75% of the meter
@@ -332,25 +364,39 @@ function Detail({ o, radius, on, onSave, onBack }) {
             <Bookmark on={on} />
             {on ? 'saved' : 'save for later'}
           </button>
-          <Doing id={o.id} />
+          <Doing id={o.id} on={ints.mine.includes(o.id)} onChange={(v) => setDoing(o.id, v)} />
         </div>
+        <Crowd id={o.id} ints={ints} />
         <p className="kh"><kbd>j</kbd> <kbd>k</kbd> move through the list, <kbd>s</kbd> saves.</p>
       </div>
     </div>
   );
 }
 
+/** Who else in the club is doing this one (E2). Counts for everyone, first names once signed in. */
+function Crowd({ id, ints }) {
+  const total = ints.counts[id] ?? 0;
+  const others = ints.names[id] ?? [];
+  const me = ints.mine.includes(id);
+  if (!total) return <p className="crowd">Nobody in the club has marked this one yet.</p>;
+  const who = others.length ? `${me ? 'You and ' : ''}${others.join(', ')}` : me ? 'You' : `${total} member${total === 1 ? '' : 's'}`;
+  return (
+    <p className="crowd">
+      <b>{total}</b> in the club {total === 1 ? 'is' : 'are'} doing this: {who}.
+      {!ints.signedIn && ' Sign in to see who.'}
+      {total > 1 && ints.signedIn && ' Find them and enter as a team.'}
+    </p>
+  );
+}
+
 /**
  * "I'm doing this" (A3). Signed-in members mark an opportunity; after it, the
- * dashboard asks "did you compete?" so the claim is one more tap.
+ * dashboard asks "did you compete?" so the claim is one more tap. The same
+ * mark is the "my list" in E2, so there is one idea of saving here.
  */
-function Doing({ id }) {
+function Doing({ id, on, onChange }) {
   const { user, loading } = useUser();
-  const [on, setOn] = useState(null);
   const [err, setErr] = useState('');
-  useEffect(() => {
-    if (user) api.get('/me/interests').then((d) => setOn(d.ids.includes(id))).catch(() => setOn(false));
-  }, [user, id]);
 
   if (loading) return null;
   if (!user) return <Link className="sv" to="/signin">sign in to track this</Link>;
@@ -358,14 +404,14 @@ function Doing({ id }) {
     setErr('');
     try {
       await (on ? api.del(`/me/interests/${id}`) : api.post(`/me/interests/${id}`));
-      setOn(!on);
+      onChange(!on);
     } catch (e) {
       setErr(e.message);
     }
   };
   return (
     <>
-      <button className={`sv ${on ? 'on' : ''}`} aria-pressed={Boolean(on)} disabled={on === null} onClick={flip}>
+      <button className={`sv ${on ? 'on' : ''}`} aria-pressed={Boolean(on)} onClick={flip}>
         {on ? "you're doing this" : "I'm doing this"}
       </button>
       {err && <span className="dn" role="status" style={{ fontSize: 12 }}>{err}</span>}
