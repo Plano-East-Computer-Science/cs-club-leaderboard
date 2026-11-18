@@ -1,8 +1,9 @@
 /**
  * Season dates and timestamp helpers for charts and the countdown.
  *
- * A4: a season is a semester, defined once in shared/points.js (fall is
- * June to December, spring January to May) so the page and the ledger agree
+ * A4: a season is a semester, defined once in shared/points.js (points from
+ * June to December count toward fall, January to May toward spring; the
+ * "season day" counter starts on August 1 for fall) so the page and the ledger agree
  * on which points count. `key` picks a season; 'all' starts at `since`
  * (usually the first award) and runs to now.
  */
@@ -24,7 +25,11 @@ export function seasonOf(_settings = {}, now = new Date(), key = seasonKey(now),
   const start = key === 'all' ? (since ?? new Date(now.getTime() - 120 * DAY)) : since && since > from ? since : from;
   const end = key === 'all' ? now : parseTs(r.end);
   const at = Math.min(now, end);
-  const day = Math.max(1, Math.floor((at - start) / DAY) + 1);
+  // The day counter follows the school calendar (fall starts in August, per the
+  // club's decision) even though summer points count toward fall.
+  const [, half] = String(key).split('-');
+  const termStart = key === 'all' ? start : half === 'fall' ? new Date(from.getFullYear(), 7, 1) : from;
+  const day = Math.max(1, Math.floor((at - termStart) / DAY) + 1);
   return { key, start, end, day, today: Math.max(1, Math.floor((at - start) / DAY)), label: key === 'all' ? 'all-time' : key };
 }
 

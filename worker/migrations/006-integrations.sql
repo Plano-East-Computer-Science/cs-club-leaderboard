@@ -30,8 +30,9 @@ CREATE TABLE IF NOT EXISTS repo_stats (
   checked_at  INTEGER NOT NULL DEFAULT 0
 );
 
--- Codeforces rungs are confirmed by the sync now, not by the honour system.
-UPDATE rungs SET verify = 'codeforces' WHERE verify = 'checkbox' AND url LIKE 'https://codeforces.com/%';
+-- (Codeforces rungs already ship with verify = 'codeforces' in seed-rungs.sql.
+-- Migrations run BEFORE schema.sql on an existing database, so this file must
+-- not touch tables that schema.sql creates, such as rungs.)
 
 ALTER TABLE users ADD COLUMN cf_handle TEXT;
 ALTER TABLE users ADD COLUMN cf_verified_at TEXT;

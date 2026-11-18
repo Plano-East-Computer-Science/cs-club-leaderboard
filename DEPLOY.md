@@ -273,3 +273,28 @@ npx wrangler d1 execute cs-club --local --file worker/migrations/004-roles.sql
 **The weekly search never runs** — GitHub disables scheduled workflows in repos with no activity for 60 days. Open the Actions tab and press **Run workflow** to wake it up.
 
 **You lost data** — Admin → Backup → restore your most recent downloaded file.
+
+## Upgrading the live database to the club-os build
+
+The live database predates accounts-era columns, and `CREATE TABLE IF NOT EXISTS`
+in `worker/schema.sql` never adds a column to a table that already exists. So on
+the existing database, run the migrations FIRST (they add the columns), then the
+schema (it adds the new tables and indexes), then the seeds. Each migration is
+run-once; on a second run it stops at the first `ALTER` with "duplicate column
+name", which is harmless.
+
+```
+npx wrangler d1 execute cs-club --remote --file worker/migrations/004-roles.sql
+npx wrangler d1 execute cs-club --remote --file worker/migrations/005-compass.sql
+npx wrangler d1 execute cs-club --remote --file worker/migrations/006-integrations.sql
+npx wrangler d1 execute cs-club --remote --file worker/schema.sql
+npx wrangler d1 execute cs-club --remote --file worker/seed-problems.sql
+npx wrangler d1 execute cs-club --remote --file worker/seed-rungs.sql
+```
+
+Add any later migration (007 and up) to the list in number order, before
+`schema.sql`. A brand-new database needs only `schema.sql` and the seeds: its
+`CREATE TABLE` statements already include every column.
+
+Then: `npx wrangler secret put GITHUB_TOKEN` (optional), set the Discord webhook
+under Admin, Page text, and make the first lead (see above).
