@@ -14,6 +14,7 @@ import { Spinner } from '../components/bits.jsx';
 import { Body } from './Course.jsx';
 import { BLOCK_LABEL, BLOCK_TYPES, DEFAULT_TIERS } from '../../shared/session-templates.js';
 import { DuelBoard, clock } from './Duel.jsx';
+import { ContestScreen } from './Contest.jsx';
 
 const LETTERS = 'ABCDEF';
 const SWAP_MS = 7 * 60_000; // same as worker/hub/session.js
@@ -422,6 +423,8 @@ export function Projector({ state, code, skew, tok }) {
     );
   } else if (block.type === 'duel' && state.duel) {
     body = <DuelBoard duel={state.duel} send={() => {}} skew={skew} readOnly />;
+  } else if (block.type === 'contest' && state.contest) {
+    body = <ContestScreen c={state.contest} skew={skew} />;
   } else if (block.type === 'show') {
     const picked = state.show.picked.map((id) => state.show.items.find((x) => x.id === id)).filter(Boolean);
     body = picked.length ? (
@@ -477,7 +480,8 @@ export function Projector({ state, code, skew, tok }) {
         {block ? <JoinPanel code={code} tok={tok} /> : <span className="eyebrow">{dropin ? 'drop-in' : 'starting soon'}</span>}
         <div className="ses-proj-right">
           {block && <span className="mono m">{sess.cur + 1} / {sess.blocks.length}</span>}
-          <BlockTimer session={sess} skew={skew} big />
+          {/* The contest has its own clock; two timers on one screen would disagree. */}
+          {!(block?.type === 'contest' && state.contest) && <BlockTimer session={sess} skew={skew} big />}
         </div>
       </header>
       {!block && <JoinPanel code={code} tok={tok} big />}
@@ -497,6 +501,7 @@ const EXIT_LABEL = {
   poll: 'answered a poll',
   lab: 'passed a lab checkpoint',
   duel: 'tried a duel problem',
+  contest: 'submitted in the team contest',
   show: 'shared something in show',
   help: 'helped someone',
   note: 'wrote what you did',
@@ -513,7 +518,7 @@ export function ExitCard({ exit, dropin }) {
           <b>Attendance: checked in, one thing to go.</b>{' '}
           {dropin
             ? 'It counts once you write one line about what you did, or help someone.'
-            : 'It counts once you do one thing here: answer a poll, pass a lab checkpoint, try a duel problem, share in show, help someone, or write one line at the close.'}
+            : 'It counts once you do one thing here: answer a poll, pass a lab checkpoint, try a duel or contest problem, share in show, help someone, or write one line at the close.'}
         </p>
       )}
     </section>

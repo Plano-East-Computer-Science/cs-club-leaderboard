@@ -5,6 +5,7 @@
  * third-party domain, and the hidden answers never reach this page.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCodeKeys } from '../lib/codeKeys.js';
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { createKernel } from '../lib/datarunner.js';
@@ -24,26 +25,7 @@ const starter = (c) => [
 ];
 
 function Cell({ n, cell, ready, busy, onChange, onRun, onRemove }) {
-  const escaped = useRef(false); // Esc then Tab leaves the box (a Tab-indent box is a keyboard trap otherwise)
-  const onKeyDown = (e) => {
-    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-      e.preventDefault();
-      if (ready && !busy) onRun();
-      return;
-    }
-    if (e.key === 'Escape') {
-      escaped.current = true;
-      return;
-    }
-    if (e.key === 'Tab' && !e.shiftKey && !escaped.current) {
-      e.preventDefault();
-      const t = e.target;
-      const { selectionStart: a, selectionEnd: b } = t;
-      onChange(cell.code.slice(0, a) + '    ' + cell.code.slice(b));
-      requestAnimationFrame(() => t.setSelectionRange(a + 4, a + 4));
-    }
-    if (e.key !== 'Tab') escaped.current = false;
-  };
+  const keys = useCodeKeys(cell.code, onChange, () => ready && !busy && onRun());
   const out = cell.out;
   return (
     <div className="dt-cell">
@@ -53,8 +35,7 @@ function Cell({ n, cell, ready, busy, onChange, onRun, onRemove }) {
         className="mono dt-code"
         value={cell.code}
         onChange={(e) => onChange(e.target.value)}
-        onKeyDown={onKeyDown}
-        onBlur={() => (escaped.current = false)}
+        {...keys}
         spellCheck={false}
         autoCapitalize="off"
         autoCorrect="off"

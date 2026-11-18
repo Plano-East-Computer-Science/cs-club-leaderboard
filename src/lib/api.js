@@ -22,6 +22,7 @@ async function request(path, { method = 'GET', body } = {}) {
   if (!res.ok) {
     const err = new Error(payload?.error || `Request failed (${res.status})`);
     err.status = res.status;
+    err.data = payload; // the rest of the error body, e.g. { needName: true } from sign-in
     throw err;
   }
   return payload;

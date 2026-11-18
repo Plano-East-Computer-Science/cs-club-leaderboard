@@ -78,7 +78,8 @@ export function mountHub(app) {
   app.route('/api', googleRouter);
   app.route('/api', questsRouter);
   app.route('/api', ideasRouter);
-  app.route('/api', editorialsRouter);  app.route('/api', problemsRouter);
+  app.route('/api', editorialsRouter);
+  app.route('/api', problemsRouter);
   app.route('/api', ledgerRouter);
   app.route('/api', claimsRouter);
   app.route('/api', dailyRouter);

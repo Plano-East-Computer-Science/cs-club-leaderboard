@@ -95,7 +95,9 @@ function RequestLink() {
       if (res?.needName) setNeedName(true);
       else setSent(res ?? {});
     } catch (err) {
-      setError(err.message);
+      // A new address comes back as a 400 asking for a name: show the name box, not an error.
+      if (err.data?.needName) setNeedName(true);
+      else setError(err.message);
     } finally {
       setBusy(false);
     }
