@@ -141,6 +141,8 @@ export default function Gateway() {
   const [owner, setOwner] = useState('');
   const [repo, setRepo] = useState('');
   const [query, setQuery] = useState('');
+  const [hosts, setHosts] = useState([]);
+  const [fromRoom, setFromRoom] = useState(null); // H1: { room, title, presets } when the code came from a meeting
 
   const check = async (raw) => {
     const c = raw.trim().toUpperCase();
@@ -151,6 +153,7 @@ export default function Gateway() {
       const d = await api.get(`/gateway/check?code=${encodeURIComponent(c)}`);
       if (d.active) {
         setCode(d.code || c);
+        setHosts(d.hosts ?? []);
         try { sessionStorage.setItem(KEY, c); } catch { /* storage unavailable */ }
       } else {
         setCode(null);
@@ -165,12 +168,23 @@ export default function Gateway() {
   };
 
   useEffect(() => {
-    let saved = '';
-    try { saved = sessionStorage.getItem(KEY) || ''; } catch { /* ignore */ }
-    if (saved) {
-      setInput(saved);
-      check(saved);
-    }
+    // H1: checked in to a meeting? Its gateway is already yours, no code to type.
+    api
+      .get('/gateway/mine')
+      .then((d) => {
+        if (d.gateway) {
+          setFromRoom(d.gateway);
+          setInput(d.gateway.code);
+          return check(d.gateway.code);
+        }
+        let saved = '';
+        try { saved = sessionStorage.getItem(KEY) || ''; } catch { /* ignore */ }
+        if (saved) {
+          setInput(saved);
+          return check(saved);
+        }
+      })
+      .catch(() => {});
   }, []);
 
   const host = typeof location !== 'undefined' ? location.host : '';
@@ -185,15 +199,15 @@ export default function Gateway() {
           GitHub at school.
         </h1>
         <p className="mt-4 text-base" style={{ color: 'var(--ink-soft)' }}>
-          During a meeting an officer can give out a short code. With it, this site fetches GitHub
-          for you so you can clone repos and download files on a school machine.
+          Check in to a meeting room and this turns on for you until the room closes. It fetches GitHub
+          and the sites the host turned on, so you can clone repos and read docs on a school machine.
         </p>
       </header>
 
       <div className="card mb-6 grid gap-2 p-5 text-sm" style={{ color: 'var(--ink-soft)' }}>
         <p>
-          <strong style={{ color: 'var(--ink)' }}>It does:</strong> reach GitHub and PyPI, only
-          while the code is live.
+          <strong style={{ color: 'var(--ink)' }}>It does:</strong> reach GitHub and PyPI, plus the
+          documentation, search or tutorial sites the host turned on for this meeting, only while it is live.
         </p>
         <p>
           <strong style={{ color: 'var(--ink)' }}>It does not:</strong> open any other website,
@@ -219,7 +233,7 @@ export default function Gateway() {
         className="card mb-6 flex flex-wrap items-end gap-3 p-4"
       >
         <label className="grid min-w-48 flex-1 gap-1.5">
-          <span className="eyebrow">Code from your officer</span>
+          <span className="eyebrow">{fromRoom ? `From room ${fromRoom.room}` : 'Code from your officer'}</span>
           <input
             className="field mono tracking-[0.25em] uppercase"
             value={input}
@@ -244,7 +258,12 @@ export default function Gateway() {
 
       {code && (
         <section className="grid gap-5">
-          <form
+          {fromRoom && (
+            <p className="mono text-xs" style={{ color: 'var(--ink-soft)' }}>
+              On for {fromRoom.title}: {['GitHub and PyPI', ...fromRoom.presets.filter((n) => n !== 'GitHub and PyPI')].join(', ')}. It ends when the room closes.
+            </p>
+          )}
+          {hosts.includes('www.bing.com') && <form
             className="card flex flex-wrap items-end gap-3 p-4"
             onSubmit={(e) => {
               e.preventDefault();
@@ -260,7 +279,7 @@ export default function Gateway() {
               Results open only if the site is on the approved list (docs, tutorials, GitHub). Others show a notice;
               ask an officer to add them.
             </p>
-          </form>
+          </form>}
 
           <a
             className="btn btn-primary justify-self-start"

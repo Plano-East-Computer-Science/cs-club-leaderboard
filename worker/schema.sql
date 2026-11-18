@@ -224,7 +224,9 @@ CREATE TABLE IF NOT EXISTS gateway_codes (
   label      TEXT NOT NULL DEFAULT '',
   created_at INTEGER NOT NULL,
   expires_at INTEGER NOT NULL,
-  revoked    INTEGER NOT NULL DEFAULT 0
+  revoked    INTEGER NOT NULL DEFAULT 0,
+  room_code  TEXT,                                 -- H1: set for a meeting room's own code
+  presets    TEXT                                  -- H1: JSON preset ids; NULL = the whole approved list
 );
 -- Minimal audit trail: which allowlisted host, when. No paths, no queries, no headers.
 CREATE TABLE IF NOT EXISTS gateway_log (
@@ -783,3 +785,5 @@ CREATE TABLE IF NOT EXISTS contest_attempts (
 CREATE INDEX IF NOT EXISTS idx_contest_attempts_room ON contest_attempts(room_code, team_id);
 CREATE INDEX IF NOT EXISTS idx_contest_attempts_user ON contest_attempts(user_id);
 
+/* ================================ H1: room gateway codes ================================ */
+CREATE INDEX IF NOT EXISTS idx_gateway_codes_room ON gateway_codes(room_code);
