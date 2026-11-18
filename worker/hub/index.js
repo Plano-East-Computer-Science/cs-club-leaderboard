@@ -23,6 +23,8 @@ import { dailyRouter, dailyAdminRouter } from './daily.js';
 import { boardRouter, boardAdminRouter } from './board.js';
 import { codeforcesRouter } from './codeforces.js';
 import { standingsRouter, standingsAdminRouter } from './standings.js';
+import { cyclesRouter, cyclesAdminRouter } from './cycles.js';
+import { teamPostsRouter } from './team-posts.js';
 
 import { safetyRouter, safetyAdminRouter } from './safety.js';
 import { recordsRouter, recordsAdminRouter } from './records.js';
@@ -45,6 +47,7 @@ hubAdmin.route('/', claimsAdminRouter);
 hubAdmin.route('/', dailyAdminRouter);
 hubAdmin.route('/', boardAdminRouter);
 hubAdmin.route('/', standingsAdminRouter);
+hubAdmin.route('/', cyclesAdminRouter);
 
 hubAdmin.route('/', safetyAdminRouter);
 hubAdmin.route('/', recordsAdminRouter);
@@ -73,4 +76,6 @@ export function mountHub(app) {
 
   app.route('/api', safetyRouter);
   app.route('/api', recordsRouter);
+  app.route('/api', cyclesRouter);
+  app.route('/api', teamPostsRouter);
 }

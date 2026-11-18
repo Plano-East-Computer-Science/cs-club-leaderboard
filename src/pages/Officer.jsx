@@ -13,6 +13,7 @@ import DailyAdmin from './officer/Daily.jsx';
 import Board from './officer/Board.jsx';
 import Reports from './officer/Reports.jsx';
 import Records from './officer/Records.jsx';
+import Cycles from './officer/Cycles.jsx';
 
 const HOURS = [1, 2, 3, 6, 12];
 
@@ -95,6 +96,7 @@ export default function Officer() {
       <Problems />
       <Team />
       <Board />
+      <Cycles />
     </div>
   );
 }

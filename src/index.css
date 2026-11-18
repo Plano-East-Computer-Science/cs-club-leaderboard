@@ -1333,3 +1333,50 @@ textarea.fi{resize:vertical;line-height:1.5}
 .rpt:hover{color:var(--gold)}
 .rpt-done{margin-left:8px;font-size:12px;color:var(--mute)}
 .kd-wrap{display:inline-flex;align-items:center;gap:2px}
+/* D1/D4/D7. Ship cycles, teammate posts, starters. */
+.cy-grid{display:grid;gap:16px;grid-template-columns:minmax(0,1fr)}
+@media(min-width:960px){.cy-grid:has(> .pn + .pn){grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
+.cy-h{font:800 clamp(22px,3vw,30px)/1.1 var(--disp);text-transform:uppercase;margin-bottom:8px}
+.cy-h2{font:700 18px/1.2 var(--disp);margin-bottom:4px}
+.cy-theme{color:var(--text);font-size:15px}
+.cy-f{display:grid;gap:8px;margin-top:10px}
+.cy-f label,.cy-add label{font-size:12px}
+.cy-gal{display:grid;gap:1px;background:var(--line);grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr))}
+.cy-card{background:var(--panel);padding:14px 16px;display:grid;gap:6px;align-content:start}
+.cy-card h3{font:700 17px/1.2 var(--disp)}
+.cy-card p{margin:0;color:#d9d5c3}
+.cy-card .m,.cy-card .d{font-size:12.5px}
+.cy-last{overflow-wrap:anywhere}
+.cy-act{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-top:4px}
+.cy-act a{color:var(--gold);text-decoration:underline;text-underline-offset:3px}
+.cy-act .btn[aria-pressed=true]{color:var(--gold);border-color:var(--gold)}
+.cy-tpl{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(min(100%,210px),1fr));margin-top:14px}
+.cy-t{display:grid;gap:4px;padding:14px 16px;color:var(--dim);text-decoration:none;align-content:start}
+.cy-t b{color:var(--text);font:700 16px var(--disp)}
+.cy-t em{font-style:normal;color:var(--mute);font-size:12px}
+.cy-t:hover,.cy-t:focus-visible{border-color:var(--gold-d)}
+.cy-t:hover b{color:var(--gold)}
+.cy-past{padding:14px 18px;border-bottom:1px solid var(--line)}
+.cy-past:last-child{border-bottom:0}
+.cy-past h3{font:700 17px var(--disp);margin-bottom:2px}
+.cy-team{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
+.cy-chip{border:1px solid var(--line2);padding:3px 10px;font-size:13px;display:inline-flex;gap:10px;align-items:center}
+.cy-chip button,.tp-x{background:none;border:0;color:var(--mute);font:inherit;font-size:12px;text-decoration:underline;cursor:pointer;padding:0}
+.cy-chip button:hover,.tp-x:hover{color:var(--gold)}
+.cy-add{display:grid;gap:6px;margin-bottom:8px}
+.cy-found{list-style:none;display:flex;flex-wrap:wrap;gap:8px;margin:0;padding:0}
+.cy-found button{background:none;border:1px solid var(--line2);color:var(--dim);padding:3px 10px;font:inherit;font-size:13px;cursor:pointer}
+.cy-found button:hover{color:var(--gold);border-color:var(--gold-d)}
+.cy-logs{list-style:none;margin:12px 0 0;padding:0}
+.cy-logs li{border-top:1px solid var(--line);padding:8px 0}
+.cy-logs li p{margin:2px 0;overflow-wrap:anywhere}
+.cy-logs .m{font-size:12px}
+.cy-logs a{font-size:13px}
+.tp-i{border-bottom:1px solid var(--line);padding:8px 0}
+.tp-i p{margin:0 0 2px}
+.tp-f{display:grid;gap:8px;margin-top:12px}
+.tmc{color:var(--gold)}
+.st-grid{display:grid;gap:16px;grid-template-columns:minmax(0,1fr)}
+@media(min-width:900px){.st-grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
+.st-steps{margin:0 0 12px;padding-left:22px;display:grid;gap:10px;color:#d9d5c3}
+.st-code{margin:0;padding:14px 18px;overflow-x:auto;font:13px/1.5 var(--mono);color:var(--text);white-space:pre}

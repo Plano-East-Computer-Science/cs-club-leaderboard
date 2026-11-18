@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Link, Outlet, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Link, Navigate, Outlet, useLocation } from 'react-router-dom';
 
 import Home from './pages/Home.jsx';
 import Leaderboard from './pages/Leaderboard.jsx';
@@ -22,7 +22,8 @@ import Room from './pages/Room.jsx';
 import Host from './pages/Host.jsx';
 import Officer from './pages/Officer.jsx';
 import Gateway from './pages/Gateway.jsx';
-import Projects from './pages/Projects.jsx';
+import Build from './pages/Build.jsx';
+import Starter from './pages/Starter.jsx';
 import Portfolio from './pages/Portfolio.jsx';
 import Quests from './pages/Quests.jsx';
 import Ideas from './pages/Ideas.jsx';
@@ -141,6 +142,8 @@ function Shell() {
           <Route path="/daily" element={<Daily />} />
           <Route path="/arena" element={<Arena />} />
           <Route path="/compass" element={<Compass />} />
+          <Route path="/build" element={<Build />} />
+          <Route path="/build/start/:slug" element={<Starter />} />
           <Route element={<HubLayout />}>
             <Route path="/p/:slug" element={<Problem />} />
             <Route path="/learn" element={<Learn />} />
@@ -150,7 +153,7 @@ function Shell() {
             <Route path="/room/:code" element={<Room />} />
             <Route path="/officer" element={<Officer />} />
             <Route path="/gateway" element={<Gateway />} />
-            <Route path="/projects" element={<Projects />} />
+            <Route path="/projects" element={<Navigate to="/build" replace />} />
             <Route path="/u/:id" element={<Portfolio />} />
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/parents" element={<Parents />} />
