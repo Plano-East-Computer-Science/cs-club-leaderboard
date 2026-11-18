@@ -32,3 +32,27 @@ Test on dev:
    "too many requests".
 
 Roll back: Revert #6. Migration 012 columns stay, unused.
+
+## Wave 2: officer tools and look (2026-11-18)
+
+| PR | What |
+| --- | --- |
+| [#7](https://github.com/Plano-East-Computer-Science/cs-club-leaderboard/pull/7) | One officer home at /officer (the admin panel moved in, /admin redirects); officer tab only for officers |
+| [#8](https://github.com/Plano-East-Computer-Science/cs-club-leaderboard/pull/8) | Visual pass: surfaces that separate, readable muted text, quieter footer, no sideways wobble on phones |
+| [#9](https://github.com/Plano-East-Computer-Science/cs-club-leaderboard/pull/9) | Phone nav: brand, menu, account instead of a clipped tab strip |
+
+Test on dev:
+1. Sign in with an officer account. An **officer** tab appears in the top bar.
+   A member account does not see it.
+2. /officer opens on "Run a meeting". The sidebar (a dropdown on a phone) has
+   every tool: open a room, award points, approve claims, roles, digest,
+   page text, backup. Each tool has its own address you can bookmark.
+3. Old links: /admin and /officer?tab=members land in the new home.
+4. Review queues with pending items show a gold count in the sidebar.
+5. Pages look less flat: panels stand off the page, grey labels are easier to
+   read, the digest footer at the bottom is smaller.
+6. On a phone: the top bar shows the logo, "menu" and your name. "menu" lists
+   every page. Pages no longer slide sideways. Typing in a field does not zoom.
+
+Roll back: Revert #9, #8 or #7 on their own (any order works today), or all
+three, newest first, for the whole wave. No database changes.
