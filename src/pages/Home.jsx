@@ -145,6 +145,7 @@ function Meeting({ m }) {
     <div className="td-meet">
       <p className="td-k">next meeting</p>
       <p className="td-mt">{m.kind === 'planned' ? m.info : 'No meeting scheduled. When an officer opens a room, it shows up here.'}</p>
+      {m.extra && <p className="d">{m.extra}</p>}
       <JoinForm />
     </div>
   );

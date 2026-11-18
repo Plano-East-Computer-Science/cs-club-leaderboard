@@ -12,6 +12,8 @@ import {
   pointEventsSince, opportunitiesSince, deadlinesWithin,
   listDigestRecipients, getSetting, setSetting,
 } from './db.js';
+import { nextPublicPlan } from './hub/planner.js';
+import { whenLabel } from '../shared/planner.js';
 import { sendEmail, esc, unsubscribeHeaders, emailEnabled } from './email.js';
 
 const DEADLINE_WINDOW_DAYS = 14;
@@ -43,7 +45,8 @@ export async function buildDigest(db, since) {
   }
 
   if (!points.length && !opportunities.length && !notes.length) return null;
-  return { since, points, opportunities, deadlines, notes };
+  // G1: the next planned meeting rides along like deadlines do; it never decides whether an email goes out.
+  return { since, points, opportunities, deadlines, notes, session: await nextPublicPlan(db) };
 }
 
 /**
@@ -81,6 +84,10 @@ function renderText(digest, origin, unsubscribeUrl) {
   if (digest.notes?.length) {
     lines.push('FROM THE OFFICERS');
     for (const n of digest.notes) lines.push(`  ${n.replace(/\n/g, '\n  ')}`, '');
+  }
+
+  if (digest.session) {
+    lines.push('NEXT MEETING', `  ${whenLabel(digest.session.date)}: ${digest.session.title} (${digest.session.kind})`, '');
   }
 
   if (digest.points.length) {
@@ -121,6 +128,15 @@ function renderHtml(digest, origin, unsubscribeUrl) {
       section(
         'From the officers',
         digest.notes.map((n) => `<p style="margin:0 0 10px;white-space:pre-wrap">${esc(n)}</p>`).join('')
+      )
+    );
+  }
+
+  if (digest.session) {
+    parts.push(
+      section(
+        'Next meeting',
+        `<p style="margin:0"><strong>${esc(whenLabel(digest.session.date))}</strong>: ${esc(digest.session.title)} <span style="color:#6b7689">(${esc(digest.session.kind)})</span></p>`
       )
     );
   }

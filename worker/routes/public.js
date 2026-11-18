@@ -10,6 +10,7 @@ import { RADIUS_MILES, SCHOOL } from '../geo.js';
 import { seasonOf } from '../../shared/points.js';
 import { seasonParam, rankInfo } from '../hub/standings.js';
 import { opportunitiesToICS } from '../ics.js';
+import { upcomingPublicPlans } from '../hub/planner.js';
 
 export const publicRouter = new Hono();
 
@@ -73,7 +74,8 @@ publicRouter.get('/deadlines.ics', async (c) => {
   const opportunities = (await listOpportunities(c.env.DB, { status: 'live' })).filter(
     (o) => o.deadline
   );
-  const ics = opportunitiesToICS(opportunities, { domain: new URL(c.req.url).hostname });
+  const sessions = await upcomingPublicPlans(c.env.DB); // G1
+  const ics = opportunitiesToICS(opportunities, { domain: new URL(c.req.url).hostname, sessions });
   return new Response(ics, {
     headers: {
       'Content-Type': 'text/calendar; charset=utf-8',

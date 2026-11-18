@@ -20,9 +20,11 @@ const line = (v, n) => String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, n);
 
 /* --------------------------------- B1 blocks -------------------------------- */
 
-export function newSession({ kind = 'meeting', template = '' } = {}) {
+export function newSession({ kind = 'meeting', template = '', blocks = null } = {}) {
   const k = ROOM_KINDS.includes(kind) ? kind : 'meeting';
-  return { kind: k, template: k === 'dropin' ? '' : template, blocks: k === 'dropin' ? [] : templateBlocks(template || 'build'), cur: -1, startedAt: 0, endsAt: 0 };
+  // G1: a planned session brings its own blocks; they go through the same validator as any edit.
+  const planned = k === 'dropin' ? [] : cleanBlocks(blocks);
+  return { kind: k, template: k === 'dropin' ? '' : template, blocks: k === 'dropin' ? [] : planned.length ? planned : templateBlocks(template || 'build'), cur: -1, startedAt: 0, endsAt: 0 };
 }
 
 export const currentBlock = (sess) => sess?.blocks[sess.cur] ?? null;

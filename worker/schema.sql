@@ -704,6 +704,25 @@ CREATE TABLE IF NOT EXISTS data_submissions (
   created_at   TEXT    NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_data_sub ON data_submissions(challenge_id, user_id);
+
+
+-- G1. Meeting planner. Planned sessions belong to the club, not a member, so
+-- account export and deletion do not touch them. room_code is set when a room
+-- is opened for the plan: that is what "held" means. blocks is a JSON list that
+-- goes through cleanBlocks (shared/session-templates.js) on every write.
+CREATE TABLE IF NOT EXISTS planned_sessions (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  date       TEXT    NOT NULL,                       -- YYYY-MM-DD
+  title      TEXT    NOT NULL,
+  template   TEXT    NOT NULL,                       -- shared/session-templates.js id
+  blocks     TEXT    NOT NULL DEFAULT '[]',
+  idea_id    INTEGER REFERENCES ideas(id) ON DELETE SET NULL,
+  room_code  TEXT,
+  created_at TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_planned_date ON planned_sessions(date);
+
+
 /* ================================ B5: mock contest attempts ================================ */
 
 -- Every judged attempt in a team contest, with the submitted code, so officers
@@ -722,3 +741,4 @@ CREATE TABLE IF NOT EXISTS contest_attempts (
 );
 CREATE INDEX IF NOT EXISTS idx_contest_attempts_room ON contest_attempts(room_code, team_id);
 CREATE INDEX IF NOT EXISTS idx_contest_attempts_user ON contest_attempts(user_id);
+

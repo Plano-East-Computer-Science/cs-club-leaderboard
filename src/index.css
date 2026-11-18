@@ -1586,6 +1586,11 @@ textarea.fi{resize:vertical;line-height:1.5}
 .dt-board td{padding:5px 6px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
 .dt-board tr.me td{color:var(--gold)}
 
+
+/* ---- G1: meeting planner ---- */
+.pl-warn{margin:0;padding:8px 12px;border:1px solid var(--gold);color:var(--gold);font-size:13px}
+
+
 /* ================= D2: workspace ================= */
 .ws-new{margin-bottom:14px;flex-wrap:wrap}
 .ws-list{list-style:none;margin:0;padding:0;border-top:1px solid var(--line)}
@@ -1649,3 +1654,4 @@ textarea.fi{resize:vertical;line-height:1.5}
 .ct-teams li li,.ct-teams>li:not(:has(ul)){display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:14px}
 .ct-move{padding:4px 6px;font-size:13px;max-width:9.5rem}
 .ct-me{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap}
+

@@ -95,7 +95,9 @@ export class Room {
     const code = request.headers.get('x-code');
     if (code && !this.s.code) this.s.code = code;
     // The run-of-show comes from the template the officer picked when opening the room.
-    this.s.session ??= S.newSession({ kind: request.headers.get('x-kind') || 'meeting', template: request.headers.get('x-template') || 'build' });
+    let planned = null; // G1: blocks from a planned session, if this room was opened for one
+    try { planned = JSON.parse(decodeURIComponent(request.headers.get('x-blocks') || 'null')); } catch { /* fall back to the template */ }
+    this.s.session ??= S.newSession({ kind: request.headers.get('x-kind') || 'meeting', template: request.headers.get('x-template') || 'build', blocks: planned });
 
     const pair = new WebSocketPair();
     const [client, server] = Object.values(pair);
