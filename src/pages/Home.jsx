@@ -46,7 +46,7 @@ function Landing() {
             </p>
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 20 }}>
               <Link className="btn" to="/signin">Create your account</Link>
-              <Link className="btn btn-ghost" to="/learn">Try a lesson first</Link>
+              <Link className="btn btn-ghost" to="/arena">See the board first</Link>
             </div>
             <div className="kv">
               <div><span>members</span><strong>{students.length}</strong></div>
@@ -62,10 +62,10 @@ function Landing() {
           <h2>What an account gets you <small>cat features.md</small></h2>
           <p className="sub">No password to remember. Sign in with Google, or get a one-time link by email.</p>
           <div style={grid}>
-            <Pane file="learn" meta="lessons that run here">
+            <Pane file="arena" meta="the board">
               <div className="pn-b">
-                <p>Short lessons with quick checks and real code that runs on the page. Your progress and streak are saved.</p>
-                <Link className="g uline" to="/learn">open lessons</Link>
+                <p>Ladders of free problems and lessons for contests, building, AI, data and cyber. The board remembers where you are and shows your next rung.</p>
+                <Link className="g uline" to="/arena">open the board</Link>
               </div>
             </Pane>
             <Pane file="room" meta="live meetings">
