@@ -133,6 +133,12 @@ export async function exportFor(db, user) {
     idea_votes: await rows(db, 'SELECT idea_id FROM idea_votes WHERE user_id = ?', id),
     kudos_given: await rows(db, 'SELECT activity_id, created_at FROM kudos WHERE user_id = ?', id),
     opportunities_marked: await rows(db, 'SELECT opportunity_id FROM opportunity_interest WHERE user_id = ?', id),
+    workspaces: await Promise.all(
+      (await rows(db, 'SELECT id, title, kind, created_at, updated_at FROM workspaces WHERE user_id = ?', id)).map(async (w) => ({
+        ...w,
+        files: await rows(db, 'SELECT path, content FROM workspace_files WHERE workspace_id = ?', w.id),
+      }))
+    ),
     competition_signups: await rows(db, 'SELECT competition_id, joined_at, participated, placement FROM competition_roster WHERE user_id = ?', id),
     arena_progress: await rows(db, 'SELECT rung_id, status, done_at, method FROM rung_progress WHERE user_id = ?', id),
     arena_placement: (await db.prepare('SELECT answers, start, focus FROM board_placement WHERE user_id = ?').bind(id).first()) ?? null,
@@ -191,10 +197,11 @@ export async function purgeUser(db, id) {
     mine(`DELETE FROM reports WHERE kind = 'feed' AND target_id IN (SELECT id FROM activity WHERE student_id = ?)`, u.student_id);
   }
   mine('DELETE FROM reports WHERE reporter_user_id = ?', id);
+  mine('DELETE FROM workspace_files WHERE workspace_id IN (SELECT id FROM workspaces WHERE user_id = ?)', id);
 
   for (const t of [
     'step_progress', 'room_checkins', 'projects', 'link_requests', 'ideas', 'idea_votes', 'kudos', 'opportunity_interest',
-    'daily_results', 'rung_progress', 'board_placement', 'duel_results', 'cf_solves', 'cf_challenges', 'record_codes', 'artifacts',
+    'daily_results', 'rung_progress', 'board_placement', 'duel_results', 'cf_solves', 'cf_challenges', 'record_codes', 'artifacts', 'workspaces',
   ]) {
     mine(`DELETE FROM ${t} WHERE user_id = ?`, id); // t is from the fixed list above, never input
   }

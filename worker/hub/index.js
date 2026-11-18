@@ -31,6 +31,7 @@ import { recordsRouter, recordsAdminRouter } from './records.js';
 import { competeRouter, competeAdminRouter } from './compete.js';
 import { savedRouter } from './saved.js';
 import { analyticsAdminRouter } from './analytics.js';
+import { workspaceRouter } from './workspace.js';
 
 export { Room } from './room-do.js';
 
@@ -85,4 +86,5 @@ export function mountHub(app) {
   app.route('/api', teamPostsRouter);
   app.route('/api', competeRouter);
   app.route('/api', savedRouter);
+  app.route('/api', workspaceRouter);
 }

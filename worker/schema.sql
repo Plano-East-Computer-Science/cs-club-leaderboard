@@ -624,3 +624,22 @@ CREATE TABLE IF NOT EXISTS artifacts (
   UNIQUE (room_code, user_id)
 );
 CREATE INDEX IF NOT EXISTS idx_artifacts_user ON artifacts(user_id, created_at);
+
+/* ================================ D2: workspace ================================ */
+-- A member's own multi-file projects, saved to the account. Limits (files,
+-- bytes, workspaces per member) are checked in shared/workspace.js.
+CREATE TABLE IF NOT EXISTS workspaces (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  title      TEXT    NOT NULL,
+  kind       TEXT    NOT NULL,                      -- python | web
+  created_at TEXT    NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_workspaces_user ON workspaces(user_id, updated_at);
+CREATE TABLE IF NOT EXISTS workspace_files (
+  workspace_id INTEGER NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+  path         TEXT    NOT NULL,
+  content      TEXT    NOT NULL,
+  PRIMARY KEY (workspace_id, path)
+);
