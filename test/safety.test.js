@@ -113,6 +113,11 @@ await check('public pages show first names; the opt-in shows the full name; offi
   assert.equal((await call(`/portfolio/${maya.id}`)).body.name, 'Maya');
   assert.equal((await call('/projects')).body.projects[0].author, 'Maya');
   assert.equal((await call(`/student/${maya.sid}`)).body.name, 'Maya');
+  // The A4 standings page names its top five and your neighbours: same rule.
+  await db.prepare(`INSERT INTO point_events (student_id, delta, reason) VALUES (?, 50, 'x')`).bind(maya.sid).run();
+  const st = (await call('/standings?season=all')).body;
+  assert.ok(st.top.some((r) => r.name === 'Maya') && !JSON.stringify(st).includes('Maya Patel'), 'standings shows a first name');
+  await db.prepare(`DELETE FROM point_events WHERE reason = 'x'`).run();
 
   assert.equal((await call('/me', { method: 'PATCH', cookie: maya.cookie, body: { show_full_name: true } })).status, 200);
   assert.ok((await names()).includes('Maya Patel'));

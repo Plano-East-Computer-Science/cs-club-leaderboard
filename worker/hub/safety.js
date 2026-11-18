@@ -123,6 +123,7 @@ export async function exportFor(db, user) {
     leaderboard_entry: entry,
     point_events: sid ? await rows(db, 'SELECT delta, reason, created_at FROM point_events WHERE student_id = ? ORDER BY id', sid) : [],
     activity: sid ? await rows(db, 'SELECT kind, ref, meta, status, points, created_at, decided_at FROM activity WHERE student_id = ? ORDER BY id', sid) : [],
+    squads: sid ? await rows(db, 'SELECT squad_id, season FROM squad_members WHERE student_id = ?', sid) : [],
     badges: sid ? await rows(db, 'SELECT badge_id, awarded_at FROM student_badges WHERE student_id = ?', sid) : [],
     course_progress: await rows(db, 'SELECT course, step, passed_at, attempts, code FROM step_progress WHERE user_id = ?', id),
     meetings_attended: await rows(db, 'SELECT code, joined_at FROM room_checkins WHERE user_id = ?', id),
@@ -201,6 +202,8 @@ export async function purgeUser(db, id) {
   mine(`UPDATE activity SET decided_by = NULL, decided_name = 'former officer' WHERE decided_by = ?`, id);
 
   if (u.student_id) {
+    // A raffle record keeps the winner's name as typed at the draw time; it must not outlive the account.
+    mine(`UPDATE raffle_draws SET student_name = 'Former member' WHERE student_id = ?`, u.student_id);
     if (u.keep_history) {
       // Points stay; proof links, notes and who-claimed-it go.
       mine(`UPDATE activity SET meta = json_object('title', json_extract(meta, '$.title')) WHERE student_id = ?`, u.student_id);
@@ -208,6 +211,7 @@ export async function purgeUser(db, id) {
       mine('DELETE FROM point_events WHERE student_id = ?', u.student_id);
       mine('DELETE FROM activity WHERE student_id = ?', u.student_id);
       mine('DELETE FROM student_badges WHERE student_id = ?', u.student_id);
+      mine('DELETE FROM squad_members WHERE student_id = ?', u.student_id);
     }
   }
   mine('DELETE FROM users WHERE id = ?', id);

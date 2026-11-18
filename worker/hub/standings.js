@@ -89,7 +89,7 @@ standingsRouter.get('/standings', async (c) => {
   if (!season) return c.json({ error: 'Unknown season.' }, 400);
   const current = seasonOf(new Date());
   const [board, tiers, user, prize] = await Promise.all([
-    getLeaderboard(db, season),
+    getLeaderboard(db, season, { publicNames: true }), // G5: this page is public, so first names unless opted in
     loadTiers(db),
     currentUser(c),
     getSetting(db, 'prize_title', ''),
