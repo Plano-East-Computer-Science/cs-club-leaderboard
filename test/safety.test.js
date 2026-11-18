@@ -11,7 +11,7 @@ import fs from 'node:fs';
 import { makeTestDb } from './d1-shim.js';
 import worker from '../worker/index.js';
 import { signValue, signSession, verifyValue, COOKIE } from '../worker/auth.js';
-import { USER_COOKIE } from '../worker/hub/users.js';
+import { USER_COOKIE, SIGNIN_LIMITS } from '../worker/hub/users.js';
 import { recordActivity } from '../worker/hub/ledger.js';
 import { purgeDeleted } from '../worker/hub/safety.js';
 import { makeRecordCode, normRecordCode, CODE_LEN } from '../worker/hub/records.js';
@@ -85,7 +85,7 @@ await check('the window slides: old failures stop counting', async () => {
 
 await check('sign-in link requests are capped per source', async () => {
   let last;
-  for (let i = 0; i < 9; i++) last = await call('/auth/request', { method: 'POST', body: { email: `x${i}@example.org`, name: 'Test Kid' }, ip: '7.7.7.7' });
+  for (let i = 0; i <= SIGNIN_LIMITS.perIp.limit; i++) last = await call('/auth/request', { method: 'POST', body: { email: `x${i}@example.org`, name: 'Test Kid' }, ip: '7.7.7.7' });
   assert.equal(last.status, 429);
   assert.equal((await call('/auth/request', { method: 'POST', body: { email: 'y@example.org', name: 'Test Kid' }, ip: '6.6.6.6' })).status, 200);
 });
