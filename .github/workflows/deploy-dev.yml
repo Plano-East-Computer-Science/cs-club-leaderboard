@@ -50,6 +50,28 @@ jobs:
       - name: Build
         run: npm run build
 
+      # schema.sql only creates what is missing, so a column added to an existing
+      # table comes from a migration. The dev database started from the schema at
+      # migration 009, so only 010 onward run here, one ADD COLUMN at a time, and
+      # "duplicate column name" (already applied) and "no such table" (empty database:
+      # schema.sql creates the table with the column) are the only errors ignored.
+      # ponytail: assumes 010+ migrations are ADD COLUMN only; anything else needs a real migration runner.
+      - name: Apply new column migrations to dev database
+        run: |
+          for f in worker/migrations/*.sql; do
+            n=$(basename "$f" | cut -c1-3)
+            [ "$n" -ge 10 ] || continue
+            grep -E '^ALTER TABLE .* ADD COLUMN' "$f" | while IFS= read -r stmt; do
+              if out=$(npx wrangler d1 execute cs-club-dev --remote --config wrangler.dev.toml --command "$stmt" 2>&1); then
+                echo "applied: $stmt"
+              elif echo "$out" | grep -qE 'duplicate column name|no such table'; then
+                echo "skipped (already there, or schema.sql creates the table): $stmt"
+              else
+                echo "$out"; exit 1
+              fi
+            done
+          done
+
       - name: Apply schema to dev database
         run: npx wrangler d1 execute cs-club-dev --remote --config wrangler.dev.toml --file worker/schema.sql
 
