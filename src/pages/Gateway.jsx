@@ -200,6 +200,12 @@ export default function Gateway() {
           pass on cookies, or let you sign in. Sign-in pages are blocked, so never type your GitHub
           password here.
         </p>
+        <p>
+          <strong style={{ color: 'var(--ink)' }}>It will not run:</strong> Replit, Colab or apps like
+          them. They need you to sign in, which the gateway blocks on purpose because anything you type
+          would pass through a server you do not control. They also hold long connections open and
+          refuse proxies. Write and run code on this site instead.
+        </p>
       </div>
 
       <form
