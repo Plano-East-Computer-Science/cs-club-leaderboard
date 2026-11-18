@@ -14,23 +14,39 @@ Read these first, in order, and treat them as the source of truth:
    you work on.
 3. `docs/agent-brief.md`: the working rules every build agent must follow.
 
-State when this prompt was written (2026-11-17, late):
-- Merged on `club-os`, all tests passing: A1, A2, A3 (identity, ledger, claims), A7 (officer
-  accounts), C2 (problem bank), C3 (daily problem), C1 and C5 (Arena board), B2 and B9 (duels,
-  pair maker), F1, F2, E1 (Today, feed with kudos, compass), C4 and D3 (Codeforces and GitHub
-  sync), E3, F4, F5, F6, G3 (feeds, Discord ping, command bar, installable app, announce).
-- Unfinished work lives in agent worktrees under `.claude/worktrees/`. Check each with
-  `git -C <worktree> status` and `git log club-os..<branch>`:
-  - `agent-a2c5b8b008181870e`: A4, A5, A6 standings, ranks, squads (2 commits; was fixing a
-    blank page when signed in).
-  - `agent-a10013b7d81188662`: B1, B3, B4, B6, B7, B8, B10 meeting run-of-show (backend done,
-    frontend in progress, uncommitted).
-  - `agent-a82c19df08521d3c5`: G5, E7 safety, privacy, security review (uncommitted).
-  - `agent-a7410d4fb89e643ab`: D1, D4, D7 ship cycles, teammate board (1 commit, nearly done).
-  - `agent-adee97866d2f27cd7`: E2, E4, G2 competition pages, analytics (uncommitted, was taking
-    screenshots).
-  - `agent-a01c04061b2407ad7`: D2, H2 workspace (just started, uncommitted).
-  If the previous session already merged some of these, `git log club-os` will show it; skip those.
+State when this prompt was written (2026-11-18, about 1am):
+- Merged on `club-os`, all 16 test files passing: A1, A2, A3 (identity, ledger, claims), A7
+  (officer accounts), A4, A5, A6 (seasons, one rank system, relative standings, raffle, squads),
+  C2 (problem bank), C3 (daily problem), C1 and C5 (Arena board), B2 and B9 (duels, pair maker),
+  F1, F2, E1 (Today, feed with kudos, compass), C4 and D3 (Codeforces and GitHub sync), D1, D4,
+  D7 (ship cycles, teammate board, starters at /build), G5 and E7 (privacy, export and deletion,
+  reports, verified records, plus a security review with fixes), E3, F4, F5, F6, G3 (feeds,
+  Discord ping, command bar, installable app, announce).
+- The Opus weekly usage limit was hit on 2026-11-18 (resets Nov 22, 4am Chicago). Until then use
+  Sonnet for build agents, or wait.
+- Unfinished work lives in agent worktrees under `.claude/worktrees/`, all uncommitted. Check each
+  with `git -C <worktree> status` and `git -C <worktree> diff --stat`:
+  - `agent-a10013b7d81188662`: B1, B3, B4, B6, B7, B8, B10 meeting run-of-show. Backend and its
+    tests done, frontend mostly written, was adding CSS. Most important unfinished item.
+  - `agent-adee97866d2f27cd7`: E2, E4, G2 competition pages and officer analytics. Built, was
+    taking screenshots.
+  - `agent-a01c04061b2407ad7`: D2, H2 workspace. Barely started; fine to restart from scratch.
+  Each worktree's branch is based on an older `club-os`; rebase onto the current tip before
+  merging, and keep both sides of "both added a line" conflicts.
+- Open security items from the G5 review (decide or fix):
+  - The gateway serves upstream pages from the club origin, so scripts on an allowlisted page
+    could call `/api` with the member's cookie. Fix before wider gateway use: serve gateway
+    responses with `Content-Security-Policy: sandbox allow-scripts allow-forms allow-popups`
+    (opaque origin, so no cookies) and test that GitHub still works, or move the gateway to its
+    own subdomain if the school filter allows it.
+  - The Codeforces browser fallback trusts submitted JSON. Mark handles linked that way as
+    unverified and do not award points from browser-submitted solves.
+  - Lower: account-existence hint on sign-in, stateless cookies not revocable on logout, room and
+    gateway code enumeration, public `grade` on the leaderboard.
+- Migrations now run 004, 005, 006, 007 before `schema.sql` on an existing database; see the
+  "Upgrading the live database" section of `DEPLOY.md` (add 007 there).
+- The officer console (`src/pages/Officer.jsx`) is now 16 stacked sections; restructure it into
+  sections or tabs (G-series polish) before adding more.
 
 How to work:
 - First finish and merge the unfinished worktrees above, one at a time. For each, spawn a build
