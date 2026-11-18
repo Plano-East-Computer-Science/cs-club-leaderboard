@@ -1416,3 +1416,26 @@ textarea.fi{resize:vertical;line-height:1.5}
 .an-ideas{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:8px;font-size:13px}
 .an-st{display:inline-block;padding:1px 6px;border:1px solid var(--line);font-size:12px;color:var(--gold)}
 .an-st.done{color:var(--up)}
+
+/* ================= C11: CTF board ================= */
+.ctf{display:grid;gap:16px}
+.ctf-cols{display:grid;gap:16px;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr);align-items:start}
+@media (max-width:760px){.ctf-cols{grid-template-columns:1fr}}
+.ctf-list{list-style:none;margin:0;padding:0;display:grid}
+.ctf-item{display:grid;gap:2px;width:100%;text-align:left;background:transparent;border:0;border-bottom:1px solid var(--line);color:var(--text);padding:10px 14px;font:inherit;font-size:14px;cursor:pointer}
+.ctf-item:hover,.ctf-item.on{background:rgba(255,194,14,.07)}
+.ctf-item:focus-visible{outline:1px solid var(--gold);outline-offset:-1px}
+.ctf-t{font-weight:700}
+.ctf-det{display:grid;gap:10px}
+.ctf-det h2{font:900 28px/1 var(--disp);text-transform:uppercase;margin:0;overflow-wrap:anywhere}
+.ctf-file{margin:0;max-height:240px;overflow:auto;border:1px solid var(--line2);background:#0c0b07;padding:10px;font-size:12.5px;white-space:pre-wrap;overflow-wrap:anywhere}
+.ctf-row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.ctf-row .field{flex:1 1 200px}
+.ctf-form{display:grid;gap:10px;max-width:640px}
+.ctf-form label{display:grid;gap:4px;font-size:13px;color:var(--dim)}
+.ctf-two{display:grid;gap:10px;grid-template-columns:1fr 1fr}
+.ctf-sc{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.ctf-sc li{display:grid;grid-template-columns:1fr auto auto;gap:12px;font-size:14px}
+.ctf-ev,.ctf-mine{list-style:none;margin:0;padding:0;display:grid;gap:8px;font-size:14px}
+.ctf-ev li{display:grid;gap:2px}
+.ctf-mine{margin-top:14px}
