@@ -93,6 +93,69 @@ function Screen({ code }) {
   return <Projector state={state} code={code} skew={skew} tok={tok} />;
 }
 
+/**
+ * H1: this room's own gateway. Members who checked in find it on /gateway; the
+ * host picks which presets are on (contest nights start with search off) and
+ * can pause it. It ends when the room closes.
+ */
+function GatewayPanel({ code }) {
+  const [gw, setGw] = useState(null);
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    api.get(`/admin/hub/rooms/${code}/gateway`).then(setGw).catch((e) => setError(e.message));
+  }, [code]);
+  const put = async (body) => {
+    setBusy(true);
+    setError('');
+    try {
+      setGw(await api.put(`/admin/hub/rooms/${code}/gateway`, body));
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  if (!gw && !error) return null;
+  const chosen = gw ? gw.presets.filter((p) => p.on && !p.fixed).map((p) => p.id) : [];
+  return (
+    <section className="card grid gap-3 p-5" aria-label="Gateway for this room">
+      <div className="flex items-baseline justify-between gap-3">
+        <p className="eyebrow">gateway (checked-in members only)</p>
+        {gw && <span className="mono text-xs" style={{ color: gw.active ? 'var(--up)' : 'var(--ink-faint)' }}>{gw.active ? 'on' : 'paused'}</span>}
+      </div>
+      {error && <p className="mono text-xs" role="alert" style={{ color: 'var(--down)' }}>{error}</p>}
+      {gw && (
+        <>
+          <fieldset className="grid gap-1.5" disabled={busy}>
+            <legend className="sr-only">Presets on for this meeting</legend>
+            {gw.presets.map((p) => (
+              <label key={p.id} className="flex items-baseline gap-2 text-sm" style={{ opacity: p.hosts.length || p.fixed ? 1 : 0.5 }}>
+                <input
+                  type="checkbox"
+                  checked={p.on}
+                  disabled={p.fixed || (!p.hosts.length && !p.on)}
+                  onChange={(e) => put({ presets: e.target.checked ? [...chosen, p.id] : chosen.filter((x) => x !== p.id) })}
+                />
+                <span>{p.name}</span>
+                <span className="mono text-xs" style={{ color: 'var(--ink-faint)' }}>
+                  {p.fixed ? 'always' : p.hosts.length ? `${p.hosts.length} site${p.hosts.length === 1 ? '' : 's'}` : 'none approved yet'}
+                </span>
+              </label>
+            ))}
+          </fieldset>
+          <div className="flex flex-wrap items-center gap-3">
+            <button type="button" className="btn btn-ghost" disabled={busy} onClick={() => put({ on: !gw.active })}>
+              {gw.active ? 'Pause gateway' : 'Turn gateway on'}
+            </button>
+            <span className="mono text-xs" style={{ color: 'var(--ink-faint)' }}>code {gw.code}</span>
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
+
 /** Today's links, pinned for everyone in the room: the lesson, the problems, the gateway. */
 function Agenda({ stage, onChange }) {
   const [courses, setCourses] = useState([]);
@@ -480,6 +543,7 @@ function Console({ code }) {
           {!dropin && <Pace state={state} send={send} />}
           {!dropin && blockOf(state)?.type !== 'lab' && <PairPanel pairs={state.pairs} send={send} />}
           <Agenda stage={state.stage ?? []} onChange={(items) => send({ t: 'stage', items })} />
+          <GatewayPanel code={code} />
         </div>
       </div>
     </div>

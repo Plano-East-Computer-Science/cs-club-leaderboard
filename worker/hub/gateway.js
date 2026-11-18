@@ -11,6 +11,10 @@
  *   - writes are limited to git pushes and the GitHub API;
  *   - the audit log keeps only host + time, never paths, queries or headers.
  *
+ *   - H1: each meeting room gets its own code, shown only to members checked
+ *     in to that room, limited to the presets the host turned on, and revoked
+ *     when the room closes (see openRoomGateway and friends below).
+ *
  * URL shape:  /gw/<CODE>/<host>/<path...>
  *   git clone https://peshcompsci.org/gw/<CODE>/github.com/owner/repo.git
  */
@@ -54,6 +58,65 @@ export const DEFAULT_HOSTS = [
   'learn.microsoft.com',
   'cp-algorithms.com',
 ];
+
+/**
+ * H1: per-meeting presets. Every room gets its own gateway code (no code to
+ * hand out: checked-in members see it), and the host toggles which presets are
+ * on for that meeting. Presets are named slices of the approved list above and
+ * can never reach past it: a room's hosts are always intersected with the
+ * approved list at request time. Practice and Data ship empty because any host
+ * not already approved needs district approval first (club lead, 2026-11-17).
+ * Officers edit the non-fixed presets (settings key gateway_presets, JSON
+ * { id: [host] }), but only with hosts that are already on the approved list.
+ */
+export const PRESETS = [
+  {
+    id: 'github',
+    name: 'GitHub and PyPI',
+    fixed: true, // always on: cloning a starter is the reason the gateway exists
+    hosts: [
+      'github.com', 'api.github.com', 'raw.githubusercontent.com', 'codeload.github.com', 'objects.githubusercontent.com',
+      'github.githubassets.com', 'avatars.githubusercontent.com', 'user-images.githubusercontent.com', 'camo.githubusercontent.com',
+      'gist.github.com', 'gist.githubusercontent.com', 'pypi.org', 'files.pythonhosted.org',
+    ],
+  },
+  { id: 'docs', name: 'Documentation', hosts: ['docs.python.org', 'developer.mozilla.org', 'en.cppreference.com', 'docs.github.com', 'learn.microsoft.com', 'cp-algorithms.com'] },
+  { id: 'search', name: 'Search and Q&A', hosts: ['www.bing.com', 'th.bing.com', 'r.bing.com', 'stackoverflow.com', 'en.wikipedia.org'] },
+  { id: 'tutorials', name: 'Tutorials', hosts: ['www.w3schools.com', 'www.geeksforgeeks.org', 'realpython.com', 'www.freecodecamp.org', 'www.programiz.com', 'www.tutorialspoint.com'] },
+  { id: 'practice', name: 'Practice', hosts: [] }, // e.g. usaco.guide, cses.fi once approved
+  { id: 'data', name: 'Data', hosts: [] },
+];
+
+/** Presets with officer edits applied. Unknown ids and the fixed preset are ignored. */
+export function presetsFrom(settingValue) {
+  let edits = {};
+  try {
+    edits = JSON.parse(settingValue || '{}') ?? {};
+  } catch {
+    /* a bad setting falls back to the defaults */
+  }
+  return PRESETS.map((p) => (p.fixed || !Array.isArray(edits[p.id]) ? p : { ...p, hosts: edits[p.id].map((h) => String(h).toLowerCase()) }));
+}
+
+/**
+ * Which presets a new room starts with. Duel and mock contest nights start
+ * with search and tutorials off, so the gateway does not hand out answers.
+ */
+export function defaultPresets(template) {
+  const contest = template === 'duel' || template === 'mock';
+  return PRESETS.filter((p) => !p.fixed && p.hosts.length && !(contest && (p.id === 'search' || p.id === 'tutorials'))).map((p) => p.id);
+}
+
+/** The hosts a room's code reaches: the fixed preset plus the chosen ones, never past the approved list. */
+export function roomHosts(presets, chosen, approved) {
+  const on = new Set(chosen);
+  const want = new Set(presets.filter((p) => p.fixed || on.has(p.id)).flatMap((p) => p.hosts));
+  return approved.filter((h) => want.has(h));
+}
+
+/** Cleans a preset selection from the host console: known, non-fixed ids only. */
+export const cleanChoice = (ids) =>
+  [...new Set((Array.isArray(ids) ? ids : []).map(String))].filter((id) => PRESETS.some((p) => p.id === id && !p.fixed));
 
 /**
  * Every gateway response is a sandboxed document with an opaque origin. The
@@ -167,6 +230,78 @@ async function loadHosts(db) {
   return hostsFrom(row?.value);
 }
 
+async function loadPresets(db) {
+  const row = await db.prepare(`SELECT value FROM settings WHERE key = 'gateway_presets'`).first();
+  return presetsFrom(row?.value);
+}
+
+/** The hosts one code reaches. A room's code (H1) is limited to its presets; an officer-minted code reaches the approved list. */
+async function hostsForCode(db, row) {
+  const approved = await loadHosts(db);
+  if (row?.presets == null) return approved;
+  let chosen = [];
+  try {
+    chosen = JSON.parse(row.presets);
+  } catch {
+    /* treat a broken row as "fixed preset only" */
+  }
+  return roomHosts(await loadPresets(db), chosen, approved);
+}
+
+/* ------------------------------- H1: room codes ------------------------------- */
+
+const ROOM_GATEWAY_MS = 12 * 3_600_000; // a ceiling for a room left open; toggling it on again renews it
+
+/** Called when an officer opens a room: the room gets its own gateway code with the template's default presets. */
+export async function openRoomGateway(db, roomCode, template) {
+  const code = makeGatewayCode();
+  const now = Date.now();
+  await db
+    .prepare('INSERT INTO gateway_codes (code, label, created_at, expires_at, room_code, presets) VALUES (?, ?, ?, ?, ?, ?)')
+    .bind(code, `Room ${roomCode}`, now, now + ROOM_GATEWAY_MS, roomCode, JSON.stringify(defaultPresets(template)))
+    .run();
+  return code;
+}
+
+/** Called when the room closes: its gateway code stops working at once. */
+export async function closeRoomGateway(db, roomCode) {
+  await db.prepare('UPDATE gateway_codes SET revoked = 1 WHERE room_code = ?').bind(roomCode).run();
+}
+
+/** A room's gateway as the host console and checked-in members see it, or null when it has none. */
+export async function roomGateway(db, roomCode, now = Date.now()) {
+  const row = await db
+    .prepare('SELECT code, expires_at, revoked, presets FROM gateway_codes WHERE room_code = ? ORDER BY created_at DESC LIMIT 1')
+    .bind(roomCode)
+    .first();
+  if (!row) return null;
+  let chosen = [];
+  try {
+    chosen = JSON.parse(row.presets || '[]');
+  } catch {
+    /* none on */
+  }
+  const approved = await loadHosts(db);
+  const presets = await loadPresets(db);
+  return {
+    code: row.code,
+    active: !row.revoked && row.expires_at > now,
+    expiresAt: row.expires_at,
+    presets: presets.map((p) => ({ id: p.id, name: p.name, fixed: Boolean(p.fixed), on: Boolean(p.fixed) || chosen.includes(p.id), hosts: p.hosts.filter((h) => approved.includes(h)) })),
+    hosts: roomHosts(presets, chosen, approved),
+  };
+}
+
+/** The host turns presets on or off, or the whole gateway off. Turning it on renews the 12-hour ceiling. */
+export async function setRoomGateway(db, roomCode, { presets, on }, now = Date.now()) {
+  const row = await db.prepare('SELECT code FROM gateway_codes WHERE room_code = ? ORDER BY created_at DESC LIMIT 1').bind(roomCode).first();
+  if (!row) return { error: 'This room has no gateway.' };
+  if (presets !== undefined) await db.prepare('UPDATE gateway_codes SET presets = ? WHERE code = ?').bind(JSON.stringify(cleanChoice(presets)), row.code).run();
+  if (on === false) await db.prepare('UPDATE gateway_codes SET revoked = 1 WHERE code = ?').bind(row.code).run();
+  if (on === true) await db.prepare('UPDATE gateway_codes SET revoked = 0, expires_at = ? WHERE code = ?').bind(now + ROOM_GATEWAY_MS, row.code).run();
+  return { ok: true };
+}
+
 const denied = (status, msg) =>
   new Response(
     `<!doctype html><meta charset="utf-8"><title>Gateway</title>
@@ -191,7 +326,7 @@ async function proxy(c, rawCode, host) {
 
   const row = await db
     .prepare(
-      `SELECT g.expires_at, g.revoked,
+      `SELECT g.expires_at, g.revoked, g.presets,
               (SELECT COUNT(*) FROM gateway_log l WHERE l.code = g.code AND l.ts > ?) AS recent
        FROM gateway_codes g WHERE g.code = ?`
     )
@@ -200,8 +335,8 @@ async function proxy(c, rawCode, host) {
   if (!row || row.revoked || row.expires_at < Date.now()) return denied(403, 'that code is not active');
   if (row.recent > MAX_PER_MINUTE) return denied(429, 'slow down');
 
-  const hosts = await loadHosts(db);
-  if (!isAllowedHost(hosts, host)) return denied(403, `${host} is not on the approved list`);
+  const hosts = await hostsForCode(db, row);
+  if (!isAllowedHost(hosts, host)) return denied(403, row.presets != null ? `${host} is not turned on for this meeting` : `${host} is not on the approved list`);
 
   const prefix = `/gw/${rawCode}/${c.req.param('host')}`;
   const reqUrl = new URL(c.req.url);
@@ -318,11 +453,11 @@ async function proxy(c, rawCode, host) {
 gatewayInfoRouter.get('/gateway/check', async (c) => {
   const code = normCode(c.req.query('code'));
   const row = await c.env.DB
-    .prepare('SELECT expires_at, revoked FROM gateway_codes WHERE code = ?')
+    .prepare('SELECT expires_at, revoked, presets FROM gateway_codes WHERE code = ?')
     .bind(code)
     .first();
   const active = Boolean(row && !row.revoked && row.expires_at > Date.now());
-  return c.json({ active, code: active ? code : null, hosts: active ? await loadHosts(c.env.DB) : [] });
+  return c.json({ active, code: active ? code : null, hosts: active ? await hostsForCode(c.env.DB, row) : [] });
 });
 
 /* ---------------------------------- officers ---------------------------------- */
@@ -342,7 +477,32 @@ gatewayAdminRouter.get('/gateway', async (c) => {
   c.executionCtx.waitUntil(
     c.env.DB.prepare('DELETE FROM gateway_log WHERE ts < ?').bind(now - 7 * 86_400_000).run().catch(() => {})
   );
-  return c.json({ codes, hosts: await loadHosts(c.env.DB) });
+  return c.json({ codes, hosts: await loadHosts(c.env.DB), presets: await loadPresets(c.env.DB) });
+});
+
+/** H1: edit one preset's hosts. Only hosts already on the approved list; the fixed preset is not editable. */
+gatewayAdminRouter.put('/gateway/presets/:id', async (c) => {
+  const preset = PRESETS.find((p) => p.id === c.req.param('id'));
+  if (!preset || preset.fixed) return c.json({ error: 'That preset cannot be edited.' }, 400);
+  const body = await c.req.json().catch(() => ({}));
+  const parsed = parseHostList(body?.hosts);
+  if (parsed.error) return c.json({ error: parsed.error }, 400);
+  const approved = await loadHosts(c.env.DB);
+  const missing = parsed.hosts.filter((h) => !approved.includes(h));
+  if (missing.length) return c.json({ error: `Add ${missing.join(', ')} to the approved list first. New sites need district approval.` }, 400);
+  const row = await c.env.DB.prepare(`SELECT value FROM settings WHERE key = 'gateway_presets'`).first();
+  let edits = {};
+  try {
+    edits = JSON.parse(row?.value || '{}') ?? {};
+  } catch {
+    /* start over */
+  }
+  edits[preset.id] = parsed.hosts;
+  await c.env.DB
+    .prepare(`INSERT INTO settings (key, value) VALUES ('gateway_presets', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`)
+    .bind(JSON.stringify(edits))
+    .run();
+  return c.json({ presets: presetsFrom(JSON.stringify(edits)) });
 });
 
 gatewayAdminRouter.post('/gateway', async (c) => {

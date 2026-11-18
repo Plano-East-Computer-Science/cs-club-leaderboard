@@ -566,6 +566,59 @@ function HostEditor({ hosts, onSaved }) {
   );
 }
 
+/**
+ * H1: the presets a host can turn on per meeting. Each is a slice of the
+ * approved list; a host must be approved before it can go in a preset.
+ */
+function PresetEditor({ presets, approved, onSaved }) {
+  const [drafts, setDrafts] = useState({});
+  const [note, setNote] = useState(null);
+  const save = async (id) => {
+    setNote(null);
+    try {
+      await api.put(`/admin/hub/gateway/presets/${id}`, { hosts: drafts[id] ?? '' });
+      setDrafts((d) => ({ ...d, [id]: undefined }));
+      setNote({ id, ok: true, text: 'Saved.' });
+      onSaved();
+    } catch (err) {
+      setNote({ id, text: err.message });
+    }
+  };
+  return (
+    <div className="mt-6 grid gap-3">
+      <p className="eyebrow">Presets the host turns on per meeting</p>
+      <p className="max-w-2xl text-xs" style={{ color: 'var(--ink-faint)' }}>
+        A preset can only hold sites already on the approved list above. Practice and Data start empty: sites
+        like usaco.guide or cses.fi need district approval before they go on the approved list.
+      </p>
+      <ul className="grid gap-3 sm:grid-cols-2">
+        {presets.map((p) => {
+          const text = drafts[p.id] ?? p.hosts.join('\n');
+          const missing = p.hosts.filter((h) => !approved.includes(h));
+          return (
+            <li key={p.id} className="card grid gap-2 p-4">
+              <p className="text-sm font-semibold">{p.name}{p.fixed ? ' (always on)' : ''}</p>
+              {p.fixed ? (
+                <p className="mono text-xs" style={{ color: 'var(--ink-soft)' }}>{p.hosts.join(', ')}</p>
+              ) : (
+                <>
+                  <label className="sr-only" htmlFor={`preset-${p.id}`}>{p.name} sites, one per line</label>
+                  <textarea id={`preset-${p.id}`} className="field mono text-xs" rows={4} value={text} spellCheck={false} placeholder="Empty" onChange={(e) => setDrafts((d) => ({ ...d, [p.id]: e.target.value }))} />
+                  <div className="flex flex-wrap items-center gap-3">
+                    <button type="button" className="btn btn-ghost" disabled={drafts[p.id] === undefined} onClick={() => save(p.id)}>Save {p.name}</button>
+                    {note?.id === p.id && <span className="mono text-xs" role="status" style={{ color: note.ok ? 'var(--up)' : 'var(--down)' }}>{note.text}</span>}
+                  </div>
+                </>
+              )}
+              {missing.length > 0 && <p className="mono text-xs" style={{ color: 'var(--down)' }}>Off until approved: {missing.join(', ')}</p>}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
 function Gateway() {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
@@ -606,7 +659,8 @@ function Gateway() {
   return (
     <section>
       <SectionHead eyebrow="Gateway" title="GitHub for school machines">
-        A code that lets students reach GitHub through this site for a few hours.
+        Every meeting room now gets its own gateway code: members who check in see it on /gateway,
+        and the host picks which presets are on. Make a code here only for something outside a room.
       </SectionHead>
 
       <form onSubmit={create} className="card mb-4 flex flex-wrap items-end gap-3 p-4">
@@ -686,6 +740,7 @@ function Gateway() {
           </p>
         </div>
       )}
+      {data?.presets && <PresetEditor presets={data.presets} approved={data.hosts} onSaved={load} />}
     </section>
   );
 }

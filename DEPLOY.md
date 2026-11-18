@@ -290,6 +290,7 @@ npx wrangler d1 execute cs-club --remote --file worker/migrations/006-integratio
 npx wrangler d1 execute cs-club --remote --file worker/migrations/007-safety.sql
 npx wrangler d1 execute cs-club --remote --file worker/migrations/008-sessions.sql
 npx wrangler d1 execute cs-club --remote --file worker/migrations/009-trust.sql
+npx wrangler d1 execute cs-club --remote --file worker/migrations/011-gateway-rooms.sql
 npx wrangler d1 execute cs-club --remote --file worker/schema.sql
 npx wrangler d1 execute cs-club --remote --file worker/seed-problems.sql
 npx wrangler d1 execute cs-club --remote --file worker/seed-rungs.sql

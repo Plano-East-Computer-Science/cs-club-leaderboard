@@ -17,6 +17,7 @@ import { syncQuests } from './quests.js';
 import { publicName } from './names.js';
 import { TEMPLATES } from '../../shared/session-templates.js';
 import { getPlan } from './planner.js';
+import { closeRoomGateway, openRoomGateway, roomGateway, setRoomGateway } from './gateway.js';
 
 export const roomsRouter = new Hono();
 export const roomsAdminRouter = new Hono();
@@ -79,18 +80,24 @@ roomsAdminRouter.post('/rooms', async (c) => {
   const template = plan ? plan.template : String(body?.template ?? 'build');
   if (template !== 'dropin' && !Object.hasOwn(TEMPLATES, template)) return c.json({ error: 'Pick a template.' }, 400);
   const kind = template === 'dropin' ? 'dropin' : 'meeting';
-  for (let i = 0; i < 5; i++) {
-    const code = makeCode();
+  let code = null;
+  for (let i = 0; i < 5 && !code; i++) {
+    const tryCode = makeCode();
     try {
       await c.env.DB.prepare('INSERT INTO rooms (code, title, kind, template) VALUES (?, ?, ?, ?)')
-        .bind(code, title, kind, kind === 'dropin' ? '' : template)
+        .bind(tryCode, title, kind, kind === 'dropin' ? '' : template)
         .run();
-      if (plan) await c.env.DB.prepare('UPDATE planned_sessions SET room_code = ? WHERE id = ?').bind(code, plan.id).run();
-      await notify(c.env, c.env.DB, `Room ${code} is open: ${title}. Join at ${new URL(c.req.url).origin}/room`);
-      return c.json({ code, title, kind, template });
+      code = tryCode;
     } catch {
-      /* code collision: try another */
+      /* code collision: try another. Only the INSERT is in here, so a later failure never makes a second room. */
     }
+  }
+  if (code) {
+    if (plan) await c.env.DB.prepare('UPDATE planned_sessions SET room_code = ? WHERE id = ?').bind(code, plan.id).run();
+    // H1: the room's own gateway code. Members who check in see it; no code to hand out.
+    await openRoomGateway(c.env.DB, code, template).catch((err) => console.error('room gateway failed', err?.message ?? err));
+    await notify(c.env, c.env.DB, `Room ${code} is open: ${title}. Join at ${new URL(c.req.url).origin}/room`);
+    return c.json({ code, title, kind, template });
   }
   return c.json({ error: 'Could not allocate a room code.' }, 500);
 });
@@ -192,9 +199,60 @@ roomsAdminRouter.post('/rooms/:code/close', async (c) => {
     .prepare(`UPDATE rooms SET closed_at = datetime('now') WHERE code = ? AND closed_at IS NULL`)
     .bind(code)
     .run();
+  await closeRoomGateway(c.env.DB, code); // H1: the gateway ends with the meeting
   const result = await awardAttendance(c.env.DB, code);
   if (!result) return c.json({ error: 'No such room.' }, 404);
   return c.json({ ok: true, ...result });
+});
+
+/* ------------------------------ H1: room gateway ------------------------------ */
+
+roomsAdminRouter.get('/rooms/:code/gateway', async (c) => {
+  const gw = await roomGateway(c.env.DB, normCode(c.req.param('code')));
+  return gw ? c.json(gw) : c.json({ error: 'This room has no gateway.' }, 404);
+});
+
+roomsAdminRouter.put('/rooms/:code/gateway', async (c) => {
+  const code = normCode(c.req.param('code'));
+  const room = await c.env.DB.prepare('SELECT closed_at FROM rooms WHERE code = ?').bind(code).first();
+  if (!room) return c.json({ error: 'No such room.' }, 404);
+  const body = await c.req.json().catch(() => ({}));
+  if (room.closed_at && body?.on === true) return c.json({ error: 'That room has closed.' }, 410);
+  const r = await setRoomGateway(c.env.DB, code, { presets: body?.presets, on: typeof body?.on === 'boolean' ? body.on : undefined });
+  if (r.error) return c.json({ error: r.error }, 404);
+  return c.json(await roomGateway(c.env.DB, code));
+});
+
+/** The open room this member checked in to, with its gateway code, so /gateway needs no typing. */
+async function myRoomGateway(db, userId, onlyCode = null) {
+  const rows = (
+    await db
+      .prepare(
+        `SELECT r.code, r.title FROM room_checkins k JOIN rooms r ON r.code = k.code
+         WHERE k.user_id = ? AND r.closed_at IS NULL ${onlyCode ? 'AND r.code = ?' : ''}
+         ORDER BY k.joined_at DESC LIMIT 3`
+      )
+      .bind(...(onlyCode ? [userId, onlyCode] : [userId]))
+      .all()
+  ).results;
+  for (const r of rows) {
+    const gw = await roomGateway(db, r.code);
+    if (gw?.active) return { room: r.code, title: r.title, code: gw.code, hosts: gw.hosts, presets: gw.presets.filter((p) => p.on).map((p) => p.name) };
+  }
+  return null;
+}
+
+roomsRouter.get('/rooms/:code/gateway', async (c) => {
+  const user = await currentUser(c);
+  if (!user) return c.json({ error: 'Sign in first.' }, 401);
+  const gw = await myRoomGateway(c.env.DB, user.id, normCode(c.req.param('code')));
+  return c.json({ gateway: gw });
+});
+
+roomsRouter.get('/gateway/mine', async (c) => {
+  const user = await currentUser(c);
+  if (!user) return c.json({ gateway: null });
+  return c.json({ gateway: await myRoomGateway(c.env.DB, user.id) });
 });
 
 /** Re-runs the attendance award. Safe to press any number of times. */
