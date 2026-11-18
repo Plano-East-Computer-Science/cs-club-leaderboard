@@ -7,6 +7,7 @@
 import { Hono } from 'hono';
 
 import { seasonOf } from '../../shared/points.js';
+import { TEMPLATES } from '../../shared/session-templates.js';
 
 export const analyticsAdminRouter = new Hono();
 
@@ -67,12 +68,32 @@ export function notSeen(last, now = new Date(), weeks = 3) {
     .sort((a, b) => b.days - a.days || a.name.localeCompare(b.name));
 }
 
+/**
+ * Average check-ins per meeting for each template, so "did duel night work?"
+ * has a number. Drop-ins are their own row; meetings opened before B1 have no
+ * template and show as "no template". Busiest first.
+ */
+export function byTemplate(meetings) {
+  const groups = new Map();
+  for (const m of meetings) {
+    const key = m.kind === 'dropin' ? 'dropin' : m.template || '';
+    const g = groups.get(key) ?? { template: key, meetings: 0, total: 0 };
+    g.meetings += 1;
+    g.total += m.n;
+    groups.set(key, g);
+  }
+  const name = (t) => (t === 'dropin' ? 'Drop-in' : TEMPLATES[t]?.name ?? (t ? t : 'No template'));
+  return [...groups.values()]
+    .map((g) => ({ ...g, name: name(g.template), avg: Math.round((g.total / g.meetings) * 10) / 10 }))
+    .sort((a, b) => b.avg - a.avg || a.name.localeCompare(b.name));
+}
+
 export async function buildAnalytics(db, season, now = new Date()) {
   const range = seasonRange(season);
   const q = (sql, ...args) => db.prepare(sql).bind(...args).all().then((r) => r.results);
 
   const meetings = await q(
-    `SELECT r.code, r.title, substr(r.created_at, 1, 10) AS date, COUNT(k.user_id) AS n
+    `SELECT r.code, r.title, r.kind, r.template, substr(r.created_at, 1, 10) AS date, COUNT(k.user_id) AS n
      FROM rooms r LEFT JOIN room_checkins k ON k.code = r.code
      WHERE r.created_at >= ? AND r.created_at < ? GROUP BY r.code ORDER BY r.created_at`,
     range.start,
@@ -110,6 +131,7 @@ export async function buildAnalytics(db, season, now = new Date()) {
     season,
     seasons,
     meetings,
+    templates: byTemplate(meetings),
     // A finished season is judged at its own end, not against today.
     retention: retention([...byCode.values()], new Date(Math.min(now.getTime(), dayMs(range.end) - DAY))),
     notSeen: notSeen(last.map((r) => ({ ...r, name: firstName(r.name) })), now),

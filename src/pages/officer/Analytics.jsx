@@ -8,7 +8,7 @@ import { api } from '../../lib/api.js';
 import { Spinner, ErrorNote } from '../../components/bits.jsx';
 
 const short = (iso) => new Date(`${iso}T12:00:00Z`).toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' });
-const KIND = { attend: 'meetings attended', compete: 'competed', place: 'placed', ship: 'shipped', mentor: 'mentored', solve: 'problems solved', idea: 'ideas', daily: 'daily problems', duel: 'duels', manual: 'manual awards' };
+const KIND = { attend: 'meetings attended', compete: 'competed', place: 'placed', ship: 'shipped', mentor: 'mentored', solve: 'problems solved', idea: 'ideas', daily: 'daily problems', duel: 'duels', manual: 'manual awards', dropin: 'drop-ins', quest: 'quests' };
 
 function Bars({ rows, label, value, sub }) {
   const max = Math.max(1, ...rows.map(value));
@@ -63,6 +63,15 @@ export default function Analytics() {
             <h3 className="font-bold">Attendance per meeting</h3>
             {d.meetings.length ? (
               <Bars rows={d.meetings} label={(m) => m.title || m.code} sub={(m) => short(m.date)} value={(m) => m.n} />
+            ) : (
+              <p className="mono text-xs" style={{ color: 'var(--ink-soft)' }}>No meetings in this season yet.</p>
+            )}
+          </div>
+
+          <div className="card p-4">
+            <h3 className="font-bold">Average check-ins by kind of meeting</h3>
+            {d.templates?.length ? (
+              <Bars rows={d.templates} label={(t) => t.name} sub={(t) => `${t.meetings} meeting${t.meetings === 1 ? '' : 's'}`} value={(t) => t.avg} />
             ) : (
               <p className="mono text-xs" style={{ color: 'var(--ink-soft)' }}>No meetings in this season yet.</p>
             )}

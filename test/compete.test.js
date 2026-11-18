@@ -11,7 +11,7 @@ import worker from '../worker/index.js';
 import { signValue } from '../worker/auth.js';
 import { USER_COOKIE } from '../worker/hub/users.js';
 import { validateResults, ordinal } from '../worker/hub/compete.js';
-import { retention, notSeen, seasonRange } from '../worker/hub/analytics.js';
+import { retention, notSeen, seasonRange, byTemplate } from '../worker/hub/analytics.js';
 import { seasonOf } from '../shared/points.js';
 import { myDeadlines } from '../worker/digest.js';
 
@@ -83,6 +83,17 @@ await check('seasonRange agrees with seasonOf', () => {
   assert.deepEqual(seasonRange('2027-spring'), { start: '2027-01-01', end: '2027-06-01' });
   assert.equal(seasonRange('fall'), null);
   assert.equal(seasonOf('2026-12-31 10:00:00'), '2026-fall');
+});
+
+await check('attendance by template answers "did duel night work?"', () => {
+  const t = byTemplate([
+    { template: 'duel', kind: 'meeting', n: 12 },
+    { template: 'duel', kind: 'meeting', n: 9 },
+    { template: 'build', kind: 'meeting', n: 8 },
+    { template: '', kind: 'dropin', n: 3 },
+    { template: '', kind: 'meeting', n: 6 },
+  ]);
+  assert.deepEqual(t.map((x) => [x.name, x.meetings, x.avg]), [['Duel night', 2, 10.5], ['Build night', 1, 8], ['No template', 1, 6], ['Drop-in', 1, 3]]);
 });
 
 await check('retention: first month vs last four weeks', () => {
