@@ -162,6 +162,7 @@ CREATE TABLE IF NOT EXISTS users (
   compass_at TEXT,
   cf_handle     TEXT,                           -- C4: verified Codeforces handle
   cf_verified_at TEXT,
+  cf_trusted     INTEGER NOT NULL DEFAULT 0,      -- 1 only when the club server saw the challenge
   cf_rating      INTEGER,
   cf_synced_at   INTEGER,                        -- ms, last sync attempt (round-robin order)
   cf_last_error  TEXT,

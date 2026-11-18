@@ -154,11 +154,27 @@ await withFetch(async () => new Response('no', { status: 403 }), async () => {
 });
 await resetTry();
 
+// A browser-supplied list with the CE links the handle, but untrusted: nothing ticked, nothing paid.
+await withFetch(async () => new Response('no', { status: 403 }), async () => {
+  const before = await points(601);
+  r = await call('POST', '/api/codeforces/verify', { submissions: live }, 1);
+  assert.equal(r.json.verified, true);
+  assert.equal(r.json.trusted, false);
+  assert.deepEqual(r.json.ticked, [], 'a browser-linked handle ticks no rungs');
+  assert.equal(await points(601), before, 'a browser-linked handle pays nothing');
+  const m = (await call('GET', '/api/codeforces/me', null, 1)).json;
+  assert.deepEqual({ v: m.verified, t: m.trusted }, { v: true, t: false });
+});
+// Verify again: a new challenge on the same handle.
+assert.equal((await call('POST', '/api/codeforces/link', { handle: 'club_tester' }, 1)).status, 200);
+await resetTry();
+
 // Verified through the server's own call. The solved 4A ticks the Watermelon rung and pays once.
 await withFetch(async () => jsonRes({ status: 'OK', result: live }), async () => {
   r = await call('POST', '/api/codeforces/verify', {}, 1);
 });
 assert.equal(r.json.verified, true);
+assert.equal(r.json.trusted, true, 'the server saw the challenge itself');
 assert.equal(r.json.solved, 2);
 assert.deepEqual(r.json.ticked, [watermelon.id]);
 let me = (await call('GET', '/api/codeforces/me', null, 1)).json;
@@ -211,6 +227,18 @@ assert.equal((await call('POST', '/api/codeforces/link', { handle: 'CLUB_TESTER'
   assert.equal(me.verified, true, 'a blocked sync does not unlink anyone');
 }
 
+// The hourly sync of an untrusted handle stores solves but pays nothing.
+{
+  env.DB.exec('UPDATE users SET cf_synced_at = 0, cf_trusted = 0 WHERE id = 1');
+  const before = await points(601);
+  const fresh = { verdict: 'OK', creationTimeSeconds: Math.floor(Date.now() / 1000) - 120, problem: { contestId: 2099, index: 'Z', rating: 1000 }, author: { members: [{ handle: 'club_tester' }] } };
+  await runCodeforcesSync(env, { get: async (p) => ({ data: p.startsWith('user.info') ? [] : [...live, fresh] }), pacer: async () => {} });
+  assert.equal(await points(601), before, 'an untrusted handle earns nothing from the cron');
+  const act = await env.DB.prepare(`SELECT COUNT(*) AS n FROM activity WHERE student_id = 601 AND ref = 'cf:2099Z'`).first();
+  assert.equal(act.n, 0, 'no ledger row at all for an untrusted solve');
+  env.DB.exec('UPDATE users SET cf_trusted = 1 WHERE id = 1; DELETE FROM cf_solves WHERE contest_id = 2099');
+}
+
 // Browser fallback: shape checked, needs a verified handle.
 assert.equal((await call('POST', '/api/codeforces/sync-from-browser', { submissions: 'x' }, 1)).status, 400);
 assert.equal((await call('POST', '/api/codeforces/sync-from-browser', { submissions: [1] }, 1)).status, 400);
@@ -227,7 +255,7 @@ assert.equal((await call('POST', '/api/codeforces/sync-from-browser', { submissi
   assert.equal(me.solved, 3);
   assert.equal(me.rating, 1500);
   assert.equal(me.error, null, 'a browser sync clears the blocked note');
-  assert.ok((await points(601)) > before, 'fresh solves pay through the ledger');
+  assert.equal(await points(601), before, 'browser-sent solves are shown, never paid');
 }
 
 // Unlinking drops the solves; rungs already ticked stay.

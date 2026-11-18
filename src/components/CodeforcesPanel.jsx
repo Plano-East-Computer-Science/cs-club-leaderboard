@@ -59,6 +59,11 @@ export default function CodeforcesPanel({ onSynced }) {
     await load();
   });
 
+  const reverify = run('link', async () => {
+    await api.post('/codeforces/link', { handle: me.handle });
+    await load();
+  });
+
   const verify = run('verify', async () => {
     let r;
     try {
@@ -70,7 +75,7 @@ export default function CodeforcesPanel({ onSynced }) {
       r = await api.post('/codeforces/verify', { submissions });
     }
     if (r.verified) {
-      setMsg({ t: 'Linked. Your solves are on the board.' });
+      setMsg({ t: r.trusted ? 'Linked. Your solves are on the board.' : 'Linked from this browser. Your solves show here, but they earn points only once the club server confirms the handle.' });
       onSynced?.();
     } else setMsg({ bad: true, t: r.error });
     await load();
@@ -105,7 +110,7 @@ export default function CodeforcesPanel({ onSynced }) {
     <section className="cf" aria-labelledby="cf-h">
       <h3 id="cf-h">Codeforces</h3>
 
-      {me.verified ? (
+      {me.verified && !me.challenge ? (
         <>
           <div className="cf-stats">
             <div><span>handle</span><strong>{me.handle}</strong></div>
@@ -114,11 +119,20 @@ export default function CodeforcesPanel({ onSynced }) {
             <div><span>last sync</span><strong>{me.syncedAt ? ago(me.syncedAt) : 'not yet'}</strong></div>
           </div>
           <p className="cf-note">Solves sync every hour and tick matching rungs on the Board. The latest 100 submissions are read.</p>
+          {!me.trusted && (
+            <p className="cf-err" role="status">
+              Not confirmed: this handle was checked in your browser, which anyone could fake. Solves show here but earn no points
+              and do not tick Board rungs. Verify again when the club server can reach Codeforces.
+            </p>
+          )}
           {me.error && <p className="cf-err" role="status">{me.error}</p>}
           <div className="cf-row">
             <button type="button" className="btn" disabled={Boolean(busy)} onClick={syncNow}>Sync now</button>
             {(me.error === BLOCKED_MSG || me.syncedAt === null) && (
               <button type="button" className="btn" disabled={Boolean(busy)} onClick={syncHere}>Sync from this browser</button>
+            )}
+            {!me.trusted && (
+              <button type="button" className="btn" disabled={Boolean(busy)} onClick={reverify}>Verify again</button>
             )}
             <button type="button" className="linkb" disabled={Boolean(busy)} onClick={unlink}>Unlink</button>
           </div>

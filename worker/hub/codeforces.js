@@ -7,8 +7,10 @@
  * Codeforces may refuse requests from Cloudflare Worker IPs (403 or an HTML
  * page). When it does we record `cf_last_error` and the member's browser can
  * do the fetching instead (the API sends CORS headers), posting the list to
- * /codeforces/sync-from-browser. That path is the honour system, like the
- * in-browser judge: the server checks shape only.
+ * /codeforces/sync-from-browser. Anyone can type that JSON, so the browser
+ * path never pays: a handle linked from the browser is marked untrusted
+ * (cf_trusted = 0) and earns nothing until the club server itself sees the
+ * challenge, and browser-sent solves are only shown, never paid or ticked.
  */
 import { Hono } from 'hono';
 
@@ -65,8 +67,11 @@ const ownedBy = (subs, handle) =>
  * syncing it can never pay twice; other fresh solves pay `cf:<contest><idx>`.
  * Only the last week of solves is sent, so a first sync of an old account does
  * not flood the ledger (it caps solves at 10 a week anyway).
+ *
+ * With `trusted` false (the handle or the list came from the member's browser)
+ * the solves are stored for display only: no rung is ticked and nothing is paid.
  */
-export async function applySolves(db, user, solved, nowMs = Date.now()) {
+export async function applySolves(db, user, solved, nowMs = Date.now(), { trusted = true } = {}) {
   if (solved.length) {
     await db.batch(
       solved.map((s) =>
@@ -76,6 +81,7 @@ export async function applySolves(db, user, solved, nowMs = Date.now()) {
       )
     );
   }
+  if (!trusted) return { solved: solved.length, ticked: [] };
   const rungs = (await db.prepare(`SELECT * FROM rungs WHERE verify = 'codeforces' AND hidden = 0`).all()).results;
   const hit = rungsSolved(rungs, solved);
   const onRung = new Set();
@@ -122,7 +128,8 @@ export async function syncUsers(db, users, { get = cfGet, now = () => Date.now()
       if (r.error === 'blocked') blocked = r;
       continue;
     }
-    await applySolves(db, u, solvedFrom(r.data, { nowSec: now() / 1000 }), now());
+    // Server-fetched data is real, but only a server-seen challenge proves the handle is theirs.
+    await applySolves(db, u, solvedFrom(r.data, { nowSec: now() / 1000 }), now(), { trusted: Boolean(u.cf_trusted) });
     await markSynced(db, u.id, now(), null);
     ok.push(u);
   }
@@ -142,7 +149,7 @@ export async function runCodeforcesSync(env, opts = {}) {
   const users = (
     await env.DB
       .prepare(
-        `SELECT id, student_id, cf_handle FROM users WHERE cf_handle IS NOT NULL AND cf_verified_at IS NOT NULL
+        `SELECT id, student_id, cf_handle, cf_trusted FROM users WHERE cf_handle IS NOT NULL AND cf_verified_at IS NOT NULL
          ORDER BY COALESCE(cf_synced_at, 0) ASC, id ASC LIMIT ?`
       )
       .bind(MAX_PER_RUN)
@@ -163,12 +170,14 @@ const challengeOf = (ch) => ({
 codeforcesRouter.get('/codeforces/me', requireUser, async (c) => {
   const db = c.env.DB;
   const id = c.get('user').id;
-  const u = await db.prepare('SELECT cf_handle, cf_verified_at, cf_rating, cf_synced_at, cf_last_error FROM users WHERE id = ?').bind(id).first();
+  const u = await db.prepare('SELECT cf_handle, cf_verified_at, cf_trusted, cf_rating, cf_synced_at, cf_last_error FROM users WHERE id = ?').bind(id).first();
   const ch = await db.prepare('SELECT * FROM cf_challenges WHERE user_id = ?').bind(id).first();
   const n = await db.prepare('SELECT COUNT(*) AS n FROM cf_solves WHERE user_id = ?').bind(id).first();
   return c.json({
     handle: u.cf_handle,
     verified: Boolean(u.cf_handle && u.cf_verified_at),
+    // false when linked from the browser: shown, but no points until verified again.
+    trusted: Boolean(u.cf_handle && u.cf_verified_at && u.cf_trusted),
     rating: u.cf_rating,
     solved: n.n,
     syncedAt: u.cf_synced_at || null,
@@ -199,8 +208,9 @@ codeforcesRouter.post('/codeforces/link', requireUser, async (c) => {
 
 /**
  * Check the challenge. If the club server is blocked, the page may repeat the
- * call with `submissions` it fetched in the member's browser (honour system:
- * anyone can type JSON, so this can only ever confirm a handle, never rank).
+ * call with `submissions` it fetched in the member's browser. Anyone can type
+ * that JSON, so a handle linked that way is stored as untrusted and pays nothing.
+ * A member already linked can verify again to upgrade it.
  */
 codeforcesRouter.post('/codeforces/verify', requireUser, async (c) => {
   const db = c.env.DB;
@@ -214,10 +224,12 @@ codeforcesRouter.post('/codeforces/verify', requireUser, async (c) => {
   await db.prepare('UPDATE cf_challenges SET tried_at = ? WHERE user_id = ?').bind(now, user.id).run();
 
   let subs;
+  let trusted = true;
   const r = await cfGet(`user.status?handle=${encodeURIComponent(ch.handle)}&from=1&count=10`);
   if (r.error === 'blocked') {
     if (!Array.isArray(body?.submissions) || body.submissions.length > 200) return c.json({ error: BLOCKED_MSG, blocked: true }, 502);
     subs = body.submissions;
+    trusted = false;
   } else if (r.error) {
     return c.json({ error: errorText(r) }, 400);
   } else subs = r.data;
@@ -226,23 +238,26 @@ codeforcesRouter.post('/codeforces/verify', requireUser, async (c) => {
   if (!challengeMet(subs, ch.issued_at)) {
     return c.json({ verified: false, error: `No Compilation Error on ${CHALLENGE.contestId}${CHALLENGE.index} found yet. It can take a few seconds to show up.` });
   }
+  // A browser check never downgrades a handle the server already confirmed.
+  const prev = await db.prepare('SELECT cf_handle, cf_trusted FROM users WHERE id = ?').bind(user.id).first();
+  if (!trusted && prev?.cf_trusted && String(prev.cf_handle).toLowerCase() === ch.handle.toLowerCase()) trusted = true;
   try {
     await db.batch([
       db.prepare('DELETE FROM cf_solves WHERE user_id = ?').bind(user.id), // solves of an older handle
-      db.prepare(`UPDATE users SET cf_handle = ?, cf_verified_at = datetime('now'), cf_rating = NULL, cf_synced_at = 0, cf_last_error = NULL WHERE id = ?`).bind(ch.handle, user.id),
+      db.prepare(`UPDATE users SET cf_handle = ?, cf_verified_at = datetime('now'), cf_trusted = ?, cf_rating = NULL, cf_synced_at = 0, cf_last_error = NULL WHERE id = ?`).bind(ch.handle, trusted ? 1 : 0, user.id),
       db.prepare('DELETE FROM cf_challenges WHERE user_id = ?').bind(user.id),
     ]);
   } catch {
     return c.json({ error: 'That handle is already linked to another member.' }, 409);
   }
-  const summary = await applySolves(db, user, solvedFrom(subs), now);
-  return c.json({ verified: true, handle: ch.handle, ...summary });
+  const summary = await applySolves(db, user, solvedFrom(subs), now, { trusted });
+  return c.json({ verified: true, trusted, handle: ch.handle, ...summary });
 });
 
 codeforcesRouter.post('/codeforces/unlink', requireUser, async (c) => {
   const id = c.get('user').id;
   await c.env.DB.batch([
-    c.env.DB.prepare('UPDATE users SET cf_handle = NULL, cf_verified_at = NULL, cf_rating = NULL, cf_synced_at = NULL, cf_last_error = NULL WHERE id = ?').bind(id),
+    c.env.DB.prepare('UPDATE users SET cf_handle = NULL, cf_verified_at = NULL, cf_trusted = 0, cf_rating = NULL, cf_synced_at = NULL, cf_last_error = NULL WHERE id = ?').bind(id),
     c.env.DB.prepare('DELETE FROM cf_solves WHERE user_id = ?').bind(id),
     c.env.DB.prepare('DELETE FROM cf_challenges WHERE user_id = ?').bind(id),
   ]);
@@ -252,7 +267,7 @@ codeforcesRouter.post('/codeforces/unlink', requireUser, async (c) => {
 /** "Sync now" from the member's account, at most every five minutes. */
 codeforcesRouter.post('/codeforces/sync', requireUser, async (c) => {
   const db = c.env.DB;
-  const u = await db.prepare('SELECT id, student_id, cf_handle, cf_verified_at, cf_synced_at FROM users WHERE id = ?').bind(c.get('user').id).first();
+  const u = await db.prepare('SELECT id, student_id, cf_handle, cf_verified_at, cf_trusted, cf_synced_at FROM users WHERE id = ?').bind(c.get('user').id).first();
   if (!u.cf_handle || !u.cf_verified_at) return c.json({ error: 'Link your Codeforces handle first.' }, 400);
   if (Date.now() - (u.cf_synced_at || 0) < SYNC_NOW_GAP_MS) return c.json({ error: 'Synced a moment ago. Try again in a few minutes.' }, 429);
   const res = await syncUsers(db, [u]);
@@ -260,7 +275,7 @@ codeforcesRouter.post('/codeforces/sync', requireUser, async (c) => {
   return c.json({ ...res, error: after.cf_last_error ?? null, blocked: after.cf_last_error === BLOCKED_MSG });
 });
 
-/** Browser fallback: the page fetched user.status itself. Shape is checked, content is trusted. */
+/** Browser fallback: the page fetched user.status itself. Shape is checked; the solves are shown but never paid. */
 codeforcesRouter.post('/codeforces/sync-from-browser', requireUser, async (c) => {
   const db = c.env.DB;
   const body = await c.req.json().catch(() => ({}));
@@ -270,7 +285,7 @@ codeforcesRouter.post('/codeforces/sync-from-browser', requireUser, async (c) =>
   }
   const u = await db.prepare('SELECT id, student_id, cf_handle, cf_verified_at FROM users WHERE id = ?').bind(c.get('user').id).first();
   if (!u.cf_handle || !u.cf_verified_at) return c.json({ error: 'Link your Codeforces handle first.' }, 400);
-  const res = await applySolves(db, u, solvedFrom(ownedBy(subs, u.cf_handle)));
+  const res = await applySolves(db, u, solvedFrom(ownedBy(subs, u.cf_handle)), Date.now(), { trusted: false });
   const rating = Number.isInteger(body?.rating) && body.rating >= 0 && body.rating <= 5000 ? body.rating : null;
   await db.prepare('UPDATE users SET cf_synced_at = ?, cf_last_error = NULL, cf_rating = COALESCE(?, cf_rating) WHERE id = ?').bind(Date.now(), rating, u.id).run();
   return c.json(res);
