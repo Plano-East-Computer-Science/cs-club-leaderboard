@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { useUser } from '../lib/useUser.js';
+import ReportButton from '../components/ReportButton.jsx';
 import { Spinner, ErrorNote, Empty } from '../components/bits.jsx';
 import RepoStats from '../components/RepoStats.jsx';
 
@@ -141,6 +142,9 @@ export default function Projects() {
                   <button className="btn btn-danger ml-auto" onClick={() => remove(p.id)}>
                     Delete
                   </button>
+                )}
+                {user && user.id !== p.user_id && (
+                  <span className="ml-auto"><ReportButton kind="project" id={p.id} what="this project" /></span>
                 )}
               </div>
             </article>

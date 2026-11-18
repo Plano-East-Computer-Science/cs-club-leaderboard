@@ -12,6 +12,7 @@
 import { seasonRange } from '../shared/points.js';
 import { rankFor } from '../shared/ranks.js';
 import { placeRows } from '../shared/standings.js';
+import { PUBLIC_NAME_SQL } from './hub/names.js';
 
 /* ------------------------------ small helpers ------------------------------ */
 
@@ -29,15 +30,16 @@ const run = (db, sql, ...params) => db.prepare(sql).bind(...params).run();
  * [start, end) (all of them for 'all'); `lifetime` sums everything; `peak` is
  * the highest running total, which sets the rank label so a rank never drops.
  * A season is a filter on created_at, never a migration: history stays intact.
+ * G5 publicNames: first names for entries linked to an account that has not opted in to a full name.
  */
-const LEADERBOARD_SQL = `
+const leaderboardSql = (publicNames) => `
   WITH rng(lo, hi) AS (SELECT ?, ?),
   run AS (
     SELECT id, student_id, delta, created_at,
            SUM(delta) OVER (PARTITION BY student_id ORDER BY created_at, id) AS total
     FROM point_events
   )
-  SELECT s.id, s.name, s.grade, s.avatar_seed, s.joined_at,
+  SELECT s.id, ${publicNames ? PUBLIC_NAME_SQL : 's.name'} AS name, s.grade, s.avatar_seed, s.joined_at,
          COALESCE(SUM(CASE WHEN r.created_at >= (SELECT lo FROM rng) AND r.created_at < (SELECT hi FROM rng) THEN r.delta END), 0) AS points,
          COALESCE(SUM(r.delta), 0) AS lifetime,
          max(COALESCE(MAX(r.total), 0), 0) AS peak,
@@ -53,10 +55,11 @@ const LEADERBOARD_SQL = `
  * Active members sorted by points for `season` (a key like "2026-fall", or
  * 'all', the default). Each row has `place` (tied points share one: 100, 100,
  * 90 -> 1, 1, 3) and `rank`, the lifetime label id from shared/ranks.js.
+ * Pass { publicNames: true } for anything a visitor can see (G5).
  */
-export async function getLeaderboard(db, season = 'all') {
+export async function getLeaderboard(db, season = 'all', { publicNames = false } = {}) {
   const range = seasonRange(season) ?? seasonRange('all');
-  const rows = await all(db, LEADERBOARD_SQL, range.start, range.end);
+  const rows = await all(db, leaderboardSql(publicNames), range.start, range.end);
   const badges = await getBadgesByStudent(db);
   return placeRows(rows).map((row) => ({ ...row, rank: rankFor(row.peak).rank, badges: badges.get(row.id) ?? [] }));
 }
@@ -94,10 +97,10 @@ export async function getBadgesByStudent(db) {
   return map;
 }
 
-export async function getStudent(db, id, season = 'all') {
+export async function getStudent(db, id, season = 'all', opts) {
   // One leaderboard pass serves both the entry and the total -- the original
   // computed it twice, which on D1 would be a second network round trip.
-  const board = await getLeaderboard(db, season);
+  const board = await getLeaderboard(db, season, opts);
   const entry = board.find((s) => s.id === Number(id));
   if (!entry) return null;
   const events = await all(
@@ -231,7 +234,7 @@ export const listDigestRecipients = (db) =>
 export const pointEventsSince = (db, since) =>
   all(
     db,
-    `SELECT e.delta, e.reason, e.created_at, s.name
+    `SELECT e.delta, e.reason, e.created_at, ${PUBLIC_NAME_SQL} AS name
      FROM point_events e JOIN students s ON s.id = e.student_id
      WHERE e.created_at > datetime(?)
      ORDER BY e.created_at DESC`,

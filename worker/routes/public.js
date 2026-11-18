@@ -20,14 +20,14 @@ publicRouter.get('/leaderboard', async (c) => {
   if (!season) return c.json({ error: 'Unknown season.' }, 400);
   return c.json({
     season,
-    students: await getLeaderboard(c.env.DB, season),
+    students: await getLeaderboard(c.env.DB, season, { publicNames: true }),
     events: await getAllPointEvents(c.env.DB, season),
   });
 });
 
 publicRouter.get('/student/:id', async (c) => {
   const season = seasonOf(new Date());
-  const student = await getStudent(c.env.DB, c.req.param('id'), season);
+  const student = await getStudent(c.env.DB, c.req.param('id'), season, { publicNames: true });
   if (!student) return c.json({ error: 'No student with that id.' }, 404);
   const squad = await c.env.DB
     .prepare('SELECT q.id, q.name, q.color FROM squad_members m JOIN squads q ON q.id = m.squad_id WHERE m.student_id = ? AND m.season = ?')

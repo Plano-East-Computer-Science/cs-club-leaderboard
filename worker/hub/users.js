@@ -11,6 +11,7 @@ import { getCookie, setCookie, deleteCookie } from 'hono/cookie';
 
 import { signValue, verifyValue, randomToken, DISTRICT_DOMAIN } from '../auth.js';
 import { sendEmail, emailEnabled, esc } from '../email.js';
+import { hitOrRefuse, clientIp } from './ratelimit.js';
 
 export const USER_COOKIE = 'cslb_user';
 const SESSION_MS = 1000 * 60 * 60 * 24 * 60; // 60 days
@@ -35,9 +36,14 @@ export async function currentUser(c) {
   if (!payload) return null;
   const [id, exp] = payload.split(':').map(Number);
   if (!id || !(exp > Date.now())) return null;
-  const user = await c.env.DB.prepare('SELECT id, email, name, student_id, role, created_at FROM users WHERE id = ?')
+  const user = await c.env.DB.prepare(
+    'SELECT id, email, name, student_id, role, created_at, show_full_name, deleted_at FROM users WHERE id = ?'
+  )
     .bind(id)
     .first();
+  // G5: a deleted account is signed out everywhere at once, even though its cookie still verifies.
+  if (!user || user.deleted_at) return null;
+  delete user.deleted_at;
   // Accounts from before A1 get their entry lazily, the first time they are seen.
   if (user && !user.student_id) user.student_id = await ensureStudent(c.env.DB, user);
   return user;
@@ -79,6 +85,8 @@ export async function requireUser(c, next) {
 /** Creates the account on first sight, then sets the session cookie. Shared by every sign-in method. */
 export async function startSession(c, email, name) {
   const db = c.env.DB;
+  // A deleted account stays closed until it is purged; no session, no revival.
+  if ((await db.prepare('SELECT deleted_at FROM users WHERE email = ?').bind(email).first())?.deleted_at) return null;
   await db
     .prepare(
       `INSERT INTO users (email, name, last_seen) VALUES (?, ?, datetime('now'))
@@ -101,9 +109,17 @@ usersRouter.get('/me', async (c) => {
 
 usersRouter.patch('/me', requireUser, async (c) => {
   const body = await c.req.json().catch(() => ({}));
-  const name = cleanName(body?.name);
-  if (name.length < 2) return c.json({ error: 'Pick a name of at least 2 characters.' }, 400);
-  await c.env.DB.prepare('UPDATE users SET name = ? WHERE id = ?').bind(name, c.get('user').id).run();
+  const id = c.get('user').id;
+  const db = c.env.DB;
+  if (body?.name !== undefined) {
+    const name = cleanName(body.name);
+    if (name.length < 2) return c.json({ error: 'Pick a name of at least 2 characters.' }, 400);
+    await db.prepare('UPDATE users SET name = ? WHERE id = ?').bind(name, id).run();
+  }
+  // G5: whether public pages show the full name. Off unless the member turns it on.
+  if (body?.show_full_name !== undefined) {
+    await db.prepare('UPDATE users SET show_full_name = ? WHERE id = ?').bind(body.show_full_name === true ? 1 : 0, id).run();
+  }
   return c.json({ ok: true });
 });
 
@@ -120,7 +136,12 @@ usersRouter.post('/auth/request', async (c) => {
   }
 
   const db = c.env.DB;
-  const existing = await db.prepare('SELECT id, name FROM users WHERE email = ?').bind(email).first();
+  // This route emails an address the caller typed, so it is a mail cannon unless capped per source.
+  if (await hitOrRefuse(db, `signin:${clientIp(c)}`, 8, 15 * 60_000)) {
+    return c.json({ error: 'Too many sign-in requests. Wait a few minutes and try again.' }, 429);
+  }
+  const existing = await db.prepare('SELECT id, name, deleted_at FROM users WHERE email = ?').bind(email).first();
+  if (existing?.deleted_at) return c.json({ error: 'That account was deleted. Email the club if that was a mistake.' }, 403);
   if (!existing && name.length < 2) {
     return c.json({ error: 'First time here? Add a display name too.', needName: true }, 400);
   }
@@ -176,7 +197,7 @@ usersRouter.get('/auth/verify', async (c) => {
   }
 
   await db.prepare('UPDATE login_tokens SET used = 1 WHERE token = ?').bind(token).run();
-  await startSession(c, row.email, row.name || row.email.split('@')[0]);
+  if (!(await startSession(c, row.email, row.name || row.email.split('@')[0]))) return c.redirect('/signin');
   return c.redirect('/');
 });
 

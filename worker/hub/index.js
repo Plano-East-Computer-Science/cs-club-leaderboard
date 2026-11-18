@@ -24,6 +24,9 @@ import { boardRouter, boardAdminRouter } from './board.js';
 import { codeforcesRouter } from './codeforces.js';
 import { standingsRouter, standingsAdminRouter } from './standings.js';
 
+import { safetyRouter, safetyAdminRouter } from './safety.js';
+import { recordsRouter, recordsAdminRouter } from './records.js';
+
 export { Room } from './room-do.js';
 
 /** Officer-only hub controls (rooms, gateway codes, team). Same guard as the admin panel. */
@@ -42,6 +45,9 @@ hubAdmin.route('/', claimsAdminRouter);
 hubAdmin.route('/', dailyAdminRouter);
 hubAdmin.route('/', boardAdminRouter);
 hubAdmin.route('/', standingsAdminRouter);
+
+hubAdmin.route('/', safetyAdminRouter);
+hubAdmin.route('/', recordsAdminRouter);
 
 /** Call BEFORE the catch-all `/api` and static handlers. */
 export function mountHub(app) {
@@ -64,4 +70,7 @@ export function mountHub(app) {
   app.route('/api', boardRouter);
   app.route('/api', codeforcesRouter);
   app.route('/api', standingsRouter);
+
+  app.route('/api', safetyRouter);
+  app.route('/api', recordsRouter);
 }

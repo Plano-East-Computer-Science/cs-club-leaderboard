@@ -58,6 +58,6 @@ googleRouter.post('/auth/google', async (c) => {
 
   const email = String(claims.email).toLowerCase();
   const name = String(claims.name || email.split('@')[0]).replace(/\s+/g, ' ').trim().slice(0, 40);
-  await startSession(c, email, name);
+  if (!(await startSession(c, email, name))) return c.json({ error: 'That account was deleted. Email the club if that was a mistake.' }, 403);
   return c.json({ ok: true });
 });

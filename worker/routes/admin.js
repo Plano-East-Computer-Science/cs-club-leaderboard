@@ -20,7 +20,12 @@ import { withinRadius, fingerprintOf, RADIUS_MILES } from '../geo.js';
 import { officerOf, requireOfficer, auditWrites, logOfficer, BREAK_GLASS } from '../hub/team.js';
 import { currentUser } from '../hub/users.js';
 
+import { limited, recordHit, clientIp, ipTag } from '../hub/ratelimit.js';
+
 export const adminRouter = new Hono();
+
+const LOGIN_MAX = 5;
+const LOGIN_WINDOW_MS = 15 * 60_000;
 
 /* ------------------------------- session ------------------------------- */
 
@@ -44,7 +49,20 @@ adminRouter.get('/session', async (c) => {
 /** The shared password: break-glass only, for when no officer account works. */
 adminRouter.post('/login', async (c) => {
   const body = await c.req.json().catch(() => ({}));
+  const db = c.env.DB;
+  const key = `admin-login:${clientIp(c)}`;
+  // Five wrong passwords per source in 15 minutes, then locked out even for the right one.
+  if (await limited(db, key, LOGIN_MAX, LOGIN_WINDOW_MS)) {
+    return c.json({ error: 'Too many wrong passwords. Wait 15 minutes.' }, 429);
+  }
   if (!checkPassword(c.env, body?.password)) {
+    await recordHit(db, key);
+    // The attempt itself is never logged, only who-ish (a salted hash of the address) and when.
+    const tag = await ipTag(c.env, clientIp(c));
+    await logOfficer(db, { userId: null, name: 'unknown' }, 'login-failed', `Wrong shared password from source ${tag}`);
+    if (await limited(db, key, LOGIN_MAX, LOGIN_WINDOW_MS)) {
+      await logOfficer(db, { userId: null, name: 'unknown' }, 'login-locked', `Source ${tag} locked out for 15 minutes`);
+    }
     return c.json({ error: 'Wrong password.' }, 401);
   }
   setCookie(c, COOKIE, await signSession(c.env), sessionCookieOptions());
@@ -227,6 +245,9 @@ adminRouter.get('/opportunities', async (c) => {
   return c.json({ opportunities: await listOpportunities(c.env.DB, { status: 'all' }) });
 });
 
+/** Opportunity links are rendered as <a href>; a javascript: URL there would run on click. */
+export const okLink = (u) => !u || /^https?:\/\/\S+$/i.test(String(u).trim());
+
 const OPP_FIELDS = [
   'title', 'org', 'description', 'url', 'type', 'deadline', 'cost',
   'format', 'location', 'age_min', 'age_max', 'status',
@@ -235,6 +256,7 @@ const OPP_FIELDS = [
 adminRouter.post('/opportunities', async (c) => {
   const body = await c.req.json().catch(() => ({}));
   if (!body.title?.trim()) return c.json({ error: 'A title is required.' }, 400);
+  if (!okLink(body.url)) return c.json({ error: 'The link must start with http:// or https://' }, 400);
 
   const geo = await withinRadius(body);
   if (!geo.keep) {
@@ -298,6 +320,7 @@ adminRouter.patch('/opportunities/:id', async (c) => {
 
   const body = await c.req.json().catch(() => ({}));
   const merged = { ...current, ...body };
+  if (!okLink(merged.url)) return c.json({ error: 'The link must start with http:// or https://' }, 400);
 
   const locationChanged =
     merged.format !== current.format || merged.location !== current.location;
@@ -428,6 +451,7 @@ const COMPETITION_FIELDS = ['name', 'description', 'result', 'event_date', 'url'
 adminRouter.post('/competitions', async (c) => {
   const body = await c.req.json().catch(() => ({}));
   if (!body.name?.trim()) return c.json({ error: 'A competition name is required.' }, 400);
+  if (!okLink(body.url)) return c.json({ error: 'The link must start with http:// or https://' }, 400);
   const info = await run(
     c.env.DB,
     `INSERT INTO competitions (${COMPETITION_FIELDS.join(',')}) VALUES (${COMPETITION_FIELDS.map(() => '?').join(',')})`,
@@ -443,6 +467,7 @@ adminRouter.patch('/competitions/:id', async (c) => {
   if (!current) return c.json({ error: 'No competition with that id.' }, 404);
   const body = await c.req.json().catch(() => ({}));
   const merged = { ...current, ...body };
+  if (!okLink(merged.url)) return c.json({ error: 'The link must start with http:// or https://' }, 400);
   await run(
     c.env.DB,
     `UPDATE competitions SET ${COMPETITION_FIELDS.map((f) => `${f} = ?`).join(', ')} WHERE id = ?`,

@@ -11,6 +11,8 @@ import Raffle from './officer/Raffle.jsx';
 import Squads from './officer/Squads.jsx';
 import DailyAdmin from './officer/Daily.jsx';
 import Board from './officer/Board.jsx';
+import Reports from './officer/Reports.jsx';
+import Records from './officer/Records.jsx';
 
 const HOURS = [1, 2, 3, 6, 12];
 
@@ -80,6 +82,8 @@ export default function Officer() {
       </header>
       <Rooms />
       <Claims />
+      <Reports />
+      <Records />
       <LinkRequests />
       <Merge />
       <Raffle />

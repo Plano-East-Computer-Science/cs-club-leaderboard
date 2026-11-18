@@ -15,6 +15,8 @@ import { runDigest } from './digest.js';
 import { mountHub } from './hub/index.js';
 import { runCodeforcesSync } from './hub/codeforces.js';
 import { refreshRepoStats } from './hub/github.js';
+import { purgeDeleted } from './hub/safety.js';
+import { pruneHits } from './hub/ratelimit.js';
 
 // Durable Object classes must be exported from the Worker's entry module.
 export { Room } from './hub/index.js';
@@ -63,8 +65,8 @@ export default {
     // Dispatch on the cron expression in wrangler.toml; anything else is the weekly digest.
     if (event.cron === '0 * * * *') {
       ctx.waitUntil(
-        Promise.allSettled([runCodeforcesSync(env), refreshRepoStats(env)]).then((rs) =>
-          rs.forEach((r, i) => console.log(['[codeforces]', '[github]'][i], r.status === 'fulfilled' ? JSON.stringify(r.value) : r.reason))
+        Promise.allSettled([runCodeforcesSync(env), refreshRepoStats(env), purgeDeleted(env.DB), pruneHits(env.DB)]).then((rs) =>
+          rs.forEach((r, i) => console.log(['[codeforces]', '[github]', '[purge]', '[rate]'][i], r.status === 'fulfilled' ? JSON.stringify(r.value) : r.reason))
         )
       );
       return;

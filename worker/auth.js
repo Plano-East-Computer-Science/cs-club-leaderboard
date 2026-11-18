@@ -20,7 +20,11 @@ const MAX_AGE_S = 60 * 60 * 24 * 14; // two weeks
 const enc = new TextEncoder();
 
 function secretOf(env) {
-  return env.SESSION_SECRET || env.ADMIN_PASSWORD || 'dev-only-insecure-secret';
+  const secret = env.SESSION_SECRET || env.ADMIN_PASSWORD;
+  if (secret) return secret;
+  // A well-known fallback would let anyone forge an officer cookie, so only local dev gets one.
+  if (env.DEV_LOGIN === '1') return 'dev-only-insecure-secret';
+  throw new Error('SESSION_SECRET is not set.');
 }
 
 /**
@@ -71,7 +75,11 @@ export async function verifyValue(env, token) {
   if (idx <= 0) return null;
   const payload = token.slice(0, idx);
   const sig = token.slice(idx + 1);
-  if (!safeEqual(sig, await hmac(env, payload))) return null;
+  try {
+    if (!safeEqual(sig, await hmac(env, payload))) return null;
+  } catch {
+    return null; // no secret configured: nothing verifies
+  }
   return payload;
 }
 

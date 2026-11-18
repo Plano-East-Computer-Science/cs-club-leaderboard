@@ -11,6 +11,7 @@ import { formatDate, daysUntil } from '../lib/format.js';
 import { TIERS, tierIndex, tierProgress, nextTier } from '../lib/tiers.js';
 import { PATHS } from '../../shared/compass.js';
 import { QuestRow, RankBar } from './Quests.jsx';
+import ReportButton from '../components/ReportButton.jsx';
 
 export default function Home() {
   const { user, loading, signOut } = useUser();
@@ -273,10 +274,13 @@ function Feed() {
                 {f.own ? (
                   <span className="kd own" title="Kudos from clubmates">{f.kudos > 0 ? `${f.kudos} kudos` : ''}</span>
                 ) : (
-                  <button type="button" className="kd" aria-pressed={f.mine} onClick={() => kudos(f)}
-                    aria-label={`${f.mine ? 'Take back kudos from' : 'Give kudos to'} ${f.name} for ${what}`}>
-                    <span aria-hidden="true">{f.mine ? '[+]' : '[ ]'}</span> kudos{f.kudos ? ` ${f.kudos}` : ''}
-                  </button>
+                  <span className="kd-wrap">
+                    <button type="button" className="kd" aria-pressed={f.mine} onClick={() => kudos(f)}
+                      aria-label={`${f.mine ? 'Take back kudos from' : 'Give kudos to'} ${f.name} for ${what}`}>
+                      <span aria-hidden="true">{f.mine ? '[+]' : '[ ]'}</span> kudos{f.kudos ? ` ${f.kudos}` : ''}
+                    </button>
+                    <ReportButton kind="feed" id={f.id} what={`${f.name}'s update`} />
+                  </span>
                 )}
               </li>
             );

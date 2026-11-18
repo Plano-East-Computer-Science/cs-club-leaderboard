@@ -1234,7 +1234,7 @@ textarea.fi{resize:vertical;line-height:1.5}
 .td-list li>span:last-child{white-space:nowrap;font-size:12px}
 .td-foot{display:flex;gap:16px;flex-wrap:wrap;margin-top:12px;font-size:12.5px}
 .td-acct{margin-top:24px;font-size:12px;display:flex;gap:6px 14px;flex-wrap:wrap;align-items:baseline}
-@media(max-width:560px){.td-meet,.td-next{padding-left:16px;padding-right:16px}.td-join.big .field{font-size:24px}.tf li{grid-template-columns:minmax(0,1fr) auto;padding:10px 14px}.tf .ago{grid-row:2;grid-column:1}.tf .kd{grid-row:1/3;grid-column:2}}
+@media(max-width:560px){.td-meet,.td-next{padding-left:16px;padding-right:16px}.td-join.big .field{font-size:24px}.tf li{grid-template-columns:minmax(0,1fr) auto;padding:10px 14px}.tf .ago{grid-row:2;grid-column:1}.tf .kd-wrap{grid-row:1/3;grid-column:2}}
 
 /* landing: the club, as a directory */
 .lshape{list-style:none;border:1px solid var(--line2);background:var(--panel)}
@@ -1323,3 +1323,13 @@ textarea.fi{resize:vertical;line-height:1.5}
 .st-raffle b{color:var(--text)}
 .st-dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:8px;vertical-align:1px}
 @media(max-width:420px){.st-tiers li{grid-template-columns:78px 62px minmax(0,1fr) 28px;gap:6px}}
+
+/* G5 / E7 */
+.legal h2{font:700 18px var(--font-display, inherit);margin:28px 0 8px}
+.legal p,.legal li{font-size:15px;line-height:1.6;color:var(--ink-soft)}
+.legal ul{display:grid;gap:8px;padding-left:18px;list-style:disc}
+.legal a{text-decoration:underline}
+.rpt{margin-left:8px;color:var(--mute)}
+.rpt:hover{color:var(--gold)}
+.rpt-done{margin-left:8px;font-size:12px;color:var(--mute)}
+.kd-wrap{display:inline-flex;align-items:center;gap:2px}

@@ -28,6 +28,9 @@ import Quests from './pages/Quests.jsx';
 import Ideas from './pages/Ideas.jsx';
 import Daily from './pages/Daily.jsx';
 import Compass from './pages/Compass.jsx';
+import Privacy from './pages/Privacy.jsx';
+import Parents from './pages/Parents.jsx';
+import Verify from './pages/Verify.jsx';
 import { SubscribeBox } from './components/Subscribe.jsx';
 import { TabBar, Dock, Boot, Snow, PAGES } from './components/Chrome.jsx';
 import { DataProvider, useData } from './lib/data.jsx';
@@ -82,6 +85,8 @@ function Footer() {
                 {n}
               </Link>
             ))}
+            <Link to="/privacy">privacy</Link>
+            <Link to="/parents">for parents</Link>
             {settings.discord_url && (
               <a href={settings.discord_url} target="_blank" rel="noreferrer noopener">
                 discord
@@ -147,6 +152,9 @@ function Shell() {
             <Route path="/gateway" element={<Gateway />} />
             <Route path="/projects" element={<Projects />} />
             <Route path="/u/:id" element={<Portfolio />} />
+            <Route path="/privacy" element={<Privacy />} />
+            <Route path="/parents" element={<Parents />} />
+            <Route path="/verify/:code" element={<Verify />} />
           </Route>
           <Route
             path="/admin"
