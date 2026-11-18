@@ -10,13 +10,18 @@ import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 
 import {
-  DEFAULT_HOSTS, hostsFrom, parseHostList, searchTarget, isAllowedHost, isBlockedPath, toGateway, methodAllowed,
+  DEFAULT_HOSTS, GATEWAY_CSP, hostsFrom, parseHostList, searchTarget, isAllowedHost, isBlockedPath, toGateway, methodAllowed,
 } from '../worker/hub/gateway.js';
 import { COURSES, publicStep } from '../shared/courses.js';
 
 /* ------------------------------- gateway ------------------------------- */
 
 const hosts = hostsFrom('');
+
+// Gateway pages run in an opaque-origin sandbox, so their scripts cannot use
+// the member's club cookie. allow-same-origin would undo that.
+assert.match(GATEWAY_CSP, /^sandbox /);
+assert.ok(!/allow-same-origin|allow-top-navigation/.test(GATEWAY_CSP));
 assert.deepEqual(hosts, DEFAULT_HOSTS);
 assert.deepEqual(hostsFrom('a.com, B.com'), ['a.com', 'b.com']);
 

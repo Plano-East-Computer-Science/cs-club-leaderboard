@@ -55,6 +55,16 @@ export const DEFAULT_HOSTS = [
   'cp-algorithms.com',
 ];
 
+/**
+ * Every gateway response is a sandboxed document with an opaque origin. The
+ * pages come from other sites but are served from the club's origin, so
+ * without this a script on an allowlisted page could call /api with the
+ * member's cookie. With an opaque origin the browser treats the page as
+ * cross-site: SameSite=Lax cookies are not attached to its requests and it
+ * cannot read club responses. Downloads stay on so "Download ZIP" works.
+ */
+export const GATEWAY_CSP = 'sandbox allow-scripts allow-forms allow-popups allow-downloads';
+
 const MAX_PER_MINUTE = 3000; // per code; a safety valve, not a quota
 const MAX_BYTES = 150 * 1024 * 1024;
 const GIT_WRITE = /\/(git-upload-pack|git-receive-pack)$/;
@@ -164,7 +174,7 @@ const denied = (status, msg) =>
      <h1 style="font-size:1.2rem">Gateway: ${msg}</h1>
      <p>This is the CS Club gateway. It only works with a current code from an officer and only reaches approved sites.</p>
      <p><a href="/gateway">Back to the gateway page</a></p></body>`,
-    { status, headers: { 'content-type': 'text/html; charset=utf-8' } }
+    { status, headers: { 'content-type': 'text/html; charset=utf-8', 'content-security-policy': GATEWAY_CSP } }
   );
 
 /* --------------------------------- the proxy --------------------------------- */
@@ -259,6 +269,11 @@ async function proxy(c, rawCode, host) {
     out.set('location', mapped);
   }
   // Keep the browser from treating gateway pages as the club site itself.
+  out.set('content-security-policy', GATEWAY_CSP);
+  // A sandboxed page's own requests come from origin "null". Gateway content is
+  // public and never carries cookies, so letting any origin read it is safe and
+  // keeps the upstream site's same-path fetches working.
+  out.set('access-control-allow-origin', '*');
   out.set('x-robots-tag', 'noindex');
   out.set('referrer-policy', 'no-referrer');
 
