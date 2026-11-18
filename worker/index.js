@@ -13,6 +13,8 @@ import { ingestRouter } from './routes/ingest.js';
 import { subscribeRouter } from './routes/subscribe.js';
 import { runDigest } from './digest.js';
 import { mountHub } from './hub/index.js';
+import { runCodeforcesSync } from './hub/codeforces.js';
+import { refreshRepoStats } from './hub/github.js';
 
 // Durable Object classes must be exported from the Worker's entry module.
 export { Room } from './hub/index.js';
@@ -58,6 +60,15 @@ app.onError((err, c) => {
 export default {
   fetch: app.fetch,
   async scheduled(event, env, ctx) {
+    // Dispatch on the cron expression in wrangler.toml; anything else is the weekly digest.
+    if (event.cron === '0 * * * *') {
+      ctx.waitUntil(
+        Promise.allSettled([runCodeforcesSync(env), refreshRepoStats(env)]).then((rs) =>
+          rs.forEach((r, i) => console.log(['[codeforces]', '[github]'][i], r.status === 'fulfilled' ? JSON.stringify(r.value) : r.reason))
+        )
+      );
+      return;
+    }
     ctx.waitUntil(
       runDigest(env)
         .then((r) => console.log('[digest]', JSON.stringify(r)))

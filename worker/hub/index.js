@@ -21,6 +21,7 @@ import { ledgerRouter, ledgerAdminRouter } from './ledger.js';
 import { claimsRouter, claimsAdminRouter } from './claims.js';
 import { dailyRouter, dailyAdminRouter } from './daily.js';
 import { boardRouter, boardAdminRouter } from './board.js';
+import { codeforcesRouter } from './codeforces.js';
 
 export { Room } from './room-do.js';
 
@@ -59,4 +60,5 @@ export function mountHub(app) {
   app.route('/api', claimsRouter);
   app.route('/api', dailyRouter);
   app.route('/api', boardRouter);
+  app.route('/api', codeforcesRouter);
 }

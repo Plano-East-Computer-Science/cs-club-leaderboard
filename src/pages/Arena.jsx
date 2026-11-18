@@ -9,6 +9,7 @@ import { Link } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { PageHead } from '../components/Pane.jsx';
 import { useReveal } from '../lib/ui.js';
+import CodeforcesPanel from '../components/CodeforcesPanel.jsx';
 import { TRACKS, PLACEMENT, ladderOf, nextRung, rungStates, hostOf, trackOf } from '../../shared/board.js';
 
 const fmtDay = (iso) => new Date(`${iso}T12:00:00Z`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
@@ -139,7 +140,7 @@ function RungCard({ rung, state, signedIn, onProgress, isNext }) {
         </form>
       )}
       {signedIn && !done && rung.verify === 'internal' && <p className="ar-note">Ticks itself when every test passes.</p>}
-      {signedIn && !done && rung.verify === 'codeforces' && <p className="ar-note">Solve it on Codeforces, then mark it done.</p>}
+      {signedIn && !done && rung.verify === 'codeforces' && <p className="ar-note">Solve it on Codeforces. It ticks itself once your handle is linked below, or mark it done by hand.</p>}
       {!signedIn && <p className="ar-note"><Link className="uline g" to="/signin">Sign in</Link> to keep your place on the board.</p>}
       {msg && <p className={msg.ok ? 'up' : 'dn'} role="status">{msg.t}</p>}
     </article>
@@ -262,6 +263,7 @@ export default function Arena() {
                     <button type="button" className="linkb ar-back" onClick={() => setPicked(null)}>Back to your next rung</button>
                   )}
                   {track === 'contest' && <Usaco c={d.usaco} />}
+                  {track === 'contest' && d.signedIn && <CodeforcesPanel onSynced={load} />}
                   <p className="ar-blurb">{t.blurb}</p>
                 </div>
 

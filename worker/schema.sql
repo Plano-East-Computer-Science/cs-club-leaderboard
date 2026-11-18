@@ -160,6 +160,11 @@ CREATE TABLE IF NOT EXISTS users (
   compass    TEXT,
   path       TEXT,                               -- contest | builder | ai | data | cyber | explorer
   compass_at TEXT
+  cf_handle      TEXT,                           -- C4: verified Codeforces handle
+  cf_verified_at TEXT,
+  cf_rating      INTEGER,
+  cf_synced_at   INTEGER,                        -- ms, last sync attempt (round-robin order)
+  cf_last_error  TEXT
 );
 
 -- One-time sign-in links. Single use, short-lived.
@@ -400,4 +405,32 @@ CREATE TABLE IF NOT EXISTS kudos (
   user_id     INTEGER NOT NULL REFERENCES users(id)    ON DELETE CASCADE,
   created_at  TEXT    NOT NULL DEFAULT (datetime('now')),
   PRIMARY KEY (activity_id, user_id)
+
+-- C4. Codeforces link. A pending ownership challenge per member (issued_at in ms),
+-- and the problems a verified handle has solved.
+CREATE TABLE IF NOT EXISTS cf_challenges (
+  user_id   INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  handle    TEXT    NOT NULL,
+  issued_at INTEGER NOT NULL,
+  tried_at  INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS cf_solves (
+  user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  contest_id INTEGER NOT NULL,
+  idx        TEXT    NOT NULL,
+  rating     INTEGER NOT NULL DEFAULT 0,
+  solved_at  INTEGER NOT NULL,                  -- unix seconds
+  UNIQUE (user_id, contest_id, idx)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_cf_handle ON users(lower(cf_handle)) WHERE cf_handle IS NOT NULL;
+
+-- D3. Cached GitHub repo stats, refreshed by the hourly cron at most every 6 hours per repo.
+CREATE TABLE IF NOT EXISTS repo_stats (
+  repo        TEXT PRIMARY KEY,                 -- lowercase owner/name
+  stars       INTEGER NOT NULL DEFAULT 0,
+  pushed_at   TEXT,
+  language    TEXT,
+  open_issues INTEGER NOT NULL DEFAULT 0,
+  error       TEXT    NOT NULL DEFAULT '',
+  checked_at  INTEGER NOT NULL DEFAULT 0        -- ms
 );

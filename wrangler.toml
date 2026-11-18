@@ -54,8 +54,10 @@ database_id = "989d6dab-3748-4868-a089-865af1e2a112"
 # The weekly digest. Monday 13:00 UTC is 8am Central in winter, 7am in summer --
 # Cloudflare crons are UTC only and do not follow daylight saving. Close enough
 # for a club newsletter; nothing here is time-critical.
+# The hourly cron (C4, D3) syncs Codeforces solves and caches GitHub repo stats.
+# Optional secret for it: npx wrangler secret put GITHUB_TOKEN
 [triggers]
-crons = ["0 13 * * 1"]
+crons = ["0 13 * * 1", "0 * * * *"]
 
 [vars]
 # Absolute links in email, where there is no request to read the host from.
