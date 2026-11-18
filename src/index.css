@@ -1667,3 +1667,11 @@ textarea.fi{resize:vertical;line-height:1.5}
 .ct-move{padding:4px 6px;font-size:13px;max-width:9.5rem}
 .ct-me{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap}
 
+
+/* Officer console tabs */
+.otabs{display:flex;gap:6px;overflow-x:auto;border-bottom:1px solid var(--line);margin-bottom:24px;scrollbar-width:none}
+.otab{flex:none;display:inline-flex;align-items:center;gap:8px;padding:10px 14px;min-height:44px;background:none;border:0;border-bottom:2px solid transparent;color:var(--dim);font:inherit;font-size:14px;cursor:pointer}
+.otab:hover{color:var(--gold)}
+.otab[aria-selected="true"]{color:var(--gold);border-bottom-color:var(--gold)}
+.otab:focus-visible{outline:2px solid var(--gold);outline-offset:-2px}
+.otab-n{font-size:12px;padding:0 6px;border:1px solid var(--gold);color:var(--gold)}
