@@ -34,8 +34,11 @@
 
 @layer components {
 :root{
-  --bg:#0a0a08;--panel:#0f0f0c;--panel2:#14130e;--line:#2a281c;--line2:#3a3622;
-  --gold:#FFC20E;--gold-d:#b88a00;--text:#ebe7d6;--dim:#9a9480;--mute:#6b6754;
+  /* Surfaces step up clearly: page, panel, raised. Borders are visible on all
+     three. --mute is the faintest text and still passes AA (about 5:1 on the
+     page, 4.6:1 on a raised panel). */
+  --bg:#0a0a08;--panel:#14130e;--panel2:#1c1b13;--line:#2b291d;--line2:#433e28;
+  --gold:#FFC20E;--gold-d:#b88a00;--text:#ebe7d6;--dim:#a39d88;--mute:#8a8571;
   --up:#3ecf7a;--down:#ff6253;
   --mono:'JetBrains Mono',ui-monospace,Consolas,monospace;
   --disp:'Big Shoulders Display','Arial Narrow',sans-serif;
@@ -161,10 +164,10 @@ tr.exp .xin{padding:12px 14px 14px}
 @media(max-width:620px){.lrow{grid-template-columns:54px 1fr}.lrow .who,.lrow .bl{grid-column:1/-1}}
 
 /* footer */
-footer{padding:36px 0 28px}
-footer .fg{display:grid;gap:28px;grid-template-columns:1fr}
-@media(min-width:860px){footer .fg{grid-template-columns:1.2fr 1fr}}
-footer h2{font:900 clamp(30px,4vw,52px)/.95 var(--disp);text-transform:uppercase}
+footer{padding:32px 0 28px;margin-top:48px;border-top:1px solid var(--line2);background:#0d0c09}
+footer .fg{display:grid;gap:28px;grid-template-columns:minmax(0,1fr)}
+@media(min-width:860px){footer .fg{grid-template-columns:minmax(0,1.2fr) minmax(0,1fr)}}
+footer h2{font:800 clamp(22px,2.4vw,30px)/1 var(--disp);text-transform:uppercase;color:var(--dim)}
 .sub-form{display:flex;border:1px solid var(--gold);margin-top:16px;background:#0c0b07}
 .sub-form span{padding:11px 0 11px 14px;color:var(--gold)}
 .sub-form input{flex:1;min-width:0;background:transparent;border:0;padding:11px 10px;outline:0}
@@ -896,7 +899,7 @@ table.pf-t{width:100%;border-collapse:collapse;font-size:13px}
 .card{background:var(--panel);border:1px solid var(--line2);border-radius:0}
 .field{width:100%;background:#0c0b07;border:1px solid var(--line2);border-radius:0;padding:8px 10px;color:var(--text);font:inherit;font-size:13.5px;min-width:0}
 .field:focus-visible{outline:0;border-color:var(--gold)}
-.field::placeholder{color:#4d4a3a}
+.field::placeholder{color:#6e6a58}
 select.field{color-scheme:dark}
 .btn-primary{background:var(--gold);color:#000;border-color:var(--gold);font-weight:800}
 .btn-primary:hover{background:#fff;border-color:#fff;color:#000}
@@ -905,6 +908,12 @@ select.field{color-scheme:dark}
 .btn-danger{background:transparent;color:var(--down);border-color:rgba(255,98,83,.4)}
 .btn-danger:hover{background:rgba(255,98,83,.1)}
 .btn:disabled{opacity:.4;cursor:not-allowed}
+/* A disabled primary button reads as not-yet, not as a dim version of the main action. */
+.btn.pri:disabled,.btn-primary:disabled{background:transparent;color:var(--mute);border-color:var(--line2);opacity:1}
+/* Big display headings break into even lines instead of leaving one word alone. */
+h1,h2,.display{text-wrap:balance}
+/* Phones: 16px form text so iOS does not zoom the page on focus. */
+@media(max-width:640px){.field,.fi,select,textarea,input:not([type=checkbox]):not([type=radio]){font-size:16px}}
 /* ================= admin ================= */
 .ap-login{min-height:calc(100vh - 160px);display:grid;place-items:center;padding:30px 0}
 .ap-box{width:min(440px,100%);border:1px solid var(--gold-d);background:var(--panel)}
@@ -918,7 +927,7 @@ select.field{color-scheme:dark}
 .fi:focus{border-color:var(--gold)}
 select.fi{appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--gold) 50%),linear-gradient(135deg,var(--gold) 50%,transparent 50%);background-position:calc(100% - 16px) 55%,calc(100% - 11px) 55%;background-size:5px 5px;background-repeat:no-repeat;padding-right:28px}
 textarea.fi{resize:vertical;line-height:1.5}
-.fi::placeholder{color:#4d4a3a}
+.fi::placeholder{color:#6e6a58}
 
 .ap-shell{display:grid;grid-template-columns:1fr;gap:0;margin-top:14px;border:1px solid var(--line2);background:var(--panel);min-height:calc(100vh - 200px)}
 @media(min-width:900px){.ap-shell{grid-template-columns:200px minmax(0,1fr)}}
