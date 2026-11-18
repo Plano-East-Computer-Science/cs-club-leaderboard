@@ -37,6 +37,7 @@ import { ctfRouter, ctfAdminRouter } from './ctf.js';
 import { dataRouter, dataAdminRouter } from './data.js';
 import { readerRouter, readerAdminRouter } from './reader.js';
 import { editorialsRouter, editorialsAdminRouter } from './editorials.js';
+import { reviewsRouter } from './reviews.js';
 
 export { Room } from './room-do.js';
 
@@ -101,4 +102,5 @@ export function mountHub(app) {
   app.route('/api', ctfRouter);
   app.route('/api', dataRouter);
   app.route('/api', readerRouter);
+  app.route('/api', reviewsRouter);
 }

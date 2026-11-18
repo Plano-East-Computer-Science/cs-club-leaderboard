@@ -18,6 +18,7 @@ import Learn from './pages/Learn.jsx';
 import Course from './pages/Course.jsx';
 import Arena from './pages/Arena.jsx';
 import Workspace from './pages/Workspace.jsx';
+import Reviews from './pages/Reviews.jsx';
 import Ctf from './pages/Ctf.jsx';
 import DataArena from './pages/DataArena.jsx';
 import DataChallenge from './pages/DataChallenge.jsx';
@@ -157,6 +158,8 @@ function Shell() {
           <Route path="/workspace" element={<Workspace />} />
           <Route path="/workspace/:id" element={<Workspace />} />
           <Route path="/build/start/:slug" element={<Starter />} />
+          <Route path="/build/reviews" element={<Reviews />} />
+          <Route path="/build/reviews/:id" element={<Reviews />} />
           <Route element={<HubLayout />}>
             <Route path="/p/:slug" element={<Problem />} />
             <Route path="/learn" element={<Learn />} />
