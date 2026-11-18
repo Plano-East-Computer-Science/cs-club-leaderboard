@@ -24,6 +24,8 @@ import Planner from './officer/Planner.jsx';
 import EditorialsAdmin from './officer/Editorials.jsx';
 import ReaderAdmin from './officer/Reader.jsx';
 import Handoff from './officer/Handoff.jsx';
+import AlumniAdmin from './officer/Alumni.jsx';
+import ResearchAdmin from './officer/Research.jsx';
 
 const HOURS = [1, 2, 3, 6, 12];
 
@@ -31,11 +33,11 @@ const HOURS = [1, 2, 3, 6, 12];
 const TABS = [
   { id: 'meeting', label: 'Meeting', screens: [Rooms, Planner] },
   { id: 'review', label: 'Review', screens: [Claims, EditorialsAdmin, Reports, LinkRequests, Merge] },
-  { id: 'members', label: 'Members', screens: [Records, Signoffs, Squads, Team, Raffle, Analytics, Handoff] },
+  { id: 'members', label: 'Members', screens: [Records, Signoffs, Squads, Team, Raffle, Analytics, Handoff, AlumniAdmin] },
   {
     id: 'content',
     label: 'Content',
-    screens: [Problems, DailyAdmin, Board, DataAdmin, CtfAdmin, Cycles, CompetitionAdmin, IdeasAdmin],
+    screens: [Problems, DailyAdmin, Board, DataAdmin, CtfAdmin, Cycles, CompetitionAdmin, IdeasAdmin, ResearchAdmin],
   },
   { id: 'club', label: 'Club', screens: [Announce, Gateway, ReaderAdmin] },
 ];

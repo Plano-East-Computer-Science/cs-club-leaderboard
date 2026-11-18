@@ -1700,3 +1700,7 @@ textarea.fi{resize:vertical;line-height:1.5}
 .ar-top{counter-reset:t}
 .ar-tops{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
 .ar-top li{padding:3px 0}
+/* C15 / E6: annotations and alumni cards */
+.rs-note{padding:10px 12px;border:1px solid var(--line);display:grid;gap:6px}
+.rs-note q{color:var(--dim);font-size:13px;quotes:none;border-left:2px solid var(--gold);padding-left:8px}
+.rs-note p{margin:0;overflow-wrap:anywhere}

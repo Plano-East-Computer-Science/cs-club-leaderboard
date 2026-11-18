@@ -41,6 +41,8 @@ import Parents from './pages/Parents.jsx';
 import Archive from './pages/Archive.jsx';
 import OfficerApply from './pages/OfficerApply.jsx';
 import Verify from './pages/Verify.jsx';
+import Research from './pages/Research.jsx';
+import Alumni from './pages/Alumni.jsx';
 import { SubscribeBox } from './components/Subscribe.jsx';
 import { TabBar, Dock, Boot, Snow, PAGES } from './components/Chrome.jsx';
 import { DataProvider, useData } from './lib/data.jsx';
@@ -150,6 +152,8 @@ function Shell() {
           <Route path="/cyber" element={<Cyber />} />
           <Route path="/quests" element={<Quests />} />
           <Route path="/ideas" element={<Ideas />} />
+          <Route path="/research" element={<Research />} />
+          <Route path="/alumni" element={<Alumni />} />
           <Route path="/daily" element={<Daily />} />
           <Route path="/arena" element={<Arena />} />
           <Route path="/arena/ctf" element={<Ctf />} />

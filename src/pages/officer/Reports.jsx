@@ -6,7 +6,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { api } from '../../lib/api.js';
 import { Spinner, ErrorNote } from '../../components/bits.jsx';
 
-const KIND = { idea: 'Idea', project: 'Project', feed: 'Feed item', editorial: 'Editorial', review_request: 'Review request', review: 'Review' };
+const KIND = { idea: 'Idea', project: 'Project', feed: 'Feed item', editorial: 'Editorial', review_request: 'Review request', review: 'Review', paper_note: 'Paper note' };
 
 export default function Reports() {
   const [status, setStatus] = useState('open');

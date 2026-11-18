@@ -28,6 +28,8 @@ export const PAGES = [
   ['opportunities', '/opportunities'],
   ['calendar', '/calendar'],
   ['ideas', '/ideas'],
+  ['research', '/research'], // C15
+  ['alumni', '/alumni'], // E6
   ['compass', '/compass'],
   ['curriculum', '/curriculum'],
   ['competitions', '/competitions'],
@@ -43,10 +45,10 @@ const BAR = ['home', 'standings', 'arena', 'quests', 'room', 'build', 'opportuni
 // The "all" panel: the whole site as a directory listing, grouped by what you came to do.
 const GROUPS = [
   ['meet', [['room', 'join the live meeting'], ['calendar', 'meetings and deadlines'], ['ideas', 'tell us what to run next']]],
-  ['arena', [['arena', 'the board: your next problem, per track'], ['daily', 'one problem a day'], ['ctf', 'capture the flag: puzzles, scoreboard, events'], ['data', 'datasets to predict, pandas in the browser'], ['courses', 'the club\'s own lessons'], ['quests', 'small point bonuses'], ['puzzles', 'problem of the week'], ['curriculum', 'what we teach, by track']]],
+  ['arena', [['arena', 'the board: your next problem, per track'], ['daily', 'one problem a day'], ['ctf', 'capture the flag: puzzles, scoreboard, events'], ['data', 'datasets to predict, pandas in the browser'], ['courses', 'the club\'s own lessons'], ['quests', 'small point bonuses'], ['puzzles', 'problem of the week'], ['research', 'paper of the month, science fair tracker'], ['curriculum', 'what we teach, by track']]],
   ['build', [['build', 'ship cycles, templates, projects'], ['workspace', 'your code, saved: Python and web pages'], ['gateway', 'GitHub on school wifi']]],
   ['compete', [['standings', 'season points, tiers, the prize'], ['competitions', 'USACO, UIL, BOT and more'], ['opportunities', 'contests, programs, internships'], ['cyber', 'the cyber team']]],
-  ['club', [['compass', 'find your path'], ['about', 'who runs this'], ['join', 'how to get involved']]],
+  ['club', [['compass', 'find your path'], ['alumni', 'ask graduates a question'], ['about', 'who runs this'], ['join', 'how to get involved']]],
 ];
 const pathOf = (name) => PAGES.find((x) => x[0] === name)[1];
 // `learn` and `board` used to mean the course list and the standings; both now land on the Arena.
