@@ -1,17 +1,29 @@
 /**
- * One Durable Object per meeting room. It holds the live quiz and the pulse
- * meter, and fans changes out to every connected phone over WebSockets.
+ * One Durable Object per meeting room. It holds the run-of-show (B1) and
+ * everything live inside it: the quiz, the pulse meter, the agenda links, the
+ * duel engine (B2), lab progress (B3), the show gallery (B6), the help queue
+ * (B7) and speaker questions (B8). It fans changes out to every connected
+ * screen over WebSockets.
  *
  * Uses the hibernation API: idle rooms cost nothing, and state is written to
  * storage so a room survives eviction mid-meeting.
  *
  * The Worker authenticates before forwarding and passes identity in headers
- * (x-role / x-uid / x-name); the DO is not reachable any other way.
+ * (x-role / x-uid / x-name, plus x-code / x-kind / x-template for the room);
+ * the DO is not reachable any other way. Students only get here after a
+ * check-in with the rotating token (B4, rooms.js).
+ *
+ * Exit artifacts (B4): the first thing a student does that counts (a poll
+ * answer, a passed lab checkpoint, a duel attempt, a show artifact, helping
+ * someone, a "what I did" line) is written to their room_checkins row.
+ * Closing the room pays attendance only to rows that have one.
  */
-import { newDuel, setDivision, startRound, submit, everyoneSolved, endRound, pickSpotlight, finish, duelView, DIVISIONS } from './duel.js';
+import { newDuel, setDivision, startRound, submit, everyoneSolved, endRound, pickSpotlight, finish, duelView, findSide, DIVISIONS } from './duel.js';
 import { makePairs, groupKeys } from './pairs.js';
 import { duelActivities } from './duel-awards.js';
 import { awardFromUser } from './award.js';
+import { findCourse } from '../../shared/courses.js';
+import * as S from './session.js';
 
 const PULSE = ['fast', 'slow', 'lost', 'great'];
 const MAX_CODE = 20_000;
@@ -22,12 +34,18 @@ const fresh = () => ({
   scores: {}, // uid -> { name, pts }
   pulse: {}, // uid -> one of PULSE
   names: {}, // uid -> name (everyone who has connected)
-  stage: [], // today's agenda: [{ label, url }] the host pins for everyone
-  asks: [], // question box: [{ id, uid, text }], only the host sees it
+  stage: [], // agenda links: [{ label, url }] the host pins for everyone
+  session: null, // B1, see session.js
+  help: [], // B7 help queue
+  speaker: S.freshSpeaker(), // B8
+  show: S.freshShow(), // B6
+  labs: {}, // B3, per lab block id
+  exits: {}, // B4: uid -> what counted as their exit artifact
+  duelSolved: {}, // uid -> title of the last duel problem they solved, for the show block
   duel: null, // B2, see duel.js
   pairs: null, // B9: [[uid, uid], ...] from "pair the room"
   pairAvoid: [], // last pairs, so the next press rotates
-  code: '', // the room code, for duel_results
+  code: '', // the room code, for D1 rows
   ended: false,
   seq: 0,
 });
@@ -40,13 +58,25 @@ export function cleanStage(items) {
     .slice(0, 8);
 }
 
+/** Per tier of a lab block: the ordered checkpoint ids. Course tiers use their code steps. */
+export function labCheckpoints(block) {
+  return (block?.lab?.tiers ?? []).map((t) => {
+    const [kind, rest = ''] = t.source.split(':');
+    if (kind === 'course') return (findCourse(rest)?.steps ?? []).filter((s) => s.kind === 'code').map((s) => s.id);
+    return rest.split(',').filter(Boolean);
+  });
+}
+
+const first = (name) => String(name ?? '').trim().split(/\s+/)[0] || 'Someone';
+
 export class Room {
   constructor(ctx, env) {
     this.ctx = ctx;
     this.env = env;
     this.s = fresh();
     ctx.blockConcurrencyWhile(async () => {
-      this.s = (await ctx.storage.get('s')) ?? fresh();
+      // Spread over fresh() so a room stored before a field existed still has it.
+      this.s = { ...fresh(), ...((await ctx.storage.get('s')) ?? {}) };
     });
   }
 
@@ -62,6 +92,8 @@ export class Room {
     const name = request.headers.get('x-name') || 'Student';
     const code = request.headers.get('x-code');
     if (code && !this.s.code) this.s.code = code;
+    // The run-of-show comes from the template the officer picked when opening the room.
+    this.s.session ??= S.newSession({ kind: request.headers.get('x-kind') || 'meeting', template: request.headers.get('x-template') || 'build' });
 
     const pair = new WebSocketPair();
     const [client, server] = Object.values(pair);
@@ -71,8 +103,8 @@ export class Room {
     if (role === 'student') {
       this.s.names[uid] = name;
       this.s.scores[uid] ??= { name, pts: 0 };
-      await this.save();
     }
+    await this.save();
     this.broadcast();
     return new Response(null, { status: 101, webSocket: client });
   }
@@ -86,79 +118,255 @@ export class Room {
     }
     const { role, uid } = ws.deserializeAttachment() ?? {};
     const s = this.s;
+    s.session ??= S.newSession();
+    const err = role === 'host' ? await this.hostMessage(m) : role === 'student' ? await this.studentMessage(uid, m) : 'skip';
+    if (err === 'skip') return;
+    if (err) return this.notice(ws, err);
+    await this.save();
+    this.broadcast();
+  }
 
-    if (role === 'host') {
-      if (m.t === 'ask') {
+  /** Host controls. Returns an error sentence, 'skip' for an unknown message, or nothing. */
+  async hostMessage(m) {
+    const s = this.s;
+    const now = Date.now();
+    const sess = s.session;
+    let r = null;
+    switch (m.t) {
+      case 'ask': {
         const options = (m.options ?? []).map((o) => String(o).slice(0, 120)).filter(Boolean).slice(0, 6);
-        if (!m.text || options.length < 2) return;
+        if (!m.text || options.length < 2) return 'A question needs text and two options.';
         const seconds = Math.min(Math.max(Number(m.seconds) || 20, 5), 120);
         const correct = Number.isInteger(m.correct) && m.correct >= 0 && m.correct < options.length ? m.correct : null;
-        s.q = {
-          id: ++s.seq,
-          text: String(m.text).slice(0, 300),
-          options,
-          correct,
-          seconds,
-          openedAt: Date.now(),
-          open: true,
-          revealed: false,
-        };
+        s.q = { id: ++s.seq, text: String(m.text).slice(0, 300), options, correct, seconds, openedAt: now, open: true, revealed: false };
         s.answers = {};
         await this.schedule();
-      } else if (m.t === 'close' && s.q?.open) {
-        this.closeQuestion();
-      } else if (m.t === 'reveal' && s.q) {
+        break;
+      }
+      case 'close':
+        if (s.q?.open) this.closeQuestion();
+        break;
+      case 'reveal':
+        if (!s.q) break;
         if (s.q.open) this.closeQuestion();
         s.q.revealed = true;
-      } else if (m.t === 'stage') {
+        break;
+      case 'stage':
         s.stage = cleanStage(m.items);
-      } else if (m.t === 'ask_done') {
-        s.asks = (s.asks ?? []).filter((a) => a.id !== m.id);
-      } else if (m.t === 'clear_pulse') {
+        break;
+      case 'clear_pulse':
         s.pulse = {};
-      } else if (m.t === 'end') {
+        break;
+      case 'end':
         s.ended = true;
         s.q = s.q && { ...s.q, open: false };
         if (s.duel?.phase === 'live') await this.closeRound();
-      } else if (m.t === 'pairs') {
+        break;
+      case 'pairs': {
         // B9: pair everyone connected; remembers this set so the next press rotates.
         const mode = ['random', 'mixed', 'squad'].includes(m.mode) ? m.mode : 'random';
         const levels = Object.fromEntries(Object.entries(s.duel?.divs ?? {}).map(([u, d]) => [u, DIVISIONS.indexOf(d)]));
         s.pairs = makePairs(this.present(), { mode, levels, avoid: s.pairAvoid ?? [] });
         s.pairAvoid = groupKeys(s.pairs);
-      } else if (m.t === 'pairs_clear') {
+        break;
+      }
+      case 'pairs_clear':
         s.pairs = null;
-      } else if (typeof m.t === 'string' && m.t.startsWith('duel_')) {
-        const err = await this.hostDuel(m);
-        if (err) return this.notice(ws, err);
-      } else return;
-    } else if (role === 'student') {
-      if (m.t === 'answer' && s.q?.open && !(uid in s.answers)) {
+        break;
+      // B1 run-of-show
+      case 'block_go':
+      case 'block_next':
+      case 'block_prev': {
+        const to = m.t === 'block_go' ? m.i : sess.cur + (m.t === 'block_next' ? 1 : -1);
+        r = S.goTo(sess, to, now);
+        // A poll belongs to its block: close it and clear it so later screens do not carry a stale question.
+        if (!r?.error && s.q) {
+          if (s.q.open) this.closeQuestion();
+          s.q = null;
+        }
+        break;
+      }
+      case 'block_time':
+        r = S.addTime(sess, m.minutes, now);
+        break;
+      case 'blocks_set':
+        r = S.setBlocks(sess, m.blocks, now);
+        break;
+      // B7, B8, B6
+      case 'help_clear':
+        r = S.helpClose(s.help, m.id);
+        break;
+      case 'sq_answered':
+        r = S.sqAnswered(s.speaker, m.id);
+        break;
+      case 'takeaways':
+        s.speaker.takeaways = String(m.text ?? '').slice(0, 4000);
+        await this.d1('UPDATE rooms SET takeaways = ? WHERE code = ?', s.speaker.takeaways, s.code);
+        break;
+      case 'show_pick': {
+        r = S.showPick(s.show, m.id);
+        const it = s.show.items.find((x) => x.id === Number(m.id));
+        if (!r.error && s.show.picked.includes(it.id)) await this.d1('UPDATE artifacts SET shown = 1 WHERE room_code = ? AND user_id = ?', s.code, Number(it.uid));
+        break;
+      }
+      default:
+        if (typeof m.t === 'string' && m.t.startsWith('duel_')) return this.hostDuel(m);
+        return 'skip';
+    }
+    return r?.error ?? null;
+  }
+
+  /** Student actions. Returns an error sentence, 'skip' for an unknown message, or nothing. */
+  async studentMessage(uid, m) {
+    const s = this.s;
+    const block = S.currentBlock(s.session);
+    const type = block?.type;
+    let r = null;
+    switch (m.t) {
+      case 'answer': {
+        if (!s.q?.open || uid in s.answers) return 'skip';
         const choice = Number(m.choice);
-        if (!Number.isInteger(choice) || choice < 0 || choice >= s.q.options.length) return;
+        if (!Number.isInteger(choice) || choice < 0 || choice >= s.q.options.length) return 'skip';
         s.answers[uid] = { choice, ms: Date.now() - s.q.openedAt };
-      } else if (m.t === 'pulse' && PULSE.includes(m.v)) {
+        await this.exit(uid, 'poll');
+        break;
+      }
+      case 'pulse':
+        if (!PULSE.includes(m.v)) return 'skip';
         s.pulse[uid] = m.v;
-      } else if (m.t === 'question') {
-        const text = String(m.text ?? '').replace(/\s+/g, ' ').trim().slice(0, 200);
-        s.asks ??= [];
-        // A few open questions each, so one phone cannot flood the host.
-        if (text.length < 3 || s.asks.filter((a) => a.uid === uid).length >= 3 || s.asks.length >= 60) return;
-        s.asks.push({ id: ++s.seq, uid, text });
-      } else if (m.t === 'duel_div' && s.duel) {
-        const r = setDivision(s.duel, uid, m.div);
-        if (r.error) return this.notice(ws, r.error);
-      } else if (m.t === 'duel_submit' && s.duel) {
-        const r = submit(s.duel, uid, { round: m.round, slug: m.slug, passed: m.passed === true }, Date.now());
-        if (r.error) return this.notice(ws, r.error);
+        break;
+      // B7: open in every block and in drop-ins.
+      case 'help_ask':
+        r = S.helpAsk(s.help, uid, m.topic, ++s.seq);
+        break;
+      case 'help_offer':
+        r = S.helpOffer(s.help, uid, m.id);
+        break;
+      case 'help_cancel':
+        r = S.helpClose(s.help, m.id, uid);
+        break;
+      case 'help_solve': {
+        r = S.helpSolve(s.help, uid, m.id, m.helper);
+        if (r.helper) {
+          // The helper gets a mentor activity (pending officer approval by the rules); the ref makes it once only.
+          await awardFromUser(this.env?.DB, null, {
+            userId: Number(r.helper),
+            kind: 'mentor',
+            ref: `help:${s.code || '?'}:${Number(m.id)}`,
+            meta: { title: `Helped ${first(s.names[uid])} in a meeting: ${r.topic}`.slice(0, 160), room: s.code },
+          });
+          await this.exit(r.helper, 'help');
+        }
+        break;
+      }
+      // B8
+      case 'sq_ask':
+        if (type !== 'speaker') return 'Questions open during the talk.';
+        r = S.sqAsk(s.speaker, uid, m.text, ++s.seq);
+        break;
+      case 'sq_vote':
+        r = S.sqVote(s.speaker, uid, m.id);
+        break;
+      // B6
+      case 'show_submit': {
+        if (type !== 'show') return 'Sharing opens in the show block.';
+        r = S.showSubmit(s.show, uid, m, this.earned(uid), ++s.seq);
+        if (r.error) break;
+        const it = r.item;
+        await this.d1(
+          `INSERT INTO artifacts (room_code, user_id, kind, url, line, result) VALUES (?, ?, ?, ?, ?, ?)
+           ON CONFLICT(room_code, user_id) DO UPDATE SET kind = excluded.kind, url = excluded.url, line = excluded.line,
+             result = excluded.result, kudos = 0, shown = 0, created_at = datetime('now')`,
+          s.code,
+          Number(uid),
+          it.kind,
+          it.url,
+          it.line,
+          it.result
+        );
+        await this.exit(uid, 'show');
+        break;
+      }
+      case 'show_kudos':
+        r = S.showKudos(s.show, uid, m.id);
+        if (r.item) await this.d1('UPDATE artifacts SET kudos = ? WHERE room_code = ? AND user_id = ?', r.item.kudos.length, s.code, Number(r.item.uid));
+        break;
+      // B3
+      case 'lab_tier':
+        if (type !== 'lab') return 'The lab is not open.';
+        r = S.labPick((s.labs[block.id] ??= S.freshLab()), uid, m.tier, block.lab.tiers);
+        break;
+      case 'lab_pass':
+        if (type !== 'lab') return 'The lab is not open.';
+        r = S.labPass((s.labs[block.id] ??= S.freshLab()), uid, m.step, labCheckpoints(block));
+        if (r.ok) await this.exit(uid, 'lab');
+        break;
+      // B4: the one-line "what I did" on the close block (or any time in a drop-in).
+      case 'note': {
+        if (type !== 'close' && s.session.kind !== 'dropin') return 'The exit line opens at the close.';
+        const text = String(m.text ?? '').replace(/\s+/g, ' ').trim().slice(0, 140);
+        if (text.length < 3) return 'Write one line about what you did.';
+        await this.exit(uid, 'note', text);
+        break;
+      }
+      case 'duel_div':
+        if (!s.duel) return 'skip';
+        r = setDivision(s.duel, uid, m.div);
+        break;
+      case 'duel_submit': {
+        if (!s.duel) return 'skip';
+        r = submit(s.duel, uid, { round: m.round, slug: m.slug, passed: m.passed === true }, Date.now());
+        if (r.error) break;
         // Kept per round and student, outside the main state: code can be large.
         await this.ctx.storage.put(`code:${s.duel.round}:${uid}`, String(m.code ?? '').slice(0, MAX_CODE));
+        await this.exit(uid, 'duel');
+        // Remembered past this round, so it can be shown in a later show block.
+        if (r.solved) s.duelSolved[uid] = findSide(s.duel, uid)?.match.title ?? 'a duel problem';
         if (everyoneSolved(s.duel)) await this.closeRound();
-      } else return;
+        break;
+      }
+      default:
+        return 'skip';
     }
+    return r?.error ?? null;
+  }
 
-    await this.save();
-    this.broadcast();
+  /** What this student can put in the show block as a result: { lab, duel } descriptions or null. */
+  earned(uid) {
+    const s = this.s;
+    let lab = null;
+    for (const [bid, l] of Object.entries(s.labs)) {
+      const n = (l.passed[uid] ?? []).length;
+      const blk = s.session.blocks.find((x) => x.id === bid);
+      if (n) lab = `Passed ${n} checkpoint${n === 1 ? '' : 's'}${blk ? ` in ${blk.title}` : ''}`;
+    }
+    const duel = s.duelSolved[uid] ? `Solved ${s.duelSolved[uid]} in a duel` : null;
+    return { lab, duel };
+  }
+
+  /** B4: records the first exit artifact (a note always replaces an earlier note). Never throws. */
+  async exit(uid, kind, note = null) {
+    const s = this.s;
+    if (s.exits[uid] && !note) return;
+    s.exits[uid] ??= kind;
+    await this.d1(
+      'UPDATE room_checkins SET exit_kind = COALESCE(exit_kind, ?), exit_note = COALESCE(?, exit_note) WHERE code = ? AND user_id = ?',
+      kind,
+      note,
+      s.code,
+      Number(uid)
+    );
+  }
+
+  /** One D1 write that must not break the live room if it fails. */
+  async d1(sql, ...args) {
+    const db = this.env?.DB;
+    if (!db) return;
+    try {
+      await db.prepare(sql).bind(...args).run();
+    } catch (err) {
+      console.error('room d1 write failed', err?.message ?? err);
+    }
   }
 
   webSocketClose(ws) {
@@ -184,7 +392,7 @@ export class Room {
     }
   }
 
-  /** One alarm serves both timers (quiz question, duel round): set it to whichever ends first. */
+  /** One alarm serves both timers (quiz question, duel round): set it to whichever ends first. Block timers never act. */
   async schedule() {
     const due = [];
     if (this.s.q?.open) due.push(this.s.q.openedAt + this.s.q.seconds * 1000);
@@ -304,11 +512,34 @@ export class Room {
     }
   }
 
+  /** The current lab block, seen by role. The host's view is counts only: it goes on the projector. */
+  labView(role, uid) {
+    const s = this.s;
+    const block = S.currentBlock(s.session);
+    if (block?.type !== 'lab') return null;
+    const lab = s.labs[block.id] ?? S.freshLab();
+    const cps = labCheckpoints(block);
+    const tiers = block.lab.tiers.map((t, i) => ({ name: t.name, source: t.source, checkpoints: cps[i].length }));
+    if (role === 'host') return { pairs: block.lab.pairs, tiers, counts: S.labCounts(lab, block.lab.tiers, cps) };
+    const tier = lab.picks[uid] ?? null;
+    const group = s.pairs?.find((g) => g.includes(uid));
+    return {
+      pairs: block.lab.pairs,
+      tiers,
+      tier,
+      checkpoints: tier == null ? [] : cps[tier],
+      passed: tier == null ? [] : (lab.passed[uid] ?? []).filter((k) => k.startsWith(`${tier}:`)).map((k) => k.slice(k.indexOf(':') + 1)),
+      seat: group ? group.indexOf(uid) : 0,
+    };
+  }
+
   view(role, uid) {
     const s = this.s;
     const live = this.ctx.getWebSockets().map((w) => w.deserializeAttachment()).filter((a) => a?.role === 'student');
     const connected = new Set(live.map((a) => a.uid));
     const q = s.q;
+    const host = role === 'host';
+    const name = (u) => s.names[u] ?? 'Student';
 
     const counts = q ? q.options.map((_, i) => Object.values(s.answers).filter((a) => a.choice === i).length) : [];
     const pulse = Object.fromEntries(PULSE.map((p) => [p, Object.values(s.pulse).filter((v) => v === p).length]));
@@ -316,8 +547,10 @@ export class Room {
       .map(([id, v]) => ({ name: v.name, pts: v.pts, you: id === uid }))
       .sort((a, b) => b.pts - a.pts)
       .slice(0, 10);
+    const openHelp = s.help.filter((h) => h.status === 'open');
+    const showAnswer = host || q?.revealed;
+    const sess = s.session ?? S.newSession();
 
-    const showAnswer = role === 'host' || q?.revealed;
     return {
       t: 'state',
       role,
@@ -327,13 +560,37 @@ export class Room {
       pulse,
       board,
       stage: s.stage ?? [],
-      asks: role === 'host' ? (s.asks ?? []).map((a) => ({ id: a.id, text: a.text, name: s.names[a.uid] ?? 'Student' })) : undefined,
-      myAsks: role === 'student' ? (s.asks ?? []).filter((a) => a.uid === uid).length : undefined,
+      session: { kind: sess.kind, template: sess.template, blocks: sess.blocks, cur: sess.cur, startedAt: sess.startedAt, endsAt: sess.endsAt },
+      // B4: what counts so far. The host sees how many have one; a student sees their own.
+      exits: host ? Object.keys(s.exits).length : undefined,
+      exit: host ? undefined : (s.exits[uid] ?? null),
+      // B7: the projector shows the length only; names are for the officer console and members who can help.
+      helpOpen: openHelp.length,
+      help: host
+        ? openHelp.map((h) => ({ id: h.id, topic: h.topic, name: name(h.uid), helpers: h.helpers.map(name) }))
+        : openHelp.map((h) => ({
+            id: h.id,
+            topic: h.topic,
+            name: first(name(h.uid)),
+            mine: h.uid === uid,
+            offered: h.helpers.includes(uid),
+            ...(h.uid === uid && { helpers: h.helpers.map((u) => ({ uid: u, name: name(u) })) }),
+          })),
+      helped: host ? s.help.filter((h) => h.status === 'solved' && h.helper).length : undefined,
+      // B8: questions are anonymous everywhere.
+      speaker: {
+        takeaways: s.speaker.takeaways,
+        qs: S.sqOrder(s.speaker.qs).map((x) => ({ id: x.id, text: x.text, votes: x.votes.length, answered: x.answered, mine: x.uid === uid, voted: x.votes.includes(uid) })),
+      },
+      // B6
+      show: {
+        picked: s.show.picked,
+        items: s.show.items.map((x) => ({ id: x.id, name: name(x.uid), kind: x.kind, url: x.url, line: x.line, result: x.result, kudos: x.kudos.length, mine: x.uid === uid, gave: x.kudos.includes(uid) })),
+      },
+      earned: host ? undefined : this.earned(uid),
+      lab: this.labView(role, uid),
       duel: duelView(s.duel, { role, uid, names: s.names, present: [...connected] }),
-      pairs:
-        role === 'host'
-          ? s.pairs?.map((g) => g.map((u) => s.names[u] ?? 'Student'))
-          : s.pairs?.find((g) => g.includes(uid))?.filter((u) => u !== uid).map((u) => s.names[u] ?? 'Student'),
+      pairs: host ? s.pairs?.map((g) => g.map(name)) : s.pairs?.find((g) => g.includes(uid))?.filter((u) => u !== uid).map(name),
       q: q && {
         id: q.id,
         text: q.text,
@@ -344,7 +601,7 @@ export class Room {
         revealed: q.revealed,
         correct: showAnswer ? q.correct : null,
         // Distribution is shown once the question is closed (or always to the host).
-        counts: role === 'host' || !q.open ? counts : null,
+        counts: host || !q.open ? counts : null,
         mine: role === 'student' && uid in s.answers ? s.answers[uid].choice : null,
       },
       now: Date.now(),

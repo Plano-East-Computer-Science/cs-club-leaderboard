@@ -97,6 +97,29 @@ export default function Portfolio() {
           )}
         </section>
 
+        {data.artifacts?.length > 0 && (
+          <section className="mt-8" aria-label="Shown at meetings">
+            <h2 className="eyebrow mb-3">Shown at meetings</h2>
+            <ul className="grid gap-4">
+              {data.artifacts.map((a) => (
+                <li key={a.id} className="pf-item">
+                  <p className="font-semibold">
+                    {a.line}
+                    {a.shown ? <span className="mono ml-2 text-xs font-normal" style={{ color: 'var(--flag)' }}>on the projector</span> : null}
+                  </p>
+                  <p className="mono mt-1 text-xs break-all" style={{ color: 'var(--ink-soft)' }}>
+                    {a.url ? <a href={a.url} target="_blank" rel="noreferrer noopener">{a.url}</a> : a.result}
+                  </p>
+                  <p className="mono mt-0.5 text-xs" style={{ color: 'var(--ink-faint)' }}>
+                    {a.meeting || 'Meeting'} · {day(a.created_at)}
+                    {a.kudos > 0 && ` · ${a.kudos} kudos`}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
         <section className="mt-8">
           <h2 className="eyebrow mb-3">Projects</h2>
           {projects.length === 0 ? (

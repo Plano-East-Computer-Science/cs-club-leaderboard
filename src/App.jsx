@@ -117,6 +117,7 @@ function Shell() {
     return (
       <Routes>
         <Route path="/host/:code" element={<div className="hub"><Host /></div>} />
+        <Route path="/host/:code/screen" element={<div className="hub"><Host screen /></div>} />
       </Routes>
     );
   }

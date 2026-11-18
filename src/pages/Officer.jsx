@@ -14,6 +14,7 @@ import Board from './officer/Board.jsx';
 import Reports from './officer/Reports.jsx';
 import Records from './officer/Records.jsx';
 import Cycles from './officer/Cycles.jsx';
+import TemplatePicker from './officer/TemplatePicker.jsx';
 
 const HOURS = [1, 2, 3, 6, 12];
 
@@ -291,12 +292,14 @@ function IdeasAdmin() {
 const paid = (d) =>
   `Paid attendance to ${d.awarded} member${d.awarded === 1 ? '' : 's'}` +
   (d.alreadyHad ? `, ${d.alreadyHad} already paid` : '') +
+  (d.noExit ? `, ${d.noExit} checked in but did nothing that counts` : '') +
   (d.unlinked ? `. ${d.unlinked} still waiting on a link request.` : '.');
 
 function Rooms() {
   const [rooms, setRooms] = useState(null);
   const [error, setError] = useState(null);
   const [title, setTitle] = useState('');
+  const [template, setTemplate] = useState('build');
   const [busy, setBusy] = useState(false);
   const [made, setMade] = useState(null);
   const [open, setOpen] = useState(null);
@@ -313,7 +316,7 @@ function Rooms() {
     setBusy(true);
     setError(null);
     try {
-      setMade(await api.post('/admin/hub/rooms', { title: title.trim() }));
+      setMade(await api.post('/admin/hub/rooms', { title: title.trim(), template }));
       setTitle('');
       load();
     } catch (err) {
@@ -360,20 +363,26 @@ function Rooms() {
         points by the club's rules.
       </SectionHead>
 
-      <form onSubmit={create} className="card mb-4 flex flex-wrap items-end gap-3 p-4">
-        <label className="grid min-w-56 flex-1 gap-1.5">
-          <span className="eyebrow">Open a room</span>
-          <input
-            className="field"
-            value={title}
-            maxLength={80}
-            placeholder="Title, e.g. Week 12 meeting"
-            onChange={(e) => setTitle(e.target.value)}
-          />
-        </label>
-        <button className="btn btn-primary" disabled={busy || !title.trim()}>
-          {busy ? 'Opening' : 'Open room'}
-        </button>
+      <form onSubmit={create} className="card mb-4 grid gap-4 p-4">
+        <TemplatePicker value={template} onChange={setTemplate} />
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="grid min-w-56 flex-1 gap-1.5">
+            <span className="eyebrow">Title</span>
+            <input
+              className="field"
+              value={title}
+              maxLength={80}
+              placeholder={template === 'dropin' ? 'Panther Pause, Tuesday' : 'Title, e.g. Week 12 meeting'}
+              onChange={(e) => setTitle(e.target.value)}
+            />
+          </label>
+          <button className="btn btn-primary" disabled={busy || !title.trim()}>
+            {busy ? 'Opening' : 'Open room'}
+          </button>
+        </div>
+        <p className="mono text-xs" style={{ color: 'var(--ink-faint)' }}>
+          You can change the blocks on the host screen, before and during the meeting.
+        </p>
       </form>
 
       {made && (
@@ -407,7 +416,7 @@ function Rooms() {
                     {when(r.created_at)}
                   </span>
                   <button className="btn btn-ghost" onClick={() => toggle(r.code)} aria-expanded={open === r.code}>
-                    {r.attendees} attended
+                    {r.attendees} checked in, {r.eligible ?? 0} count
                   </button>
                   <Link to={`/host/${r.code}`} className="btn btn-ghost" style={{ textDecoration: 'none' }}>
                     Host
@@ -433,8 +442,9 @@ function Rooms() {
                           <li key={i} className="flex flex-wrap gap-x-3 text-sm">
                             <span className="font-medium">{a.name}</span>
                             <span className="mono text-xs" style={{ color: 'var(--ink-faint)' }}>
-                              {a.email} · {when(a.joined_at)}
+                              {a.email} · {when(a.joined_at)} · {a.exit_kind ? `counts (${a.exit_kind})` : 'no exit artifact yet'}
                             </span>
+                            {a.exit_note && <span className="w-full text-xs" style={{ color: 'var(--ink-soft)' }}>{a.exit_note}</span>}
                           </li>
                         ))}
                       </ul>
