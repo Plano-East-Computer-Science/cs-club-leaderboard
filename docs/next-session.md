@@ -160,3 +160,30 @@ Local testing lessons from this session:
 Before any push (only when the lead asks): origin/club-os has be30924 (the dev deploy workflow copies
 DEV_* GitHub secrets onto the dev Worker), pushed on top of dd9b0ee. Merge `origin/club-os` into
 `club-os` first so the push fast-forwards.
+
+## Update 2026-11-18, evening (session 3, second half)
+
+Also merged and browser-checked (33 test files pass):
+- G4 handoff: `/archive` and `/archive/:year` (public, first names), `/officers/apply` (members see
+  their own criteria; any member may apply while the window is open, eligibility is shown, not a
+  gate). The window is closed by default: officers open it in Members > Handoff. Thresholds are
+  settings there too.
+- C15 research track (`/research`): paper of the month (officer sets it in Content), member
+  annotations (reportable), a private science-fair card, research opportunities filtered from the
+  board.
+- E6 alumni (`/alumni`): officers add graduates in Members; members ask through the club (3 a day),
+  officers forward. Contact details only ever leave officer routes. Outreach is a human job.
+- E5 pathways (`/pathways`): five goal plans; steps point at existing rungs, opportunities, cycles,
+  starters; auto-ticked from records or ticked by hand, never paid. A followed pathway's next step
+  shows on Today after the compass and open claims (so a member who has not done the compass still
+  sees "Find your path" first).
+- C8 spike: `docs/c8-spike.md`. Recommendation: prototype a self-hosted wasm Clang for C++ (60 MB
+  raw, about 19 MB gzip, clang.wasm must be split under the 25 MiB Workers asset limit); keep Java
+  credited through Codeforces for now.
+
+All new tables in this half are plain `CREATE TABLE` in `worker/schema.sql` (no new migration).
+In progress when this was written: C14 quant sandbox (synthetic seeded prices only, no real market
+data, no ledger points), on an agent branch.
+
+Screenshot tip: the in-app browser pane is often hidden, which stalls CSS transitions; add
+`?static=1` to the URL so panes are revealed at once.
