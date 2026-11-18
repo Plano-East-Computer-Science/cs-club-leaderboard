@@ -204,7 +204,8 @@ export default function Gateway() {
           <strong style={{ color: 'var(--ink)' }}>It will not run:</strong> Replit, Colab or apps like
           them. They need you to sign in, which the gateway blocks on purpose because anything you type
           would pass through a server you do not control. They also hold long connections open and
-          refuse proxies. Write and run code on this site instead.
+          refuse proxies. Write and run code in the{' '}
+          <a href="/workspace" style={{ color: 'var(--ink)' }}>workspace</a> on this site instead.
         </p>
       </div>
 

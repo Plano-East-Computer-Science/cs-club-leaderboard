@@ -18,6 +18,8 @@ export const PAGES = [
   ['standings', '/standings'],
   ['arena', '/arena'],
   ['ctf', '/arena/ctf'], // C11
+  ['data', '/arena/data'], // C12
+  ['workspace', '/workspace'], // D2
   ['courses', '/learn'], // C1: courses stay reachable; the Board links into them
   ['quests', '/quests'],
   ['daily', '/daily'],
@@ -41,8 +43,8 @@ const BAR = ['home', 'standings', 'arena', 'quests', 'room', 'build', 'opportuni
 // The "all" panel: the whole site as a directory listing, grouped by what you came to do.
 const GROUPS = [
   ['meet', [['room', 'join the live meeting'], ['calendar', 'meetings and deadlines'], ['ideas', 'tell us what to run next']]],
-  ['arena', [['arena', 'the board: your next problem, per track'], ['daily', 'one problem a day'], ['ctf', 'capture the flag: puzzles, scoreboard, events'], ['courses', 'the club\'s own lessons'], ['quests', 'small point bonuses'], ['puzzles', 'problem of the week'], ['curriculum', 'what we teach, by track']]],
-  ['build', [['build', 'ship cycles, templates, projects'], ['gateway', 'GitHub on school wifi']]],
+  ['arena', [['arena', 'the board: your next problem, per track'], ['daily', 'one problem a day'], ['ctf', 'capture the flag: puzzles, scoreboard, events'], ['data', 'datasets to predict, pandas in the browser'], ['courses', 'the club\'s own lessons'], ['quests', 'small point bonuses'], ['puzzles', 'problem of the week'], ['curriculum', 'what we teach, by track']]],
+  ['build', [['build', 'ship cycles, templates, projects'], ['workspace', 'your code, saved: Python and web pages'], ['gateway', 'GitHub on school wifi']]],
   ['compete', [['standings', 'season points, tiers, the prize'], ['competitions', 'USACO, UIL, BOT and more'], ['opportunities', 'contests, programs, internships'], ['cyber', 'the cyber team']]],
   ['club', [['compass', 'find your path'], ['about', 'who runs this'], ['join', 'how to get involved']]],
 ];
