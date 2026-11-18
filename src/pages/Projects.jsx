@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { useUser } from '../lib/useUser.js';
 import { Spinner, ErrorNote, Empty } from '../components/bits.jsx';
+import RepoStats from '../components/RepoStats.jsx';
 
 export const TRACKS = {
   cp: 'Competitive programming',
@@ -124,6 +125,7 @@ export default function Projects() {
               <p className="mt-3 flex-1 text-[0.85rem] leading-relaxed" style={{ color: 'var(--ink-soft)' }}>
                 {p.description}
               </p>
+              <RepoStats stats={p.stats} />
               <div className="mt-4 flex flex-wrap items-center gap-2 border-t pt-4">
                 {p.repo_url && (
                   <a className="btn btn-ghost" style={{ textDecoration: 'none' }} href={p.repo_url} target="_blank" rel="noreferrer noopener">

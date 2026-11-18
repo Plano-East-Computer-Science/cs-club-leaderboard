@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { Spinner, ErrorNote } from '../components/bits.jsx';
+import RepoStats from '../components/RepoStats.jsx';
 
 const TRACKS = {
   cp: 'Competitive programming',
@@ -118,6 +119,7 @@ export default function Portfolio() {
                     {p.repo_url && p.demo_url && ' · '}
                     {p.demo_url && <a href={p.demo_url} target="_blank" rel="noreferrer noopener">{p.demo_url}</a>}
                   </p>
+                  <RepoStats stats={p.stats} />
                 </li>
               ))}
             </ul>

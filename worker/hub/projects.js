@@ -8,6 +8,7 @@ import { COURSES } from '../../shared/courses.js';
 import { requireUser } from './users.js';
 import { questProgress } from '../../shared/quests.js';
 import { statsFor } from './quests.js';
+import { withRepoStats } from './github.js';
 
 export const projectsRouter = new Hono();
 
@@ -33,7 +34,7 @@ projectsRouter.get('/projects', async (c) => {
       )
       .all()
   ).results;
-  return c.json({ projects: rows });
+  return c.json({ projects: await withRepoStats(c.env.DB, rows) });
 });
 
 projectsRouter.post('/projects', requireUser, async (c) => {
@@ -107,6 +108,6 @@ projectsRouter.get('/portfolio/:id', async (c) => {
     since: user.created_at,
     meetings: rooms.n,
     courses: courses.map((x) => ({ ...x, complete: x.passed === x.steps })),
-    projects,
+    projects: await withRepoStats(c.env.DB, projects),
   });
 });

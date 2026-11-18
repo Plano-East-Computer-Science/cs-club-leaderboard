@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { useUser } from '../lib/useUser.js';
 import { Spinner } from '../components/bits.jsx';
+import CodeforcesPanel from '../components/CodeforcesPanel.jsx';
 
 export default function SignIn() {
   const { user, loading, refresh, signOut } = useUser();
@@ -247,6 +248,10 @@ function Account({ user, refresh, signOut }) {
         <Link className="btn btn-ghost" to="/projects" style={{ textDecoration: 'none' }}>
           Projects
         </Link>
+      </div>
+
+      <div className="border-t pt-4">
+        <CodeforcesPanel />
       </div>
 
       <div className="border-t pt-4">
