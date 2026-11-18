@@ -27,6 +27,7 @@ import Room from './pages/Room.jsx';
 import Host from './pages/Host.jsx';
 import Officer from './pages/Officer.jsx';
 import Gateway from './pages/Gateway.jsx';
+import Reader from './pages/Reader.jsx';
 import Build from './pages/Build.jsx';
 import Starter from './pages/Starter.jsx';
 import Portfolio from './pages/Portfolio.jsx';
@@ -165,6 +166,7 @@ function Shell() {
             <Route path="/room/:code" element={<Room />} />
             <Route path="/officer" element={<Officer />} />
             <Route path="/gateway" element={<Gateway />} />
+            <Route path="/read" element={<Reader />} />
             <Route path="/projects" element={<Navigate to="/build" replace />} />
             <Route path="/u/:id" element={<Portfolio />} />
             <Route path="/privacy" element={<Privacy />} />
