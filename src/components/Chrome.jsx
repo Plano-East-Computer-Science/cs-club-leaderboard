@@ -115,7 +115,9 @@ export function TabBar() {
         })}
       </nav>
       <button type="button" className={`allb${elsewhere || open ? ' on' : ''}`} aria-expanded={open} aria-controls="site-map" onClick={() => setOpen(!open)}>
-        <span className="hide-xs">ls </span>all<span aria-hidden="true">{open ? ' ▴' : ' ▾'}</span>
+        <span className="allb-d">ls all</span>
+        <span className="allb-m">menu</span>
+        <span aria-hidden="true">{open ? ' ▴' : ' ▾'}</span>
       </button>
       {isOfficer && (
         <Link className="offb" to="/officer" aria-current={pathname.startsWith('/officer') ? 'page' : undefined}>

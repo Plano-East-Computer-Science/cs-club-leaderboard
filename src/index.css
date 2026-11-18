@@ -1014,6 +1014,21 @@ h1,h2,.display{text-wrap:balance}
 .mega-f a{color:var(--dim);text-decoration:underline;text-underline-offset:3px;margin-left:10px}
 .mega-f a:hover{color:var(--gold)}
 @media(max-width:560px){.tabs .allb,.tabs .acct{padding:10px 11px}.tabs .acct.in{max-width:92px}}
+/* Phones: the page list in the bar cannot fit beside the menu and account, so
+   the bar is brand, menu, account, and the menu panel is the page list. The
+   command bar needs a keyboard and is hidden; the status line stays. */
+.tabs .allb-m{display:none}
+@media(max-width:700px){
+  .tabs nav{display:none}
+  .tabs .allb{margin-left:auto}
+  .tabs .allb-d{display:none}
+  .tabs .allb-m{display:inline}
+  .mega-g{grid-template-columns:1fr 1fr;gap:14px 16px;padding:14px 16px 18px}
+  .mega section a{padding:8px 8px}
+  .mega section a span{display:none}
+  .dock .cmd{display:none}
+  body{padding-bottom:34px}
+}
 
 /* ---- quests, ideas, room agenda ---- */
 .rankbar{height:6px;background:var(--panel2);border:1px solid var(--line);margin-top:8px}
