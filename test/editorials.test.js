@@ -207,8 +207,9 @@ await check('ghost results: the server uses its own time for the ghost, records 
   const lose = await call('/problems/two-sum/ghost-result', { cookie: sam.cookie, method: 'POST', body: { ghost: 'median', ms: 999_999 } });
   assert.equal(lose.body.won, false);
   assert.equal(lose.body.ghostName, 'the club median');
-  assert.equal((await call('/problems/two-sum/ghost-result', { cookie: sam.cookie, method: 'POST', body: { ghost: sam.id, ms: 5 } })).status, 404, 'cannot race yourself');
+  assert.equal((await call('/problems/two-sum/ghost-result', { cookie: sam.cookie, method: 'POST', body: { ghost: sam.id, ms: 5000 } })).status, 404, 'cannot race yourself');
   assert.equal((await call('/problems/two-sum/ghost-result', { cookie: sam.cookie, method: 'POST', body: { ghost: 'median', ms: -4 } })).status, 400);
+  assert.equal((await call('/problems/two-sum/ghost-result', { cookie: sam.cookie, method: 'POST', body: { ghost: 'median', ms: 5 } })).status, 400, 'implausibly fast times are refused');
   const hist = (await call('/problems/two-sum/ghosts', { cookie: sam.cookie })).body.history;
   assert.equal(hist.length, 2);
   assert.equal((await db.prepare('SELECT COUNT(*) AS n FROM activity').first()).n, before, 'no points for winning');

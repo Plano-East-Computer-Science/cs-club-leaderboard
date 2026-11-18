@@ -24,6 +24,11 @@ const SLUG = /^[a-z0-9][a-z0-9-]{0,79}$/;
 const MAX_BODY = 4000;
 const MAX_CODE = 4000;
 const MAX_MS = 86_400_000;
+// Times come from the member's browser (the code is judged there), so they are sanity-checked,
+// not trusted: under a second or over a day is refused, and a ghost time is always read back
+// from the database, never from the request. ponytail: a server-issued start token would make
+// this tamper-proof; skipped because ghosts carry no points.
+const MIN_MS = 1000;
 
 const isStaff = (u) => u?.role === 'officer' || u?.role === 'lead';
 
@@ -63,7 +68,7 @@ export async function solveTimes(db, slug) {
 editorialsRouter.post('/problems/:slug/solve', requireUser, async (c) => {
   const slug = c.req.param('slug');
   const ms = Number((await c.req.json().catch(() => null))?.ms);
-  if (!Number.isInteger(ms) || ms < 0 || ms > MAX_MS) return c.json({ error: 'Time must be under a day.' }, 400);
+  if (!Number.isInteger(ms) || ms < MIN_MS || ms > MAX_MS) return c.json({ error: 'Time must be between a second and a day.' }, 400);
   if (!(await liveProblem(c.env.DB, slug))) return c.json({ error: 'No such problem.' }, 404);
   await c.env.DB
     .prepare(
@@ -143,7 +148,7 @@ editorialsRouter.post('/problems/:slug/ghost-result', requireUser, async (c) => 
   const user = c.get('user');
   const b = await c.req.json().catch(() => null);
   const ms = Number(b?.ms);
-  if (!Number.isInteger(ms) || ms < 0 || ms > MAX_MS) return c.json({ error: 'Time must be under a day.' }, 400);
+  if (!Number.isInteger(ms) || ms < MIN_MS || ms > MAX_MS) return c.json({ error: 'Time must be between a second and a day.' }, 400);
   if (!(await liveProblem(db, slug))) return c.json({ error: 'No such problem.' }, 404);
   // The server looks the ghost's time up itself; the page cannot choose its own opponent time.
   const all = await solveTimes(db, slug);
