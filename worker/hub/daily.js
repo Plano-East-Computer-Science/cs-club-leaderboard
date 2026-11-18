@@ -25,7 +25,7 @@ async function poolAndPins(db) {
 }
 
 /** The problem row for a date, or null when the bank has nothing to offer. */
-async function problemFor(db, date) {
+export async function problemFor(db, date) {
   const { pool, pins } = await poolAndPins(db);
   const id = pickDaily(date, pool, pins);
   return id == null ? null : db.prepare('SELECT * FROM problems WHERE id = ?').bind(id).first();
