@@ -837,3 +837,59 @@ CREATE TABLE IF NOT EXISTS portfolio_signoffs (
 );
 CREATE INDEX IF NOT EXISTS idx_portfolio_signoffs_user ON portfolio_signoffs(user_id);
 
+
+/* ================================ C15: research track ================================ */
+-- The latest row is the current paper of the month. Officers write it; the link is https only.
+CREATE TABLE IF NOT EXISTS research_papers (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  title      TEXT NOT NULL,
+  url        TEXT NOT NULL,
+  why        TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+-- A short annotation: a quote or section reference plus a comment. Reportable (kind paper_note).
+CREATE TABLE IF NOT EXISTS paper_notes (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  paper_id   INTEGER NOT NULL REFERENCES research_papers(id) ON DELETE CASCADE,
+  user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  quote      TEXT NOT NULL DEFAULT '',
+  comment    TEXT NOT NULL,
+  status     TEXT NOT NULL DEFAULT 'posted',   -- posted | hidden
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_paper_notes_paper ON paper_notes(paper_id, status);
+-- One science-fair project card per member. Private to the member and officers.
+CREATE TABLE IF NOT EXISTS science_projects (
+  user_id    INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  question   TEXT NOT NULL DEFAULT '',
+  mentor     TEXT NOT NULL DEFAULT '',
+  data_plan  TEXT NOT NULL DEFAULT '',
+  writeup    TEXT NOT NULL DEFAULT '',
+  deadline   TEXT,                              -- YYYY-MM-DD
+  stage      TEXT NOT NULL DEFAULT 'question',  -- question | mentor | data | writeup | done
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+/* ================================ E6: alumni and mentors ================================ */
+-- Graduates are adults and members are minors: `contact` is for officers only and is
+-- never selected by a member route. Members send a question through the club instead.
+CREATE TABLE IF NOT EXISTS alumni (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  name       TEXT NOT NULL,
+  grad_year  INTEGER,
+  doing      TEXT NOT NULL DEFAULT '',
+  topics     TEXT NOT NULL DEFAULT '',
+  contact    TEXT NOT NULL DEFAULT '',          -- officers only
+  active     INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+-- A member's question for a graduate. Officers read it and forward it by hand.
+CREATE TABLE IF NOT EXISTS alumni_questions (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  alumni_id  INTEGER NOT NULL REFERENCES alumni(id) ON DELETE CASCADE,
+  user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  question   TEXT NOT NULL,
+  status     TEXT NOT NULL DEFAULT 'new',       -- new | forwarded
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_alumni_q_status ON alumni_questions(status, created_at);
