@@ -327,3 +327,22 @@ CREATE TABLE IF NOT EXISTS daily_results (
   PRIMARY KEY (user_id, date)
 );
 CREATE INDEX IF NOT EXISTS idx_daily_results_date ON daily_results(date);
+-- B2. Duel results, written by the room's Durable Object as each round ends.
+-- `code` is the last submitted code, kept so officers can spot-check honour-system
+-- judging; it is never shown on the projector or to other students.
+CREATE TABLE IF NOT EXISTS duel_results (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  room_code  TEXT    NOT NULL,
+  round      INTEGER NOT NULL,
+  division   TEXT    NOT NULL,                     -- new | comfortable | contest
+  match_no   INTEGER NOT NULL,
+  user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  slug       TEXT    NOT NULL,                     -- problems.slug
+  attempts   INTEGER NOT NULL DEFAULT 0,
+  solved_ms  INTEGER,                              -- null when not solved
+  won        INTEGER NOT NULL DEFAULT 0,
+  code       TEXT    NOT NULL DEFAULT '',
+  created_at TEXT    NOT NULL DEFAULT (datetime('now')),
+  UNIQUE (room_code, round, user_id)
+);
+CREATE INDEX IF NOT EXISTS idx_duel_results_slug ON duel_results(slug, solved_ms);

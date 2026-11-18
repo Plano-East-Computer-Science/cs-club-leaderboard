@@ -66,6 +66,21 @@ roomsAdminRouter.get('/rooms/:code/attendance', async (c) => {
   return c.json({ attendees: rows });
 });
 
+/** B2: every duel result in a room, with the submitted code, so officers can spot-check. */
+roomsAdminRouter.get('/rooms/:code/duel', async (c) => {
+  const rows = (
+    await c.env.DB
+      .prepare(
+        `SELECT d.round, d.division, d.match_no, d.user_id, u.name, d.slug, d.attempts, d.solved_ms, d.won, d.code
+         FROM duel_results d LEFT JOIN users u ON u.id = d.user_id
+         WHERE d.room_code = ? ORDER BY d.round, d.division, d.match_no`
+      )
+      .bind(normCode(c.req.param('code')))
+      .all()
+  ).results;
+  return c.json({ results: rows });
+});
+
 /**
  * Closing a room pays attendance: every check-in becomes an `attend` activity
  * (A2) and the ledger applies the rules. The activity ref is the room code, so
@@ -156,6 +171,7 @@ roomsRouter.get('/rooms/:code/ws', async (c) => {
     headers.set('x-name', user.name);
   }
 
+  headers.set('x-code', code); // the room records duel results under it
   const stub = c.env.ROOMS.get(c.env.ROOMS.idFromName(code));
   return stub.fetch(new Request(c.req.raw, { headers }));
 });

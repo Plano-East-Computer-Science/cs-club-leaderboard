@@ -8,7 +8,13 @@
  * The Worker authenticates before forwarding and passes identity in headers
  * (x-role / x-uid / x-name); the DO is not reachable any other way.
  */
+import { newDuel, setDivision, startRound, submit, everyoneSolved, endRound, pickSpotlight, finish, duelView, DIVISIONS } from './duel.js';
+import { makePairs, groupKeys } from './pairs.js';
+import { duelActivities } from './duel-awards.js';
+import { awardFromUser } from './award.js';
+
 const PULSE = ['fast', 'slow', 'lost', 'great'];
+const MAX_CODE = 20_000;
 
 const fresh = () => ({
   q: null, // { id, text, options, correct, seconds, openedAt, open, revealed }
@@ -18,6 +24,10 @@ const fresh = () => ({
   names: {}, // uid -> name (everyone who has connected)
   stage: [], // today's agenda: [{ label, url }] the host pins for everyone
   asks: [], // question box: [{ id, uid, text }], only the host sees it
+  duel: null, // B2, see duel.js
+  pairs: null, // B9: [[uid, uid], ...] from "pair the room"
+  pairAvoid: [], // last pairs, so the next press rotates
+  code: '', // the room code, for duel_results
   ended: false,
   seq: 0,
 });
@@ -31,8 +41,9 @@ export function cleanStage(items) {
 }
 
 export class Room {
-  constructor(ctx) {
+  constructor(ctx, env) {
     this.ctx = ctx;
+    this.env = env;
     this.s = fresh();
     ctx.blockConcurrencyWhile(async () => {
       this.s = (await ctx.storage.get('s')) ?? fresh();
@@ -49,6 +60,8 @@ export class Room {
     const role = request.headers.get('x-role') === 'host' ? 'host' : 'student';
     const uid = role === 'host' ? 'host' : String(request.headers.get('x-uid') ?? '');
     const name = request.headers.get('x-name') || 'Student';
+    const code = request.headers.get('x-code');
+    if (code && !this.s.code) this.s.code = code;
 
     const pair = new WebSocketPair();
     const [client, server] = Object.values(pair);
@@ -91,7 +104,7 @@ export class Room {
           revealed: false,
         };
         s.answers = {};
-        await this.ctx.storage.setAlarm(Date.now() + seconds * 1000);
+        await this.schedule();
       } else if (m.t === 'close' && s.q?.open) {
         this.closeQuestion();
       } else if (m.t === 'reveal' && s.q) {
@@ -106,6 +119,18 @@ export class Room {
       } else if (m.t === 'end') {
         s.ended = true;
         s.q = s.q && { ...s.q, open: false };
+        if (s.duel?.phase === 'live') await this.closeRound();
+      } else if (m.t === 'pairs') {
+        // B9: pair everyone connected; remembers this set so the next press rotates.
+        const mode = ['random', 'mixed', 'squad'].includes(m.mode) ? m.mode : 'random';
+        const levels = Object.fromEntries(Object.entries(s.duel?.divs ?? {}).map(([u, d]) => [u, DIVISIONS.indexOf(d)]));
+        s.pairs = makePairs(this.present(), { mode, levels, avoid: s.pairAvoid ?? [] });
+        s.pairAvoid = groupKeys(s.pairs);
+      } else if (m.t === 'pairs_clear') {
+        s.pairs = null;
+      } else if (typeof m.t === 'string' && m.t.startsWith('duel_')) {
+        const err = await this.hostDuel(m);
+        if (err) return this.notice(ws, err);
       } else return;
     } else if (role === 'student') {
       if (m.t === 'answer' && s.q?.open && !(uid in s.answers)) {
@@ -120,6 +145,15 @@ export class Room {
         // A few open questions each, so one phone cannot flood the host.
         if (text.length < 3 || s.asks.filter((a) => a.uid === uid).length >= 3 || s.asks.length >= 60) return;
         s.asks.push({ id: ++s.seq, uid, text });
+      } else if (m.t === 'duel_div' && s.duel) {
+        const r = setDivision(s.duel, uid, m.div);
+        if (r.error) return this.notice(ws, r.error);
+      } else if (m.t === 'duel_submit' && s.duel) {
+        const r = submit(s.duel, uid, { round: m.round, slug: m.slug, passed: m.passed === true }, Date.now());
+        if (r.error) return this.notice(ws, r.error);
+        // Kept per round and student, outside the main state: code can be large.
+        await this.ctx.storage.put(`code:${s.duel.round}:${uid}`, String(m.code ?? '').slice(0, MAX_CODE));
+        if (everyoneSolved(s.duel)) await this.closeRound();
       } else return;
     }
 
@@ -133,11 +167,128 @@ export class Room {
   }
 
   async alarm() {
-    if (this.s.q?.open) {
+    const now = Date.now();
+    let changed = false;
+    if (this.s.q?.open && now >= this.s.q.openedAt + this.s.q.seconds * 1000 - 50) {
       this.closeQuestion();
+      changed = true;
+    }
+    if (this.s.duel?.phase === 'live' && now >= this.s.duel.endsAt - 50) {
+      await this.closeRound();
+      changed = true;
+    }
+    await this.schedule();
+    if (changed) {
       await this.save();
       this.broadcast();
     }
+  }
+
+  /** One alarm serves both timers (quiz question, duel round): set it to whichever ends first. */
+  async schedule() {
+    const due = [];
+    if (this.s.q?.open) due.push(this.s.q.openedAt + this.s.q.seconds * 1000);
+    if (this.s.duel?.phase === 'live') due.push(this.s.duel.endsAt);
+    if (due.length) await this.ctx.storage.setAlarm(Math.min(...due));
+  }
+
+  /** uids of students connected right now. */
+  present() {
+    const ids = this.ctx.getWebSockets().map((w) => w.deserializeAttachment()).filter((a) => a?.role === 'student').map((a) => a.uid);
+    return [...new Set(ids)];
+  }
+
+  /** A message for one screen only: why their action was refused. */
+  notice(ws, text) {
+    try {
+      ws.send(JSON.stringify({ t: 'notice', text }));
+    } catch {
+      /* socket already gone */
+    }
+  }
+
+  /** Host duel controls. Returns an error sentence, or nothing on success. */
+  async hostDuel(m) {
+    const s = this.s;
+    const db = this.env?.DB;
+    if (m.t === 'duel_setup') {
+      if (s.duel && s.duel.phase !== 'done') return 'A duel is already running. Close it first.';
+      const asked = Object.fromEntries(DIVISIONS.map((d) => [d, (Array.isArray(m.problems?.[d]) ? m.problems[d] : []).map(String).slice(0, 3)]));
+      const slugs = [...new Set(Object.values(asked).flat())];
+      if (!slugs.length) return 'Pick at least one problem.';
+      // Only live problems from the bank; titles come from there, not from the message.
+      const rows = (
+        await db.prepare(`SELECT slug, title FROM problems WHERE status = 'live' AND slug IN (${slugs.map(() => '?').join(',')})`).bind(...slugs).all()
+      ).results;
+      const title = Object.fromEntries(rows.map((r) => [r.slug, r.title]));
+      const problems = Object.fromEntries(DIVISIONS.map((d) => [d, asked[d].filter((x) => x in title).map((slug) => ({ slug, title: title[slug] }))]));
+      const r = newDuel({ problems, minutes: m.minutes ?? 10, rounds: m.rounds ?? 3, newMode: m.newMode });
+      if (r.error) return r.error;
+      // Keep who picked which division last time, so the room does not pick again.
+      if (s.duel) r.duel.divs = Object.fromEntries(Object.entries(s.duel.divs).filter(([, d]) => r.duel.problems[d]?.length));
+      s.duel = r.duel;
+    } else if (!s.duel) {
+      return 'Set up a duel first.';
+    } else if (m.t === 'duel_start') {
+      const slugs = DIVISIONS.flatMap((d) => s.duel.problems[d].map((p) => p.slug));
+      // The ghost is the best time anyone has had on that problem, in any room.
+      const ghostTimes = {};
+      if (db && slugs.length) {
+        const rows = (
+          await db
+            .prepare(`SELECT slug, MIN(solved_ms) AS ms FROM duel_results WHERE solved_ms IS NOT NULL AND slug IN (${slugs.map(() => '?').join(',')}) GROUP BY slug`)
+            .bind(...slugs)
+            .all()
+        ).results;
+        for (const r of rows) ghostTimes[r.slug] = r.ms;
+      }
+      const r = startRound(s.duel, { now: Date.now(), present: this.present(), ghostTimes });
+      if (r.error) return r.error;
+      await this.schedule();
+    } else if (m.t === 'duel_end_round') {
+      if (s.duel.phase !== 'live') return 'No round is running.';
+      await this.closeRound();
+    } else if (m.t === 'duel_spotlight') {
+      const r = pickSpotlight(s.duel, m.uid);
+      if (r.error) return r.error;
+    } else if (m.t === 'duel_finish') {
+      const r = finish(s.duel);
+      if (r.error) return r.error;
+    } else if (m.t === 'duel_close') {
+      if (s.duel.phase === 'live') return 'End the round first.';
+      s.duel = null;
+    } else {
+      return 'Unknown duel command.';
+    }
+    return null;
+  }
+
+  /** Ends the live round and writes its results, with each student's last code, to D1. */
+  async closeRound() {
+    const s = this.s;
+    const r = endRound(s.duel, Date.now());
+    if (r.error || !r.rows.length) return;
+    const db = this.env?.DB;
+    if (!db) return;
+    const codes = await this.ctx.storage.get(r.rows.map((x) => `code:${x.round}:${x.user_id}`));
+    try {
+      await db.batch(
+        r.rows.map((x) =>
+          db
+            .prepare(
+              `INSERT OR REPLACE INTO duel_results (room_code, round, division, match_no, user_id, slug, attempts, solved_ms, won, code)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+            )
+            .bind(s.code || '?', x.round, x.division, x.match_no, Number(x.user_id), x.slug, x.attempts, x.solved_ms, x.won, codes.get(`code:${x.round}:${x.user_id}`) ?? '')
+        )
+      );
+    } catch (err) {
+      // The code stays in DO storage; only the D1 copy of this round is missing.
+      console.error('duel_results write failed', err);
+    }
+    // Points through the ledger; `ref` is per room and round, so a replay never pays twice.
+    const acts = duelActivities(r.rows.map((x) => ({ ...x, room_code: s.code || '?', user_id: Number(x.user_id) })));
+    for (const act of acts) await awardFromUser(db, null, act);
   }
 
   /** Stops accepting answers and scores them: 500 for right, up to 500 more for speed. */
@@ -178,6 +329,11 @@ export class Room {
       stage: s.stage ?? [],
       asks: role === 'host' ? (s.asks ?? []).map((a) => ({ id: a.id, text: a.text, name: s.names[a.uid] ?? 'Student' })) : undefined,
       myAsks: role === 'student' ? (s.asks ?? []).filter((a) => a.uid === uid).length : undefined,
+      duel: duelView(s.duel, { role, uid, names: s.names, present: [...connected] }),
+      pairs:
+        role === 'host'
+          ? s.pairs?.map((g) => g.map((u) => s.names[u] ?? 'Student'))
+          : s.pairs?.find((g) => g.includes(uid))?.filter((u) => u !== uid).map((u) => s.names[u] ?? 'Student'),
       q: q && {
         id: q.id,
         text: q.text,

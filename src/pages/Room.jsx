@@ -4,6 +4,7 @@ import { api } from '../lib/api.js';
 import { useUser } from '../lib/useUser.js';
 import { useRoomSocket } from '../lib/useRoomSocket.js';
 import { Spinner } from '../components/bits.jsx';
+import { DuelPlay, Notice, PartnerCard } from './Duel.jsx';
 
 const GOOD = '#2f8f5b';
 const BAD = '#c42e2e';
@@ -140,7 +141,7 @@ function Enter() {
 
 function Live({ code }) {
   const { user, loading } = useUser();
-  const { state, status, refused, skew, send } = useRoomSocket(user ? code : null);
+  const { state, status, refused, skew, notice, send } = useRoomSocket(user ? code : null);
   const [myPulse, setMyPulse] = useState(null);
   const q = state?.q;
   const { left, frac } = useCountdown(q, skew);
@@ -178,8 +179,12 @@ function Live({ code }) {
     send({ t: 'pulse', v });
   };
 
+  // A live duel needs room for the statement beside the editor.
+  const wide = state?.duel?.phase === 'live' && state.duel.match;
+
   return (
-    <div className="mx-auto max-w-xl">
+    <div className={`mx-auto ${wide ? 'max-w-6xl' : 'max-w-xl'}`}>
+      <Notice notice={notice} />
       <header className="mb-6 flex items-end justify-between gap-3">
         <div>
           <p className="eyebrow">Room</p>
@@ -209,7 +214,9 @@ function Live({ code }) {
         </div>
       ) : (
         <div className="grid gap-5">
-          {!q ? (
+          {state.duel && <DuelPlay duel={state.duel} send={send} skew={skew} />}
+          <PartnerCard partner={state.pairs} />
+          {state.duel && !q ? null : !q ? (
             <div className="card p-8 text-center">
               <p className="display text-xl font-bold">Waiting for the first question</p>
               <p className="mono mt-2 text-sm" style={{ color: 'var(--ink-soft)' }}>

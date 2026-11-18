@@ -4,6 +4,7 @@ import { api } from '../lib/api.js';
 import { useRoomSocket } from '../lib/useRoomSocket.js';
 import { Spinner } from '../components/bits.jsx';
 import { Board, LETTERS, PULSES, useCountdown } from './Room.jsx';
+import { DuelBoard, DuelSetup, Notice, PairPanel } from './Duel.jsx';
 
 const GOOD = '#2f8f5b';
 
@@ -122,7 +123,7 @@ function Agenda({ stage, onChange }) {
 }
 
 function Console({ code }) {
-  const { state, status, refused, skew, send } = useRoomSocket(code);
+  const { state, status, refused, skew, notice, send } = useRoomSocket(code);
   const [draft, setDraft] = useState({ text: '', options: ['', '', '', ''], correct: null, seconds: 20 });
   const q = state?.q;
   const { left } = useCountdown(q, skew);
@@ -182,6 +183,9 @@ function Console({ code }) {
         </div>
       </header>
 
+      <Notice notice={notice} />
+      {state?.duel && state.duel.phase !== 'done' && <DuelBoard duel={state.duel} send={send} skew={skew} />}
+
       {!state ? (
         <Spinner label="Connecting" />
       ) : (
@@ -228,6 +232,8 @@ function Console({ code }) {
 
             <Agenda stage={state.stage ?? []} onChange={(items) => send({ t: 'stage', items })} />
 
+            <PairPanel pairs={state.pairs} send={send} />
+
             {state.asks?.length > 0 && (
               <section className="card p-5" aria-label="Questions from the room">
                 <p className="eyebrow mb-3">Questions ({state.asks.length})</p>
@@ -272,6 +278,9 @@ function Console({ code }) {
           </div>
 
           <div className="grid content-start gap-6">
+            {state.duel?.phase === 'done' && <DuelBoard duel={state.duel} send={send} skew={skew} />}
+            {(!state.duel || state.duel.phase === 'done') && <DuelSetup send={send} disabled={state.ended} />}
+
             <form onSubmit={ask} className="card grid gap-3 p-5" aria-label="New question">
               <p className="eyebrow">Ask a question</p>
               <div className="flex flex-wrap gap-2">
