@@ -38,6 +38,8 @@ import Daily from './pages/Daily.jsx';
 import Compass from './pages/Compass.jsx';
 import Privacy from './pages/Privacy.jsx';
 import Parents from './pages/Parents.jsx';
+import Archive from './pages/Archive.jsx';
+import OfficerApply from './pages/OfficerApply.jsx';
 import Verify from './pages/Verify.jsx';
 import { SubscribeBox } from './components/Subscribe.jsx';
 import { TabBar, Dock, Boot, Snow, PAGES } from './components/Chrome.jsx';
@@ -174,6 +176,9 @@ function Shell() {
             <Route path="/u/:id" element={<Portfolio />} />
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/parents" element={<Parents />} />
+            <Route path="/archive" element={<Archive />} />
+            <Route path="/archive/:year" element={<Archive />} />
+            <Route path="/officers/apply" element={<OfficerApply />} />
             <Route path="/verify/:code" element={<Verify />} />
           </Route>
           <Route
