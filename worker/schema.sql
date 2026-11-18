@@ -159,8 +159,8 @@ CREATE TABLE IF NOT EXISTS users (
   -- answered or skipped. compass_at NULL means Today sends them to /compass once.
   compass    TEXT,
   path       TEXT,                               -- contest | builder | ai | data | cyber | explorer
-  compass_at TEXT
-  cf_handle      TEXT,                           -- C4: verified Codeforces handle
+  compass_at TEXT,
+  cf_handle     TEXT,                           -- C4: verified Codeforces handle
   cf_verified_at TEXT,
   cf_rating      INTEGER,
   cf_synced_at   INTEGER,                        -- ms, last sync attempt (round-robin order)
@@ -405,6 +405,7 @@ CREATE TABLE IF NOT EXISTS kudos (
   user_id     INTEGER NOT NULL REFERENCES users(id)    ON DELETE CASCADE,
   created_at  TEXT    NOT NULL DEFAULT (datetime('now')),
   PRIMARY KEY (activity_id, user_id)
+);
 
 -- C4. Codeforces link. A pending ownership challenge per member (issued_at in ms),
 -- and the problems a verified handle has solved.
