@@ -31,6 +31,7 @@ import { recordsRouter, recordsAdminRouter } from './records.js';
 import { competeRouter, competeAdminRouter } from './compete.js';
 import { savedRouter } from './saved.js';
 import { analyticsAdminRouter } from './analytics.js';
+import { dataRouter, dataAdminRouter } from './data.js';
 
 export { Room } from './room-do.js';
 
@@ -56,6 +57,7 @@ hubAdmin.route('/', safetyAdminRouter);
 hubAdmin.route('/', recordsAdminRouter);
 hubAdmin.route('/', competeAdminRouter);
 hubAdmin.route('/', analyticsAdminRouter);
+hubAdmin.route('/', dataAdminRouter);
 
 /** Call BEFORE the catch-all `/api` and static handlers. */
 export function mountHub(app) {
@@ -85,4 +87,5 @@ export function mountHub(app) {
   app.route('/api', teamPostsRouter);
   app.route('/api', competeRouter);
   app.route('/api', savedRouter);
+  app.route('/api', dataRouter);
 }
