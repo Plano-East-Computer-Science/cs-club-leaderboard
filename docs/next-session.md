@@ -156,3 +156,7 @@ Local testing lessons from this session:
 - The in-app browser may hold an old HttpOnly `cslb_admin` or `cslb_user` cookie on localhost;
   a member page then acts as host, or a JS-set cookie silently does nothing. Sign in through the
   real dev link, or call `/api/admin/logout`, to clear it.
+
+Before any push (only when the lead asks): origin/club-os has be30924 (the dev deploy workflow copies
+DEV_* GitHub secrets onto the dev Worker), pushed on top of dd9b0ee. Merge `origin/club-os` into
+`club-os` first so the push fast-forwards.
