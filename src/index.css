@@ -908,12 +908,6 @@ select.field{color-scheme:dark}
 .btn-danger{background:transparent;color:var(--down);border-color:rgba(255,98,83,.4)}
 .btn-danger:hover{background:rgba(255,98,83,.1)}
 .btn:disabled{opacity:.4;cursor:not-allowed}
-/* A disabled primary button reads as not-yet, not as a dim version of the main action. */
-.btn.pri:disabled,.btn-primary:disabled{background:transparent;color:var(--mute);border-color:var(--line2);opacity:1}
-/* Big display headings break into even lines instead of leaving one word alone. */
-h1,h2,.display{text-wrap:balance}
-/* Phones: 16px form text so iOS does not zoom the page on focus. */
-@media(max-width:640px){.field,.fi,select,textarea,input:not([type=checkbox]):not([type=radio]){font-size:16px}}
 /* ================= admin ================= */
 .ap-login{min-height:calc(100vh - 160px);display:grid;place-items:center;padding:30px 0}
 .ap-box{width:min(440px,100%);border:1px solid var(--gold-d);background:var(--panel)}
@@ -969,6 +963,13 @@ textarea.fi{resize:vertical;line-height:1.5}
 }
 
 /* Club-hub pages (learn, rooms, projects...): written with utility classes, framed to match the terminal theme. */
+/* Outside the components layer so Tailwind utilities on older screens cannot beat them. */
+/* A disabled primary button reads as not-yet, not as a dim version of the main action. */
+.btn.pri:disabled,.btn-primary:disabled{background:transparent;color:var(--mute);border-color:var(--line2);opacity:1}
+/* Big display headings break into even lines instead of leaving one word alone. */
+h1,h2,.display{text-wrap:balance}
+/* Phones: 16px form text so iOS does not zoom the page on focus. */
+@media(max-width:640px){.field,.fi,select,textarea,input:not([type=checkbox]):not([type=radio]){font-size:16px}}
 .hub{max-width:1360px;margin:0 auto;padding:28px 20px 56px}
 .hub *{border-radius:0}
 .hub header .eyebrow::before{content:"$ ";color:var(--gold)}
