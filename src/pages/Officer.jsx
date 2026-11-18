@@ -14,6 +14,7 @@ import Board from './officer/Board.jsx';
 import Reports from './officer/Reports.jsx';
 import Records from './officer/Records.jsx';
 import Cycles from './officer/Cycles.jsx';
+import CtfAdmin from './officer/Ctf.jsx';
 import CompetitionAdmin from './officer/Competition.jsx';
 import Analytics from './officer/Analytics.jsx';
 import TemplatePicker from './officer/TemplatePicker.jsx';
@@ -102,6 +103,7 @@ export default function Officer() {
       <Team />
       <Board />
       <Cycles />
+      <CtfAdmin />
     </div>
   );
 }

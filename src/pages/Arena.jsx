@@ -263,6 +263,7 @@ export default function Arena() {
                     <button type="button" className="linkb ar-back" onClick={() => setPicked(null)}>Back to your next rung</button>
                   )}
                   {track === 'contest' && <Usaco c={d.usaco} />}
+                  {track === 'cyber' && <p className="ar-note"><Link className="uline g" to="/arena/ctf">Capture the flag board</Link>: puzzles by category, a scoreboard and upcoming events.</p>}
                   {track === 'contest' && d.signedIn && <CodeforcesPanel onSynced={load} />}
                   <p className="ar-blurb">{t.blurb}</p>
                 </div>

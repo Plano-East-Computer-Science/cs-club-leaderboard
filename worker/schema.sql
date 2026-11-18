@@ -643,3 +643,36 @@ CREATE TABLE IF NOT EXISTS workspace_files (
   content      TEXT    NOT NULL,
   PRIMARY KEY (workspace_id, path)
 );
+
+/* ================================ C11: CTF board ================================ */
+-- Challenges are inline text (no live servers). Only the SHA-256 of the normalised
+-- flag is stored and it never leaves the Worker. Member-written ones start
+-- 'pending' and need an officer other than the author; starters have no author.
+CREATE TABLE IF NOT EXISTS ctf_challenges (
+  id             INTEGER PRIMARY KEY AUTOINCREMENT,
+  slug           TEXT    NOT NULL UNIQUE,
+  title          TEXT    NOT NULL,
+  category       TEXT    NOT NULL,              -- crypto | web | forensics | reversing | misc
+  difficulty     INTEGER NOT NULL DEFAULT 1,   -- 1-3
+  points         INTEGER NOT NULL DEFAULT 50,   -- scoreboard points, from difficulty
+  body           TEXT    NOT NULL DEFAULT '',
+  file_name      TEXT    NOT NULL DEFAULT '',
+  file_data      TEXT    NOT NULL DEFAULT '',
+  hint           TEXT    NOT NULL DEFAULT '',
+  flag_hash      TEXT    NOT NULL,
+  status         TEXT    NOT NULL DEFAULT 'pending',  -- pending | live | rejected | retired
+  author_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  author_name    TEXT    NOT NULL DEFAULT '',
+  decided_name   TEXT,
+  decided_at     TEXT,
+  reject_reason  TEXT    NOT NULL DEFAULT '',
+  created_at     TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_ctf_status ON ctf_challenges(status, category);
+CREATE TABLE IF NOT EXISTS ctf_solves (
+  challenge_id INTEGER NOT NULL REFERENCES ctf_challenges(id) ON DELETE CASCADE,
+  user_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  solved_at    TEXT    NOT NULL DEFAULT (datetime('now')),
+  PRIMARY KEY (challenge_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS idx_ctf_solves_user ON ctf_solves(user_id);

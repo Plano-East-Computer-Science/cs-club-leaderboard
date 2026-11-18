@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.jsx';
 import './index.css';
+import './styles/system.css';
 
 // Production only: a worker in `vite dev` or `wrangler dev` would serve stale files.
 if (import.meta.env.PROD && 'serviceWorker' in navigator) {

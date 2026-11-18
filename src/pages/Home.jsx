@@ -4,6 +4,8 @@ import { api } from '../lib/api.js';
 import { useData } from '../lib/data.jsx';
 import { useUser } from '../lib/useUser.js';
 import { Pane } from '../components/Pane.jsx';
+import { Pill, Person, Ring, EmptyState } from '../components/ui.jsx';
+import '../styles/today.css';
 import { Crest } from '../components/Crest.jsx';
 import { useReveal } from '../lib/ui.js';
 import { parseTs } from '../lib/season.js';
@@ -127,15 +129,16 @@ function Meeting({ m }) {
   if (m.kind === 'live')
     return (
       <div className={`td-meet live${m.here ? ' here' : ''}`}>
-        <p className="td-k"><span className="live2"><i />live</span> since {ago(m.since)}</p>
+        <div className="td-meet-top">
+          <Pill tone="live">{m.here ? 'You are checked in' : 'Live now'}</Pill>
+          <span className="d">opened {ago(m.since)} ago</span>
+        </div>
+        <h2 className="td-big">{m.title}</h2>
         {m.here ? (
-          <>
-            <p className="td-mt">You are checked in to <b>{m.title}</b>.</p>
-            <Link className="btn" to={`/room/${m.code}`}>Back to the room</Link>
-          </>
+          <Link className="btn pri td-go" to={`/room/${m.code}`}>Back to the room</Link>
         ) : (
           <>
-            <p className="td-mt">Room <b className="g">{m.code}</b> is open: <b>{m.title}</b></p>
+            <p className="td-mt">Type the code from the projector, or use the one below.</p>
             <JoinForm code={m.code} big />
           </>
         )}
@@ -143,8 +146,8 @@ function Meeting({ m }) {
     );
   return (
     <div className="td-meet">
-      <p className="td-k">next meeting</p>
-      <p className="td-mt">{m.kind === 'planned' ? m.info : 'No meeting scheduled. When an officer opens a room, it shows up here.'}</p>
+      <p className="td-k">Next meeting</p>
+      <p className="td-mt">{m.kind === 'planned' ? m.info : 'Nothing scheduled yet. When an officer opens a room, it appears here with a join box.'}</p>
       <JoinForm />
     </div>
   );
@@ -163,7 +166,7 @@ function NextAction({ n, primary, onClaimed }) {
   };
   return (
     <div className="td-next">
-      <p className="td-k">your next move</p>
+      <p className="td-k">Your next move</p>
       <h2 className="td-nt">{n.title}</h2>
       <p className="td-why">{n.why}</p>
       {n.kind === 'claim' ? (
@@ -183,16 +186,16 @@ function Season({ s, studentId }) {
   const ti = tierIndex(s.points);
   const nx = nextTier(s.points);
   return (
-    <Pane file="season" meta={s.id} cls="td-season">
-      <div className="pn-b">
-        <p className="td-pts"><b>{s.points}</b> points this season</p>
-        <p className="td-tier" style={{ '--c': TIERS[ti].color }}>
-          <Crest i={ti} cls="cs" />
-          {TIERS[ti].name}
-          <span className="d">{nx ? `${nx.min - s.points} to ${nx.name}` : 'top tier'}</span>
-        </p>
-        <div className="xp" role="progressbar" aria-label="Progress to the next tier" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(tierProgress(s.points) * 100)}>
-          <i className="fillbar" style={{ '--p': tierProgress(s.points), '--c': TIERS[ti].color }} />
+    <Pane file="This season" meta={s.id} cls="td-season">
+      <div className="pn-b td-ringrow">
+        <Ring p={tierProgress(s.points)} value={s.points} label="points" color={TIERS[ti].color} size={124} />
+        <div>
+          <p className="td-tier" style={{ '--c': TIERS[ti].color }}>
+            <Crest i={ti} cls="cs" />
+            {TIERS[ti].name}
+          </p>
+          <p className="d td-nx">{nx ? `${nx.min - s.points} points to ${nx.name}` : 'You are in the top tier.'}</p>
+          <p className="td-wk"><b className="g">{s.week}</b> {s.week === 1 ? 'thing' : 'things'} counted this week{s.week === 0 && <span className="d">. A meeting is the fastest one.</span>}</p>
         </div>
       </div>
       {s.near.length > 0 && (
@@ -200,23 +203,20 @@ function Season({ s, studentId }) {
           {s.near.map((r, i) => (
             <li key={i} className={r.me ? 'me' : undefined}>
               <span className="n">#{r.rank}</span>
-              <span className="nm">{r.me ? 'you' : r.name}</span>
+              <Person name={r.me ? 'You' : r.name} size={26} />
+              <span className="nm">{r.me ? 'You' : r.name}</span>
               <span className="p">{r.points}</span>
             </li>
           ))}
         </ol>
       )}
       <div className="pn-b td-week">
-        <p>
-          <b className="g">{s.week}</b> {s.week === 1 ? 'thing' : 'things'} counted this week
-          {s.week === 0 && <span className="d">. A meeting is the fastest one.</span>}
+        <p className="d" style={{ fontSize: 13 }}>
+          <Link className="uline" to="/standings">Full standings</Link>
+          {studentId && <> &nbsp; <Link className="uline" to={`/student/${studentId}`}>Your record</Link></>}
         </p>
-        <p className="d" style={{ fontSize: 12.5 }}>
-          <Link className="uline" to="/standings">full standings</Link>
-          {studentId && <> · <Link className="uline" to={`/student/${studentId}`}>your record</Link></>}
-        </p>
-        <details style={{ marginTop: 10 }}>
-          <summary className="d" style={{ cursor: 'pointer', fontSize: 12.5 }}>claim an older entry</summary>
+        <details style={{ marginTop: 8 }}>
+          <summary className="d" style={{ cursor: 'pointer', fontSize: 13 }}>Claim an older entry</summary>
           <div style={{ marginTop: 8 }}><LinkPanel /></div>
         </details>
       </div>
@@ -260,15 +260,16 @@ function Feed() {
   };
   const rows = all ? feed : feed.slice(0, 8);
   return (
-    <Pane file="club.feed" meta="what clubmates did" cls="td-feed" spot={false}>
+    <Pane file="What clubmates did" meta="this season" cls="td-feed" spot={false}>
       {feed.length === 0 ? (
-        <div className="pn-b"><p className="d">Nothing yet this season. When an officer approves a meeting, a project or a contest, it shows up here.</p></div>
+        <div className="pn-b"><EmptyState flat title="Nothing yet this season">When an officer approves a meeting, a project or a contest, it shows up here, with a kudos button for everyone else.</EmptyState></div>
       ) : (
         <ul className="tf">
           {rows.map((f) => {
             const what = (VERB[f.kind] ?? (() => 'did something'))(f.title);
             return (
               <li key={f.id}>
+                <Person name={f.name} size={32} />
                 <span className="who"><b>{f.own ? 'You' : f.name}</b> {what}</span>
                 <span className="ago">{ago(f.at)}</span>
                 {f.own ? (
@@ -277,7 +278,7 @@ function Feed() {
                   <span className="kd-wrap">
                     <button type="button" className="kd" aria-pressed={f.mine} onClick={() => kudos(f)}
                       aria-label={`${f.mine ? 'Take back kudos from' : 'Give kudos to'} ${f.name} for ${what}`}>
-                      <span aria-hidden="true">{f.mine ? '[+]' : '[ ]'}</span> kudos{f.kudos ? ` ${f.kudos}` : ''}
+                      Kudos{f.kudos ? ` ${f.kudos}` : ''}
                     </button>
                     <ReportButton kind="feed" id={f.id} what={`${f.name}'s update`} />
                   </span>
@@ -289,7 +290,7 @@ function Feed() {
       )}
       {err && <p className="dn" role="status" style={{ padding: '0 18px 12px' }}>{err}</p>}
       {feed.length > 8 && !all && (
-        <button type="button" className="linkb td-more" onClick={() => setAll(true)}>show {feed.length - 8} more</button>
+        <button type="button" className="linkb td-more" onClick={() => setAll(true)}>Show {feed.length - 8} more</button>
       )}
     </Pane>
   );
@@ -299,10 +300,10 @@ function Feed() {
 
 function Deadlines({ list }) {
   return (
-    <Pane file="deadlines" meta="you marked these">
+    <Pane file="Deadlines" meta="you marked these">
       <div className="pn-b">
         {list.length === 0 ? (
-          <p className="d">Press "I'm doing this" on an opportunity and its deadline shows up here.</p>
+          <EmptyState flat title="No deadlines saved" action={<Link className="btn" to="/opportunities">Browse opportunities</Link>}>Press "I'm doing this" on an opportunity and its deadline lands here.</EmptyState>
         ) : (
           <ul className="td-list">
             {list.map((o) => {
@@ -316,7 +317,7 @@ function Deadlines({ list }) {
             })}
           </ul>
         )}
-        <Link className="g uline td-foot" to="/opportunities">browse opportunities</Link>
+        {list.length > 0 && <Link className="g uline td-foot" to="/opportunities">Browse opportunities</Link>}
       </div>
     </Pane>
   );
@@ -324,17 +325,17 @@ function Deadlines({ list }) {
 
 function Projects({ list, userId }) {
   return (
-    <Pane file="projects" meta={list.length ? `${list.length} recent` : 'your portfolio'}>
+    <Pane file="Projects" meta={list.length ? `${list.length} recent` : 'your portfolio'}>
       <div className="pn-b">
         {list.length === 0 ? (
-          <p className="d">No projects yet. Post one and it lands on your public portfolio.</p>
+          <EmptyState flat title="No projects yet" action={<Link className="btn" to="/projects">Post a project</Link>}>Anything you post lands on your public portfolio.</EmptyState>
         ) : (
           <ul className="td-list">{list.map((p) => <li key={p.id}><span>{p.title}</span><span className="d">{p.track}</span></li>)}</ul>
         )}
-        <p className="td-foot">
-          <Link className="g uline" to="/projects">{list.length ? 'manage projects' : 'post a project'}</Link>{'  '}
-          <Link className="g uline" to={`/u/${userId}`}>your portfolio</Link>
-        </p>
+        {list.length > 0 && <p className="td-foot">
+          <Link className="g uline" to="/projects">Manage projects</Link>
+          <Link className="g uline" to={`/u/${userId}`}>Your portfolio</Link>
+        </p>}
       </div>
     </Pane>
   );
@@ -342,7 +343,7 @@ function Projects({ list, userId }) {
 
 function Quests({ q }) {
   return (
-    <Pane file="quests" meta={`${q.done}/${q.total} done`}>
+    <Pane file="Quests" meta={`${q.done}/${q.total} done`}>
       <div className="pn-b" style={{ paddingBottom: 12 }}>
         <p className="d" style={{ fontSize: 12.5 }}>
           {q.next ? <><b className="g">{q.rankName}</b>, {q.next.min - q.peak} pts to {q.next.name}</> : <>You are <b className="g">{q.rankName}</b>.</>}
@@ -431,7 +432,7 @@ function ClaimsPanel({ open }) {
 
   const pending = d?.claims.filter((c) => c.status === 'pending').length ?? 0;
   return (
-    <Pane file="claims" meta={pending ? `${pending} waiting` : 'competed, placed, shipped'}>
+    <Pane file="Claims" meta={pending ? `${pending} waiting` : 'competed, placed, shipped'}>
       <div className="pn-b" id="claim">
         {/* Only ask once the deadline has passed; before that you have not competed yet. */}
         {d?.interests.filter((o) => !o.deadline || daysUntil(o.deadline) < 0).map((o) => (
@@ -503,18 +504,20 @@ function Today({ user, signOut }) {
     quests: <Quests key="quests" q={d.quests} />,
     claims: <ClaimsPanel key="claims" open={claimOpen} />,
   };
-  const date = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
+  const date = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
+  const hr = new Date().getHours();
+  const hello = hr < 5 ? 'Late night' : hr < 12 ? 'Good morning' : hr < 18 ? 'Good afternoon' : 'Good evening';
 
   return (
     <section className="today">
       <div className="wrap">
         <header className="td-hd">
-          <p className="eb"><span className="g">$</span>today{d.path ? ` --path ${d.path}` : ''}</p>
-          <h1>Hey, {first}<span className="d">. {date}.</span></h1>
+          <h1>{hello}, {first}.</h1>
+          <p className="d">{date}{d.path ? `, ${PATHS[d.path].name.toLowerCase()} path` : ''}</p>
         </header>
 
         <div className="td-grid">
-          <div className="td-now pn">
+          <div className={`td-now pn${livePrimary ? ' is-live' : ''}`}>
             <Meeting m={d.meeting} />
             <NextAction n={d.next} primary={!livePrimary} onClaimed={load} />
           </div>
@@ -524,10 +527,10 @@ function Today({ user, signOut }) {
         </div>
 
         <p className="d td-acct">
-          signed in as {user.email}{' '}
-          <Link className="g uline" to="/compass">{d.path ? `${PATHS[d.path].name.toLowerCase()} path, retake the compass` : 'take the compass'}</Link>{' '}
-          <Link className="g uline" to="/signin">account</Link>{' '}
-          <button type="button" className="linkb" onClick={signOut}>sign out</button>
+          Signed in as {user.email}{' '}
+          <Link className="g uline" to="/compass">{d.path ? 'Retake the compass' : 'Take the compass'}</Link>{' '}
+          <Link className="g uline" to="/signin">Account</Link>{' '}
+          <button type="button" className="linkb" onClick={signOut}>Sign out</button>
         </p>
       </div>
     </section>

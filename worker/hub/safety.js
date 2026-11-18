@@ -145,6 +145,8 @@ export async function exportFor(db, user) {
     daily_results: await rows(db, 'SELECT date, attempts, solved_at, ms FROM daily_results WHERE user_id = ?', id),
     duel_results: await rows(db, 'SELECT room_code, round, division, slug, attempts, solved_ms, won, code FROM duel_results WHERE user_id = ?', id),
     codeforces_solves: await rows(db, 'SELECT contest_id, idx, rating, solved_at FROM cf_solves WHERE user_id = ?', id),
+    ctf_solves: await rows(db, 'SELECT challenge_id, solved_at FROM ctf_solves WHERE user_id = ?', id),
+    ctf_challenges_written: await rows(db, 'SELECT slug, title, category, difficulty, body, file_name, file_data, hint, status, created_at FROM ctf_challenges WHERE author_user_id = ?', id),
     link_request: (await db.prepare('SELECT student_id, created_at FROM link_requests WHERE user_id = ?').bind(id).first()) ?? null,
     reports_filed: await rows(db, 'SELECT kind, target_id, reason, status, created_at FROM reports WHERE reporter_user_id = ?', id),
     verified_record_codes: await rows(db, 'SELECT code, issued_by_name, created_at, revoked_at FROM record_codes WHERE user_id = ?', id),
@@ -201,10 +203,13 @@ export async function purgeUser(db, id) {
 
   for (const t of [
     'step_progress', 'room_checkins', 'projects', 'link_requests', 'ideas', 'idea_votes', 'kudos', 'opportunity_interest',
-    'daily_results', 'rung_progress', 'board_placement', 'duel_results', 'cf_solves', 'cf_challenges', 'record_codes', 'artifacts', 'workspaces',
+    'daily_results', 'rung_progress', 'board_placement', 'duel_results', 'cf_solves', 'cf_challenges', 'record_codes', 'artifacts', 'workspaces', 'ctf_solves',
   ]) {
     mine(`DELETE FROM ${t} WHERE user_id = ?`, id); // t is from the fixed list above, never input
   }
+  // Approved challenges stay for the club, anonymised; unapproved ones go with the account.
+  mine(`DELETE FROM ctf_challenges WHERE author_user_id = ? AND status != 'live'`, id);
+  mine(`UPDATE ctf_challenges SET author_user_id = NULL, author_name = 'Former member' WHERE author_user_id = ?`, id);
   mine('DELETE FROM login_tokens WHERE email = ?', u.email);
   mine('DELETE FROM subscribers WHERE email = ?', u.email);
   mine(`UPDATE officer_log SET officer_user_id = NULL, officer_name = 'former officer' WHERE officer_user_id = ?`, id);
