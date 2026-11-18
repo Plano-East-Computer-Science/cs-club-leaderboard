@@ -15,6 +15,12 @@ import { Panther } from '../components/Panther.jsx';
 import { CountUp } from '../components/bits.jsx';
 import { TIER_NAMES } from '../../shared/standings.js';
 
+/** Keeps hyphenated words like "Ray-Ban" on one line in the big headline. */
+const noBreakHyphens = (text) =>
+  String(text)
+    .split(' ')
+    .map((w, i) => [i ? ' ' : '', w.includes('-') ? <span key={i} style={{ whiteSpace: 'nowrap' }}>{w}</span> : w]);
+
 const COL = ['#ffc20e', '#f4f1e8', '#6b97ff', '#2dd4bf', '#ff6253'];
 const TIER_COL = ['#c98a4b', '#c9c9c0', '#ffc20e', '#7fd6ff', '#b093ff'];
 const rankOf = (id) => TIERS.find((t) => t.id === id) ?? TIERS[0];
@@ -75,7 +81,7 @@ export default function Leaderboard() {
           <div>
             <h1>
               <span className="p">&gt;</span>
-              {current ? <>This season wins <em>{prize}</em>.</> : <>{d.label}</>}
+              {current ? <>This season wins <em>{noBreakHyphens(prize)}</em>.</> : <>{d.label}</>}
               <span className="cursor" aria-hidden="true" />
             </h1>
             <p className="lead">
