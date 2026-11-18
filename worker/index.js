@@ -60,7 +60,15 @@ app.onError((err, c) => {
  * in a failed state -- the digest is not important enough to page anyone.
  */
 export default {
-  fetch: app.fetch,
+  // NOINDEX is set only on the dev Worker (wrangler.dev.toml). Live never sets it.
+  async fetch(req, env, ctx) {
+    const res = await app.fetch(req, env, ctx);
+    // 101 is a WebSocket upgrade (live rooms); rebuilding that Response would break it.
+    if (env.NOINDEX !== '1' || res.status === 101) return res;
+    const headers = new Headers(res.headers);
+    headers.set('X-Robots-Tag', 'noindex, nofollow');
+    return new Response(res.body, { status: res.status, statusText: res.statusText, headers });
+  },
   async scheduled(event, env, ctx) {
     // Dispatch on the cron expression in wrangler.toml; anything else is the weekly digest.
     if (event.cron === '0 * * * *') {

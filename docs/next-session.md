@@ -80,3 +80,30 @@ How to work:
 - Before ending, update the `club-os-branch` memory with what merged, and list the deploy steps an
   officer will need (every migration file in order, `worker/schema.sql`, the seed files,
   `GITHUB_TOKEN` secret, Discord webhook setting, first lead via break-glass).
+
+## Update 2026-11-18, about 2am (session 2)
+
+Merged on `club-os` since the list above (all 21 test files pass): B1, B3, B4, B6, B7, B8, B10
+(meeting run-of-show, migration 008), E2, E4, G2 (competition pages, analytics, plus attendance by
+template), C11 CTF board, C12 data arena (build now downloads Pyodide packages from jsdelivr,
+sha256-checked), D2 workspace (`/workspace`), H2 gateway note, integration polish (footer, claim
+help, sign-in link, compass places the Board). Security items done: gateway pages served with
+CSP sandbox (opaque origin), browser-linked Codeforces handles untrusted and never paid,
+sign-out revokes every session (`session_ver`), public pages drop `grade` (migration 009).
+Account-existence hint and code enumeration left as accepted risks.
+
+Unfinished, in agent worktrees:
+- `agent-a59681a768966f712`: B5 mock contest, DONE and committed (37e1290), not merged. Merge next;
+  expect small conflicts in `worker/schema.sql`, `worker/hub/safety.js`, `src/index.css`.
+- `agent-a2d4a37f40e694b67`: G1 planner, stopped mid-build, uncommitted. Finish or restart.
+- `agent-a21cb269ef6578922`: C6 editorials and C7 ghost races, stopped early. Restart.
+- `clubos-verify` (branch `d2-workspace`, merged): a clean checkout for building and screenshots.
+
+Then continue the build order from H1 (session-scoped gateway, Opus) and H3, then D5 onward.
+Officer console tabs still to do.
+
+IMPORTANT: another session ("Club app UI/UX redesign") edits this same checkout. Stage files by
+exact path only; resolve merges with `git add <conflicted files>`, never `git add -A` or folders.
+Build and screenshot from `.claude/worktrees/clubos-verify` (`git -C ... checkout --detach club-os`)
+so its uncommitted work is not mixed in. Test students on `localhost`, not `127.0.0.1`: other
+agents' logins on 127.0.0.1 share cookies across ports.

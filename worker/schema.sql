@@ -213,7 +213,7 @@ CREATE TABLE IF NOT EXISTS room_checkins (
   code      TEXT    NOT NULL REFERENCES rooms(code) ON DELETE CASCADE,
   user_id   INTEGER NOT NULL REFERENCES users(id)   ON DELETE CASCADE,
   joined_at TEXT    NOT NULL DEFAULT (datetime('now')),
-  exit_kind TEXT,                                -- poll | lab | duel | show | help | note
+  exit_kind TEXT,                                -- poll | lab | duel | contest | show | help | note
   exit_note TEXT,                                -- the one-line "what I did", when given
   PRIMARY KEY (code, user_id)
 );
@@ -705,6 +705,7 @@ CREATE TABLE IF NOT EXISTS data_submissions (
 );
 CREATE INDEX IF NOT EXISTS idx_data_sub ON data_submissions(challenge_id, user_id);
 
+
 -- G1. Meeting planner. Planned sessions belong to the club, not a member, so
 -- account export and deletion do not touch them. room_code is set when a room
 -- is opened for the plan: that is what "held" means. blocks is a JSON list that
@@ -720,3 +721,24 @@ CREATE TABLE IF NOT EXISTS planned_sessions (
   created_at TEXT    NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_planned_date ON planned_sessions(date);
+
+
+/* ================================ B5: mock contest attempts ================================ */
+
+-- Every judged attempt in a team contest, with the submitted code, so officers
+-- can spot-check. Judging happens in the browser (honour system, like duels).
+-- No points are paid from here: attendance is the only ledger effect.
+CREATE TABLE IF NOT EXISTS contest_attempts (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  room_code  TEXT    NOT NULL,
+  team_id    INTEGER NOT NULL,
+  user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  slug       TEXT    NOT NULL,                     -- problems.slug
+  ok         INTEGER NOT NULL DEFAULT 0,
+  ms         INTEGER NOT NULL,                     -- since the contest started, by the server clock
+  code       TEXT    NOT NULL DEFAULT '',
+  created_at TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_contest_attempts_room ON contest_attempts(room_code, team_id);
+CREATE INDEX IF NOT EXISTS idx_contest_attempts_user ON contest_attempts(user_id);
+

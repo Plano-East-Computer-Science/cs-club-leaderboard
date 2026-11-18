@@ -10,15 +10,19 @@
  *   minutes 0 means no timer. The host advances; the timer never does.
  *   lab: { pairs, tiers: [{ name, source }] } where source is
  *        "course:<slug>" or "problems:<slug>,<slug>".
+ *   contest (B5): { freeze, penalty } defaults for the setup form: minutes the
+ *        board is frozen at the end, minutes of penalty per wrong attempt.
+ *        The problem set and teams are chosen live, in the room.
  */
 
-export const BLOCK_TYPES = ['poll', 'hook', 'lab', 'duel', 'show', 'speaker', 'break', 'close'];
+export const BLOCK_TYPES = ['poll', 'hook', 'lab', 'duel', 'contest', 'show', 'speaker', 'break', 'close'];
 
 export const BLOCK_LABEL = {
   poll: 'Poll',
   hook: 'Hook',
   lab: 'Lab',
   duel: 'Duel',
+  contest: 'Contest',
   show: 'Show',
   speaker: 'Speaker',
   break: 'Break',
@@ -62,11 +66,10 @@ export const TEMPLATES = {
   },
   mock: {
     name: 'Mock contest',
-    // B5 (team contest with a frozen board) does not exist yet: a duel block stands in.
-    blurb: 'Contest practice. Runs as a duel until the team contest block exists.',
+    blurb: 'Teams of three, a problem set, a scoreboard that freezes for the last ten minutes, then the reveal.',
     blocks: [
       b('hook', 'Rules and teams', 5, 'Contest format. No outside help.'),
-      b('duel', 'Mock contest', 35, 'Duel format until the team contest block is built.'),
+      b('contest', 'Mock contest', 35, 'Teams of three. Any teammate can submit. The board freezes for the last ten minutes.', { contest: { freeze: 10, penalty: 20 } }),
       b('close', 'Close', 5),
     ],
   },
@@ -103,6 +106,11 @@ function cleanLab(lab) {
   return { pairs: lab?.pairs === true, tiers: tiers.length ? tiers : DEFAULT_TIERS.map((t) => ({ ...t })) };
 }
 
+function cleanContest(c) {
+  const n = (v, d, max) => (Number.isFinite(Math.round(Number(v))) && Number(v) >= 0 && Number(v) <= max ? Math.round(Number(v)) : d);
+  return { freeze: n(c?.freeze, 10, 60), penalty: n(c?.penalty, 20, 120) };
+}
+
 /**
  * Validates a block list from an officer. Unknown types are dropped, text is
  * trimmed, minutes are 0-90, ids are kept when well-formed (so the current
@@ -124,6 +132,7 @@ export function cleanBlocks(blocks) {
       notes: String(x.notes ?? '').trim().slice(0, 500),
     };
     if (x.type === 'lab') out.lab = cleanLab(x.lab);
+    if (x.type === 'contest') out.contest = cleanContest(x.contest);
     return out;
   });
 }

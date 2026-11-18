@@ -1,0 +1,49 @@
+# DEV deployment of the club hub at https://dev.peshcompsci.org.
+#
+# Tracks the club-os branch: .github/workflows/deploy-dev.yml runs the tests and
+# deploys this config on every push to club-os. Its own Worker and its own
+# database (cs-club-dev, demo seed data). It never touches the live site's
+# database, and the live Worker's config is wrangler.toml.
+#
+# Deliberately different from wrangler.toml:
+#   - no [triggers]: the weekly digest and hourly sync would email real members
+#     and hit real services from a test build.
+#   - no DEV_LOGIN: that flag returns sign-in links in the HTTP response and makes
+#     the session secret a well-known string. Never set it on a public host.
+#   - SESSION_SECRET, ADMIN_PASSWORD, INGEST_TOKEN are set with
+#     `npx wrangler secret put --config wrangler.dev.toml <NAME>`, never here.
+
+name = "cs-club-hub-dev"
+main = "worker/index.js"
+compatibility_date = "2026-08-01"
+
+# Custom domain. Cloudflare creates the DNS record and certificate because the
+# peshcompsci.org zone is on this account. Must stay above the first [table].
+routes = [{ pattern = "dev.peshcompsci.org", custom_domain = true }]
+
+[assets]
+directory = "./dist"
+binding = "ASSETS"
+html_handling = "none"
+not_found_handling = "none"
+run_worker_first = ["/api/*", "/gw/*"]
+
+[[durable_objects.bindings]]
+name = "ROOMS"
+class_name = "Room"
+
+[[migrations]]
+tag = "v1-rooms"
+new_sqlite_classes = ["Room"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "cs-club-dev"
+database_id = "1e6693c1-1776-421e-9109-8f2669c3a85b"
+
+[vars]
+# Keeps search engines out of the dev site (see worker/index.js).
+NOINDEX = "1"
+SITE_ORIGIN = "https://dev.peshcompsci.org"
+MAIL_FROM = "club@peshcompsci.org"
+ACTIONS_URL = "https://github.com/Plano-East-Computer-Science/cs-club-leaderboard/actions/workflows/scrape-opportunities.yml"
