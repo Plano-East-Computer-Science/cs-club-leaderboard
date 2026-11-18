@@ -11,6 +11,7 @@ import { Hono } from 'hono';
 
 import { COURSES, TRACKS, findCourse, publicStep } from '../../shared/courses.js';
 import { currentUser, requireUser } from './users.js';
+import { syncQuests } from './quests.js';
 
 export const learnRouter = new Hono();
 
@@ -131,6 +132,7 @@ learnRouter.post('/learn/:slug/check', requireUser, async (c) => {
     )
     .bind(user.id, course.slug, step.id, correct ? 1 : 0, code, correct ? 1 : 0, code, code)
     .run();
+  if (correct) await syncQuests(c.env.DB, user.id); // A4: a pass can finish a quest
 
   return c.json({ correct, ...(explain && { explain }) });
 });

@@ -76,14 +76,14 @@ test('a student with no events shows zero, not null', async () => {
   assert.equal((await getLeaderboard(await fresh()))[0].points, 0);
 });
 
-test('tied students share a rank and the next rank skips', async () => {
+test('tied students share a place and the next place skips', async () => {
   const db = await fresh();
   await db.prepare("INSERT INTO students (name) VALUES ('B')").run();
   await db.prepare("INSERT INTO students (name) VALUES ('C')").run();
   await addPointEvent(db, { student_id: 1, delta: 100, reason: 'x' });
   await addPointEvent(db, { student_id: 2, delta: 100, reason: 'x' });
   await addPointEvent(db, { student_id: 3, delta: 90, reason: 'x' });
-  assert.deepEqual((await getLeaderboard(db)).map((s) => s.rank), [1, 1, 3]);
+  assert.deepEqual((await getLeaderboard(db)).map((s) => s.place), [1, 1, 3]);
 });
 
 test('hidden students stay off the board but keep their points', async () => {

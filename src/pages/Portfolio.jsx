@@ -62,7 +62,7 @@ export default function Portfolio() {
           <h1 className="display mt-2 text-4xl font-extrabold">{data.name}</h1>
           <p className="mono mt-3 text-xs" style={{ color: 'var(--ink-soft)' }}>
             Member since {day(data.since) || 'this year'} · {data.meetings} meeting{data.meetings === 1 ? '' : 's'} attended
-            {data.rank && data.rank !== 'guest' && <> · club rank: <b style={{ color: 'var(--flag)' }}>{data.rank}</b></>}
+            {data.rank && <> · club rank: <b style={{ color: 'var(--flag)' }}>{data.rank}</b>, {data.points} lifetime points</>}
           </p>
           {data.badges?.length > 0 && (
             <p className="mono mt-2 text-xs" style={{ color: 'var(--ink-soft)' }}>

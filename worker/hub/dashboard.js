@@ -16,6 +16,8 @@ import { questProgress } from '../../shared/quests.js';
 import { statsFor, streakOf } from './quests.js';
 import { problemFor } from './daily.js';
 import { chicagoDate } from '../../shared/daily.js';
+import { getLeaderboard } from '../db.js';
+import { rankInfo } from './standings.js';
 
 export { streakOf };
 
@@ -161,6 +163,7 @@ dashboardRouter.get('/me/dashboard', requireUser, async (c) => {
   ).results;
   const stats = await statsFor(db, user.id);
   const q = questProgress(stats);
+  const life = user.student_id ? (await getLeaderboard(db, 'all')).find((r) => r.id === user.student_id) : null;
   const passed = (slug) => new Set(steps.filter((s) => s.course === slug).map((s) => s.step)).size;
   const firsts = PATHS[path ?? 'explorer'].first.map((f) => {
     if (f.course) {
@@ -255,7 +258,8 @@ dashboardRouter.get('/me/dashboard', requireUser, async (c) => {
     deadlines,
     projects,
     meetings: stats.meetings,
-    quests: { xp: q.xp, rank: q.rank, next: q.next, done: q.quests.filter((x) => x.done).length, total: q.quests.length, open: open.slice(0, 2) },
+    // A4: no XP; the rank is the lifetime label from the ledger.
+    quests: { points: life?.lifetime ?? 0, ...rankInfo(life), done: q.quests.filter((x) => x.done).length, total: q.quests.length, open: open.slice(0, 2) },
   });
 });
 

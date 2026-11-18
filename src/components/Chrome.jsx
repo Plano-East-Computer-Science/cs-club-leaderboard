@@ -6,7 +6,8 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useData } from '../lib/data.jsx';
 import { api } from '../lib/api.js';
-import { TIERS } from '../lib/tiers.js';
+import { TIERS, tierIndex } from '../lib/tiers.js';
+import { tiersFrom, tierOf, TIER_NAMES } from '../../shared/standings.js';
 import { formatDate, daysUntil } from '../lib/format.js';
 import { reducedMotion } from '../lib/ui.js';
 import { setXmas, useXmas, xmasOn } from '../lib/xmas.js';
@@ -39,9 +40,9 @@ const BAR = ['home', 'standings', 'arena', 'quests', 'room', 'projects', 'opport
 // The "all" panel: the whole site as a directory listing, grouped by what you came to do.
 const GROUPS = [
   ['meet', [['room', 'join the live meeting'], ['calendar', 'meetings and deadlines'], ['ideas', 'tell us what to run next']]],
-  ['arena', [['arena', 'the board: your next problem, per track'], ['daily', 'one problem a day'], ['courses', 'the club\'s own lessons'], ['quests', 'earn xp and a rank'], ['puzzles', 'problem of the week'], ['curriculum', 'what we teach, by track']]],
+  ['arena', [['arena', 'the board: your next problem, per track'], ['daily', 'one problem a day'], ['courses', 'the club\'s own lessons'], ['quests', 'small point bonuses'], ['puzzles', 'problem of the week'], ['curriculum', 'what we teach, by track']]],
   ['build', [['projects', 'post what you made'], ['gateway', 'GitHub on school wifi']]],
-  ['compete', [['standings', 'points, tiers, the prize'], ['competitions', 'USACO, UIL, BOT and more'], ['opportunities', 'contests, programs, internships'], ['cyber', 'the cyber team']]],
+  ['compete', [['standings', 'season points, tiers, the prize'], ['competitions', 'USACO, UIL, BOT and more'], ['opportunities', 'contests, programs, internships'], ['cyber', 'the cyber team']]],
   ['club', [['compass', 'find your path'], ['about', 'who runs this'], ['join', 'how to get involved']]],
 ];
 const pathOf = (name) => PAGES.find((x) => x[0] === name)[1];
@@ -148,31 +149,23 @@ export function TabBar() {
 
 const CMDS = [
   ['open <page>', 'jump to a page'],
-  ['rank <name>', 'show a member rank and tier'],
+  ['rank <name>', 'rank, season points and tier'],
   ['grep <text>', 'search the opportunity board'],
   ['join <code>', 'enter a meeting room, e.g. join ABCD'],
   ['daily', 'today\'s problem'],
   ['next', 'back to today'],
   ['claim', 'link your account to a leaderboard entry'],
-  ['top', 'print the top three'],
+  ['top', 'print the top five this season'],
   ['prize', 'what first place wins'],
-  ['tiers', 'list the 7 tiers'],
+  ['tiers', 'season tiers and the 7 ranks'],
   ['xmas', 'toggle the holiday theme'],
   ['help', 'list commands'],
 ];
 
-const tierOf = (p) => {
-  let i = 0;
-  TIERS.forEach((t, k) => {
-    if (p >= t.min) i = k;
-  });
-  return i;
-};
-
 export function Dock() {
   const navigate = useNavigate();
-  const { pathname } = useLocation();
   const { students, opportunities, totalPoints, season, settings } = useData();
+  const seasonTiers = tiersFrom(settings.season_tiers);
   const [value, setValue] = useState('');
   const [sugg, setSugg] = useState([]);
   const [si, setSi] = useState(0);
@@ -250,23 +243,15 @@ export function Dock() {
       case 'goto':
         return go(a.toLowerCase());
       case 'rank': {
+        // A6: a member's own numbers, never their place among everyone else.
         const q = a.toLowerCase();
-        const i = students.findIndex((m) => m.name.toLowerCase().includes(q));
-        if (!q || i < 0) return out(`rank: no member matches "${a}"`);
-        const m = students[i];
-        const ti = tierOf(m.points);
-        const nx = TIERS[ti + 1];
-        if (pathname === '/standings') window.dispatchEvent(new CustomEvent('select-member', { detail: i }));
+        const m = q && students.find((x) => x.name.toLowerCase().includes(q));
+        if (!m) return out(`rank: no member matches "${a}"`);
+        const ri = tierIndex(m.peak);
+        const nx = TIERS[ri + 1];
+        const t = tierOf(m.points, seasonTiers);
         return out(
-          `#${m.rank}  ${m.name}  ${m.grade ? `grade ${m.grade}` : 'member'}\n${m.points} pts  tier ${TIERS[ti].name.toUpperCase()}\n${
-            nx ? `${nx.min - m.points} pts to ${nx.name}` : 'top tier reached'
-          }${
-            i
-              ? `   gap to #${students[i - 1].rank}: ${students[i - 1].points - m.points} pts`
-              : students[1]
-                ? `   leading by ${m.points - students[1].points} pts`
-                : ''
-          }`
+          `${m.name}  ${m.grade ? `grade ${m.grade}` : 'member'}\nrank ${TIERS[ri].name.toUpperCase()}  ${m.lifetime} pts all time${nx ? `, ${nx.min - m.peak} to ${nx.name}` : ''}\n${m.points} season pts  tier ${t >= 0 ? TIER_NAMES[t] : 'none yet'}`
         );
       }
       case 'join': {
@@ -290,11 +275,13 @@ export function Dock() {
         navigate(`/opportunities${a ? `?q=${encodeURIComponent(a)}` : ''}`);
         return close();
       case 'top':
-        return out(students.slice(0, 3).map((m, i) => `#${i + 1}  ${m.name.padEnd(14)} ${m.points} pts`).join('\n') || 'no members yet');
+        return out(students.slice(0, 5).map((m) => `#${m.place}  ${m.name.padEnd(14)} ${m.points} pts`).join('\n') || 'no members yet');
       case 'prize':
-        return out(`First place wins ${prize}.\nPoints are earned all year. Every meeting, project and competition counts.`);
+        return out(`First place this season wins ${prize}.\nReach ${TIER_NAMES[0]} (${seasonTiers[0]} pts) and every season point is a raffle ticket.`);
       case 'tiers':
-        return out(TIERS.map((t) => `${String(t.min).padStart(3)}  ${t.name}`).join('\n'));
+        return out(
+          `season tiers\n${seasonTiers.map((v, k) => `${String(v).padStart(4)}  ${TIER_NAMES[k]}`).join('\n')}\n\nranks (all-time, never drop)\n${TIERS.map((r) => `${String(r.min).padStart(4)}  ${r.name}`).join('\n')}`
+        );
       case 'xmas':
       case 'holiday':
       case 'christmas': {
@@ -431,7 +418,7 @@ export function Boot() {
         'mounting /club ............ ok',
         `loading roster.db ......... ${d.students.length} members`,
         `loading opportunities ..... ${d.opportunities.length} entries`,
-        'calculating tiers ......... 7 tiers',
+        'calculating ranks ......... 7 ranks',
         `arming prize .............. ${d.settings.prize_title || 'Meta Ray-Ban Display Glasses'}`,
         '',
         'welcome back, panther.',

@@ -76,19 +76,17 @@ assert.equal(streakOf(['2026-11-13 20:00:00'], noon), 0); // gap breaks it
 
 /* ------------------------------ quests, ranks ------------------------------ */
 
-import { QUESTS, RANKS, questProgress, rankFor } from '../shared/quests.js';
+import { QUESTS, questProgress } from '../shared/quests.js';
+import { RANKS, rankFor } from '../shared/ranks.js';
 import { stepStats } from '../worker/hub/quests.js';
 import { cleanStage } from '../worker/hub/room-do.js';
 import { verifyGoogleIdToken } from '../worker/hub/google.js';
 
-const zero = { steps: 0, coursesDone: 0, tracks: 0, flags: 0, meetings: 0, projects: 0, ideas: 0, streak: 0, linked: false };
-assert.equal(questProgress(zero).xp, 0);
-assert.equal(questProgress(zero).rank, 'guest');
+const zero = { steps: 0, coursesDone: 0, tracks: 0, flags: 0, meetings: 0, projects: 0, ideas: 0, streak: 0 };
+assert.ok(questProgress(zero).quests.every((q) => !q.done));
+assert.equal(rankFor(0).rank, 'newcomer');
 assert.equal(new Set(QUESTS.map((q) => q.id)).size, QUESTS.length, 'quest ids must be unique');
-// One step: 10 base + the 20 bonus for "first-step".
-assert.equal(questProgress({ ...zero, steps: 1 }).xp, 30);
-// Ideas stop paying after five, so the board is not an XP farm.
-assert.equal(questProgress({ ...zero, ideas: 50 }).xp, questProgress({ ...zero, ideas: 5 }).xp);
+assert.ok(questProgress({ ...zero, steps: 1 }).quests.find((q) => q.id === 'first-step').done);
 // Progress never reads above the target.
 assert.ok(questProgress({ ...zero, meetings: 99 }).quests.every((q) => q.have <= q.need));
 assert.equal(rankFor(RANKS[2].min).rank, RANKS[2].id);

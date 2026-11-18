@@ -15,7 +15,7 @@
  * the same UTC day, so this only matters for activity logged near midnight.
  */
 
-export const KINDS = ['attend', 'compete', 'place', 'ship', 'mentor', 'solve', 'idea', 'daily', 'duel', 'manual'];
+export const KINDS = ['attend', 'compete', 'place', 'ship', 'mentor', 'solve', 'idea', 'daily', 'duel', 'manual', 'quest'];
 
 /** Kinds a member can claim for themselves, pending officer approval. */
 export const CLAIM_KINDS = ['compete', 'place', 'ship'];
@@ -31,6 +31,9 @@ export const POINT_RULES = {
   idea: { points: 2, perSeason: 5 },
   daily: { points: 2, perWeek: 5 },
   duel: { points: 2, perWeek: 5 },
+  // A4: quests are bonus rules on the ledger. Each quest pays once (ref is the
+  // quest id) and the season total is capped, since lessons are honour-system.
+  quest: { points: 3, seasonPoints: 15 },
   // An officer's one-off award: the amount comes from meta.points.
   manual: { points: 0, approval: true },
 };
@@ -53,6 +56,30 @@ export function seasonOf(v) {
   const d = toDate(v);
   return `${d.getUTCFullYear()}-${d.getUTCMonth() <= 4 ? 'spring' : 'fall'}`;
 }
+
+/**
+ * [start, end) of a season as SQLite UTC text, so a season filter is a plain
+ * string comparison on created_at. 'all' spans everything.
+ */
+export function seasonRange(key) {
+  if (key === 'all') return { start: '0000-01-01 00:00:00', end: '9999-12-31 23:59:59' };
+  const [y, half] = String(key).split('-');
+  const year = Number(y);
+  if (!Number.isInteger(year) || (half !== 'fall' && half !== 'spring')) return null;
+  return half === 'spring'
+    ? { start: `${year}-01-01 00:00:00`, end: `${year}-06-01 00:00:00` }
+    : { start: `${year}-06-01 00:00:00`, end: `${year + 1}-01-01 00:00:00` };
+}
+
+/** The season before this one: 2026-fall -> 2026-spring -> 2025-fall. */
+export function prevSeason(key) {
+  const [y, half] = String(key).split('-');
+  return half === 'fall' ? `${y}-spring` : `${Number(y) - 1}-fall`;
+}
+
+/** "2026-fall" -> "Fall 2026". */
+export const seasonLabel = (key) =>
+  key === 'all' ? 'All time' : key.replace(/^(\d+)-(\w)(\w+)$/, (_, y, a, b) => `${a.toUpperCase()}${b} ${y}`);
 
 const dayKey = (v) => toDate(v).toISOString().slice(0, 10);
 // Weeks start Monday. Day 0 of the epoch was a Thursday, hence the +3.

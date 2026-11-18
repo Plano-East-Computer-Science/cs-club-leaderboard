@@ -6,6 +6,7 @@
 import { Hono } from 'hono';
 
 import { currentUser, requireUser } from './users.js';
+import { syncQuests } from './quests.js';
 
 export const ideasRouter = new Hono();
 export const ideasAdminRouter = new Hono();
@@ -58,6 +59,7 @@ ideasRouter.post('/ideas', requireUser, async (c) => {
   const res = await db.prepare('INSERT INTO ideas (user_id, kind, body) VALUES (?, ?, ?)').bind(user.id, kind, text).run();
   // Your own idea starts with your vote.
   await db.prepare('INSERT OR IGNORE INTO idea_votes (idea_id, user_id) VALUES (?, ?)').bind(res.meta.last_row_id, user.id).run();
+  await syncQuests(db, user.id); // A4: a first idea finishes a quest
   return c.json({ id: res.meta.last_row_id });
 });
 

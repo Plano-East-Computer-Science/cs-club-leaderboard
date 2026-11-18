@@ -9,6 +9,10 @@
  * See LEARN-DATABASE.md for a plain-English tour.
  */
 
+import { seasonRange } from '../shared/points.js';
+import { rankFor } from '../shared/ranks.js';
+import { placeRows } from '../shared/standings.js';
+
 /* ------------------------------ small helpers ------------------------------ */
 
 const all = async (db, sql, ...params) =>
@@ -20,44 +24,58 @@ const run = (db, sql, ...params) => db.prepare(sql).bind(...params).run();
 
 /* ------------------------------- leaderboard ------------------------------- */
 
+/*
+ * A4: one ledger, two views. `points` sums the events inside the season's
+ * [start, end) (all of them for 'all'); `lifetime` sums everything; `peak` is
+ * the highest running total, which sets the rank label so a rank never drops.
+ * A season is a filter on created_at, never a migration: history stays intact.
+ */
 const LEADERBOARD_SQL = `
+  WITH rng(lo, hi) AS (SELECT ?, ?),
+  run AS (
+    SELECT id, student_id, delta, created_at,
+           SUM(delta) OVER (PARTITION BY student_id ORDER BY created_at, id) AS total
+    FROM point_events
+  )
   SELECT s.id, s.name, s.grade, s.avatar_seed, s.joined_at,
-         COALESCE(SUM(e.delta), 0) AS points,
-         COUNT(e.id)               AS award_count,
-         MAX(e.created_at)         AS last_award
+         COALESCE(SUM(CASE WHEN r.created_at >= (SELECT lo FROM rng) AND r.created_at < (SELECT hi FROM rng) THEN r.delta END), 0) AS points,
+         COALESCE(SUM(r.delta), 0) AS lifetime,
+         max(COALESCE(MAX(r.total), 0), 0) AS peak,
+         COUNT(r.id)        AS award_count,
+         MAX(r.created_at)  AS last_award
   FROM students s
-  LEFT JOIN point_events e ON e.student_id = s.id
+  LEFT JOIN run r ON r.student_id = s.id
   WHERE s.active = 1
   GROUP BY s.id
-  ORDER BY points DESC, s.name ASC
 `;
 
-export async function getLeaderboard(db) {
-  const rows = await all(db, LEADERBOARD_SQL);
+/**
+ * Active members sorted by points for `season` (a key like "2026-fall", or
+ * 'all', the default). Each row has `place` (tied points share one: 100, 100,
+ * 90 -> 1, 1, 3) and `rank`, the lifetime label id from shared/ranks.js.
+ */
+export async function getLeaderboard(db, season = 'all') {
+  const range = seasonRange(season) ?? seasonRange('all');
+  const rows = await all(db, LEADERBOARD_SQL, range.start, range.end);
   const badges = await getBadgesByStudent(db);
-  // Ties share a rank: 100, 100, 90 -> ranks 1, 1, 3.
-  let lastPoints = null;
-  let lastRank = 0;
-  return rows.map((row, i) => {
-    const rank = row.points === lastPoints ? lastRank : i + 1;
-    lastPoints = row.points;
-    lastRank = rank;
-    return { ...row, rank, badges: badges.get(row.id) ?? [] };
-  });
+  return placeRows(rows).map((row) => ({ ...row, rank: rankFor(row.peak).rank, badges: badges.get(row.id) ?? [] }));
 }
 
 /**
- * Every point award for active members, oldest first. The standings page uses
- * it for the rank-change column, the rank race chart and the recent-awards feed.
- * It exposes nothing /api/student/:id does not already show per member.
+ * Point awards for active members in a season, oldest first. The standings
+ * page uses it for the rank race chart and the recent-awards feed. It exposes
+ * nothing /api/student/:id does not already show per member.
  */
-export function getAllPointEvents(db) {
+export function getAllPointEvents(db, season = 'all') {
+  const range = seasonRange(season) ?? seasonRange('all');
   return all(
     db,
     `SELECT e.student_id, e.delta, e.reason, e.created_at
      FROM point_events e JOIN students s ON s.id = e.student_id
-     WHERE s.active = 1
-     ORDER BY e.created_at, e.id`
+     WHERE s.active = 1 AND e.created_at >= ? AND e.created_at < ?
+     ORDER BY e.created_at, e.id`,
+    range.start,
+    range.end
   );
 }
 
@@ -76,10 +94,10 @@ export async function getBadgesByStudent(db) {
   return map;
 }
 
-export async function getStudent(db, id) {
+export async function getStudent(db, id, season = 'all') {
   // One leaderboard pass serves both the entry and the total -- the original
   // computed it twice, which on D1 would be a second network round trip.
-  const board = await getLeaderboard(db);
+  const board = await getLeaderboard(db, season);
   const entry = board.find((s) => s.id === Number(id));
   if (!entry) return null;
   const events = await all(
@@ -278,6 +296,10 @@ const BACKUP_TABLES = [
   // a downloaded backup file contains contact details -- keep it off shared
   // drives.
   'subscribers',
+  // A5/A6. After students, which they reference.
+  'squads',
+  'squad_members',
+  'raffle_draws',
 ];
 
 /**

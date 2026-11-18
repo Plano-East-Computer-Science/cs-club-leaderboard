@@ -338,12 +338,12 @@ function Projects({ list, userId }) {
 
 function Quests({ q }) {
   return (
-    <Pane file="quests" meta={`${q.done}/${q.total} · ${q.xp} xp`}>
+    <Pane file="quests" meta={`${q.done}/${q.total} done`}>
       <div className="pn-b" style={{ paddingBottom: 12 }}>
         <p className="d" style={{ fontSize: 12.5 }}>
-          {q.next ? <><b className="g">{q.rank}</b>, {q.next.min - q.xp} xp to {q.next.id}</> : <>You are <b className="g">root</b>.</>}
+          {q.next ? <><b className="g">{q.rankName}</b>, {q.next.min - q.peak} pts to {q.next.name}</> : <>You are <b className="g">{q.rankName}</b>.</>}
         </p>
-        <RankBar xp={q.xp} rank={q.rank} next={q.next} />
+        <RankBar points={q.peak} rank={q.rank} next={q.next} />
       </div>
       {q.open.length > 0 && <div className="ql" style={{ borderTop: '1px solid var(--line)' }}>{q.open.map((x) => <QuestRow key={x.id} q={x} />)}</div>}
       <div className="pn-b" style={{ paddingTop: 10 }}><Link className="g uline" to="/quests">all quests</Link></div>
