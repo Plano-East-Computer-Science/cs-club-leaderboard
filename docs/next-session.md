@@ -107,3 +107,52 @@ exact path only; resolve merges with `git add <conflicted files>`, never `git ad
 Build and screenshot from `.claude/worktrees/clubos-verify` (`git -C ... checkout --detach club-os`)
 so its uncommitted work is not mixed in. Test students on `localhost`, not `127.0.0.1`: other
 agents' logins on 127.0.0.1 share cookies across ports.
+
+## Update 2026-11-18, afternoon (session 3)
+
+Merged on `club-os` this session (all 29 test files pass, each feature checked in a browser):
+- B5 mock contest (teams of three, ICPC scoring, frozen board, bottom-up reveal). Ran a real
+  4-minute contest with bot students: freeze, alarm end and reveal all behave.
+- G1 meeting planner (officer Meeting tab). Warns after three meetings of one kind; "Open room"
+  carries the plan's blocks into the room; next unheld plan shows on Today, digest and the .ics feed.
+- C6 editorials (locked until you solve; officer accept pays `mentor` once) and C7 ghost races.
+- Officer console is now five URL-backed tabs (`?tab=meeting|review|members|content|club`). New
+  officer screens: one import and one entry in the `TABS` list in `src/pages/Officer.jsx`.
+- H3 reader mode (`/read`). Its host list is separate from the gateway's on purpose: defaults are
+  docs.python.org, developer.mozilla.org, en.cppreference.com (already approved). GitHub and Bing
+  stay meeting-only behind the gateway. usaco.guide and cses.fi wait for approval.
+- H1 session-scoped gateway. Every room gets its own gateway code at creation; checked-in members
+  of the open room get it on `/gateway` automatically; it is revoked when the room closes (12-hour
+  ceiling). The host console has a preset panel (GitHub and PyPI always on; Documentation, Search
+  and Q&A, Tutorials; Practice and Data empty until hosts are approved). Duel and mock rooms start
+  with search and tutorials off. Presets are intersected with the approved list on every request.
+  Officer-minted codes still work as before. Migration `011-gateway-rooms.sql` (in DEPLOY.md).
+  Also fixed: room creation retried the whole block on any error, which could make duplicate rooms.
+- D5 code review requests (`/build/reviews`): asker marks a review helpful, pays `mentor` once;
+  capped per request, per pair of members ever, and per reviewer per week.
+- D6 portfolio v2: PRIVATE BY DEFAULT now (owner clicks Make public); approved results, cached repo
+  data, up to three officer-signed lines (officer Members tab, "Signoffs"). Existing portfolios
+  become private on deploy until owners opt in. Tell members.
+- F3 personal digest: account holders who subscribe get one message with a "Your week" section.
+- Polish: `useReveal` now reveals panes taller than the screen (a long reader page stayed
+  invisible); feed names quest and drop-in rows.
+
+Deploy needs (when the lead says go): migrations 004 to 009 and 011 in order (no 010), then
+`worker/schema.sql` (new tables: contest_attempts, planned_sessions, problem_solves, editorials,
+ghost_races, review_requests, reviews, portfolio_public, portfolio_signoffs), then the seeds. See
+DEPLOY.md "Upgrading the live database". The GitHub Actions dev deploy still lacks the
+CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID secrets (the lead's to add).
+
+Next in the build order: E5 pathways and C15 research track; E6 alumni; G4 handoff; C14 quant
+sandbox; C8 C++/Java spike (research only). C9 and C13 stay deferred.
+
+Local testing lessons from this session:
+- Killing workerd by port is not enough: wrangler respawns it, and several stale servers ended up
+  sharing port 8814 and hanging every request. Kill the whole `rtk proxy npx wrangler dev` tree
+  (PowerShell: find `rtk.exe` processes whose command line has `wrangler dev --port 8814`, then
+  `taskkill /T`).
+- Sign-in links are rate limited per IP. For many test students, mint a session cookie with
+  `signValue` from `worker/auth.js` (payload `id:expiry:session_ver`) instead.
+- The in-app browser may hold an old HttpOnly `cslb_admin` or `cslb_user` cookie on localhost;
+  a member page then acts as host, or a JS-set cookie silently does nothing. Sign in through the
+  real dev link, or call `/api/admin/logout`, to clear it.
