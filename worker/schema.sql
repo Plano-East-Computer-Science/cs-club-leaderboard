@@ -783,3 +783,33 @@ CREATE TABLE IF NOT EXISTS contest_attempts (
 CREATE INDEX IF NOT EXISTS idx_contest_attempts_room ON contest_attempts(room_code, team_id);
 CREATE INDEX IF NOT EXISTS idx_contest_attempts_user ON contest_attempts(user_id);
 
+
+/* ================================ D5: code review requests ================================ */
+-- A request points at a public GitHub repo, or carries a read-only copy of one workspace file
+-- (snapshot, taken at request time and wiped when the request closes). Reviews hold their comments
+-- as JSON [{ line, text }]. Accepting a review ("helpful") is the asker's call and pays `mentor`.
+CREATE TABLE IF NOT EXISTS review_requests (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  kind       TEXT    NOT NULL,                       -- repo | file
+  repo_url   TEXT    NOT NULL DEFAULT '',
+  file_name  TEXT    NOT NULL DEFAULT '',
+  snapshot   TEXT    NOT NULL DEFAULT '',
+  ask        TEXT    NOT NULL,
+  status     TEXT    NOT NULL DEFAULT 'open',        -- open | closed | hidden
+  created_at TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_review_requests_open ON review_requests(status, id);
+CREATE INDEX IF NOT EXISTS idx_review_requests_user ON review_requests(user_id);
+
+CREATE TABLE IF NOT EXISTS reviews (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  request_id  INTEGER NOT NULL REFERENCES review_requests(id) ON DELETE CASCADE,
+  user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,   -- the reviewer
+  comments    TEXT    NOT NULL,
+  status      TEXT    NOT NULL DEFAULT 'posted',     -- posted | accepted | hidden
+  created_at  TEXT    NOT NULL DEFAULT (datetime('now')),
+  accepted_at TEXT,
+  UNIQUE (request_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS idx_reviews_user ON reviews(user_id, status);

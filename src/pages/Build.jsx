@@ -80,6 +80,12 @@ export default function Build() {
 
       <section className="sec">
         <div className="wrap">
+          <p><Link className="u" to="/build/reviews">Code reviews</Link> <span className="m">ask for feedback on a repo or a workspace file, or review someone else's</span></p>
+        </div>
+      </section>
+
+      <section className="sec">
+        <div className="wrap">
           <h2>Start from a template <small>pick one, follow the steps, then enter the cycle</small></h2>
           <div className="cy-tpl">
             {STARTERS.map((s) => (
