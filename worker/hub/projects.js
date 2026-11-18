@@ -103,6 +103,18 @@ projectsRouter.get('/portfolio/:id', async (c) => {
       .all()
   ).results;
 
+  // B6: what they showed in meetings. Newest first, with the meeting it came from.
+  const artifacts = (
+    await c.env.DB
+      .prepare(
+        `SELECT a.id, a.kind, a.url, a.line, a.result, a.kudos, a.shown, a.created_at, r.title AS meeting
+         FROM artifacts a LEFT JOIN rooms r ON r.code = a.room_code
+         WHERE a.user_id = ? ORDER BY a.created_at DESC, a.id DESC LIMIT 50`
+      )
+      .bind(id)
+      .all()
+  ).results;
+
   const stats = await statsFor(c.env.DB, id);
   const q = questProgress(stats);
   // A4: the portfolio label is the lifetime rank, which never drops.
@@ -116,5 +128,6 @@ projectsRouter.get('/portfolio/:id', async (c) => {
     meetings: rooms.n,
     courses: courses.map((x) => ({ ...x, complete: x.passed === x.steps })),
     projects: await withRepoStats(c.env.DB, projects),
+    artifacts,
   });
 });

@@ -178,7 +178,7 @@ export function DuelSetup({ send, disabled }) {
 }
 
 /** The projector. Per division, never a ranking across them, never code. */
-export function DuelBoard({ duel, send, skew }) {
+export function DuelBoard({ duel, send, skew, readOnly = false }) {
   const divs = DIVS.filter(([k]) => duel.open[k]);
   const solvers = duel.matches.flatMap((m) => m.sides.filter((s) => s.solved).map((s) => ({ ...s, div: m.div, title: m.title })));
   const last = duel.round >= duel.rounds;
@@ -244,7 +244,7 @@ export function DuelBoard({ duel, send, skew }) {
 
       {duel.waiting > 0 && duel.phase !== 'lobby' && <p className="m mono mt-3 text-sm">{duel.waiting} waiting for the next round</p>}
 
-      {duel.phase === 'spotlight' && solvers.length > 0 && (
+      {!readOnly && duel.phase === 'spotlight' && solvers.length > 0 && (
         <div className="duel-solvers" role="group" aria-label="Pick someone to explain">
           <span className="eyebrow">ask one to explain</span>
           {solvers.flatMap((s) =>
@@ -257,7 +257,7 @@ export function DuelBoard({ duel, send, skew }) {
         </div>
       )}
 
-      <div className="duel-ctl">
+      <div className="duel-ctl" hidden={readOnly}>
         {duel.phase === 'live' && (
           <button type="button" className="btn btn-ghost" onClick={() => send({ t: 'duel_end_round' })}>End round now</button>
         )}

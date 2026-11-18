@@ -202,12 +202,19 @@ CREATE TABLE IF NOT EXISTS rooms (
   code       TEXT PRIMARY KEY,
   title      TEXT NOT NULL DEFAULT '',
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  closed_at  TEXT
+  closed_at  TEXT,
+  kind       TEXT NOT NULL DEFAULT 'meeting',  -- B10: meeting | dropin
+  template   TEXT NOT NULL DEFAULT '',         -- B1: shared/session-templates.js id
+  takeaways  TEXT NOT NULL DEFAULT ''          -- B8: the speaker block's takeaways pad
 );
+-- A row exists only for a check-in with a current rotating token (B4). Attendance
+-- is paid only when exit_kind is set: the member did one thing that counts.
 CREATE TABLE IF NOT EXISTS room_checkins (
   code      TEXT    NOT NULL REFERENCES rooms(code) ON DELETE CASCADE,
   user_id   INTEGER NOT NULL REFERENCES users(id)   ON DELETE CASCADE,
   joined_at TEXT    NOT NULL DEFAULT (datetime('now')),
+  exit_kind TEXT,                                -- poll | lab | duel | show | help | note
+  exit_note TEXT,                                -- the one-line "what I did", when given
   PRIMARY KEY (code, user_id)
 );
 
@@ -600,3 +607,20 @@ CREATE TABLE IF NOT EXISTS competition_prep (
   ord            INTEGER NOT NULL DEFAULT 0,
   PRIMARY KEY (competition_id, kind, ref_id)
 );
+-- B6. Show-block artifacts: a link or a result from the meeting, plus one line.
+-- One per member per room; they appear on the member's portfolio. No points:
+-- attendance already pays for the meeting.
+CREATE TABLE IF NOT EXISTS artifacts (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  room_code  TEXT    NOT NULL,
+  user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  kind       TEXT    NOT NULL,                   -- link | lab | duel
+  url        TEXT    NOT NULL DEFAULT '',        -- https only, for kind link
+  line       TEXT    NOT NULL,
+  result     TEXT    NOT NULL DEFAULT '',        -- "Passed 3 checkpoints in ...", for lab and duel
+  kudos      INTEGER NOT NULL DEFAULT 0,
+  shown      INTEGER NOT NULL DEFAULT 0,         -- put on the projector by the host
+  created_at TEXT    NOT NULL DEFAULT (datetime('now')),
+  UNIQUE (room_code, user_id)
+);
+CREATE INDEX IF NOT EXISTS idx_artifacts_user ON artifacts(user_id, created_at);

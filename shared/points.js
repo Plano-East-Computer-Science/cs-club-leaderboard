@@ -15,7 +15,7 @@
  * the same UTC day, so this only matters for activity logged near midnight.
  */
 
-export const KINDS = ['attend', 'compete', 'place', 'ship', 'mentor', 'solve', 'idea', 'daily', 'duel', 'manual', 'quest'];
+export const KINDS = ['attend', 'compete', 'place', 'ship', 'mentor', 'solve', 'idea', 'daily', 'duel', 'dropin', 'manual', 'quest'];
 
 /** Kinds a member can claim for themselves, pending officer approval. */
 export const CLAIM_KINDS = ['compete', 'place', 'ship'];
@@ -34,6 +34,8 @@ export const POINT_RULES = {
   // A4: quests are bonus rules on the ledger. Each quest pays once (ref is the
   // quest id) and the season total is capped, since lessons are honour-system.
   quest: { points: 3, seasonPoints: 15 },
+  // B10: a Panther Pause drop-in is a smaller attendance, kept separate from meetings.
+  dropin: { points: 5, perWeek: 2 },
   // An officer's one-off award: the amount comes from meta.points.
   manual: { points: 0, approval: true },
 };

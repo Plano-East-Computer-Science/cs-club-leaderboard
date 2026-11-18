@@ -128,6 +128,7 @@ export async function exportFor(db, user) {
     course_progress: await rows(db, 'SELECT course, step, passed_at, attempts, code FROM step_progress WHERE user_id = ?', id),
     meetings_attended: await rows(db, 'SELECT code, joined_at FROM room_checkins WHERE user_id = ?', id),
     projects: await rows(db, 'SELECT title, description, track, repo_url, demo_url, hidden, created_at FROM projects WHERE user_id = ?', id),
+    artifacts: await rows(db, 'SELECT room_code, kind, url, line, result, kudos, shown, created_at FROM artifacts WHERE user_id = ?', id),
     ideas: await rows(db, 'SELECT kind, body, status, created_at FROM ideas WHERE user_id = ?', id),
     idea_votes: await rows(db, 'SELECT idea_id FROM idea_votes WHERE user_id = ?', id),
     kudos_given: await rows(db, 'SELECT activity_id, created_at FROM kudos WHERE user_id = ?', id),
@@ -193,7 +194,7 @@ export async function purgeUser(db, id) {
 
   for (const t of [
     'step_progress', 'room_checkins', 'projects', 'link_requests', 'ideas', 'idea_votes', 'kudos', 'opportunity_interest',
-    'daily_results', 'rung_progress', 'board_placement', 'duel_results', 'cf_solves', 'cf_challenges', 'record_codes',
+    'daily_results', 'rung_progress', 'board_placement', 'duel_results', 'cf_solves', 'cf_challenges', 'record_codes', 'artifacts',
   ]) {
     mine(`DELETE FROM ${t} WHERE user_id = ?`, id); // t is from the fixed list above, never input
   }

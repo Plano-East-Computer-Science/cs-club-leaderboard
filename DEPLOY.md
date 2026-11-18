@@ -288,18 +288,20 @@ npx wrangler d1 execute cs-club --remote --file worker/migrations/004-roles.sql
 npx wrangler d1 execute cs-club --remote --file worker/migrations/005-compass.sql
 npx wrangler d1 execute cs-club --remote --file worker/migrations/006-integrations.sql
 npx wrangler d1 execute cs-club --remote --file worker/migrations/007-safety.sql
+npx wrangler d1 execute cs-club --remote --file worker/migrations/008-sessions.sql
+npx wrangler d1 execute cs-club --remote --file worker/migrations/009-trust.sql
 npx wrangler d1 execute cs-club --remote --file worker/schema.sql
 npx wrangler d1 execute cs-club --remote --file worker/seed-problems.sql
 npx wrangler d1 execute cs-club --remote --file worker/seed-rungs.sql
 ```
 
 If the live database has never had accounts (no `users` table yet, which is
-the case while the live site runs `main`), migrations 004 to 007 report
+the case while the live site runs `main`), migrations 004 to 009 report
 "no such table: users". That is also harmless: `schema.sql` then creates
 `users` with every column. Both paths were checked against copies of the
 `main` and `hub-accounts` schemas on 2026-11-17.
 
-Add any later migration (008 and up) to the list in number order, before
+Add any later migration (010 and up) to the list in number order, before
 `schema.sql`. A brand-new database needs only `schema.sql` and the seeds: its
 `CREATE TABLE` statements already include every column.
 
