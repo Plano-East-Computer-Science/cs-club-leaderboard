@@ -837,3 +837,30 @@ CREATE TABLE IF NOT EXISTS portfolio_signoffs (
 );
 CREATE INDEX IF NOT EXISTS idx_portfolio_signoffs_user ON portfolio_signoffs(user_id);
 
+/* ============================ G4: handoff ============================ */
+
+-- A member's officer application for one school year (shared/handoff.js
+-- schoolYearOf). Private to the member and officers. One per member per year;
+-- the member may edit it while it is still 'new' and the window is open.
+CREATE TABLE IF NOT EXISTS officer_applications (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  year         TEXT    NOT NULL,
+  answers      TEXT    NOT NULL DEFAULT '{}',   -- JSON keyed by QUESTIONS ids
+  status       TEXT    NOT NULL DEFAULT 'new',  -- new | accepted | declined
+  note         TEXT    NOT NULL DEFAULT '',     -- the officers' note, not shown to the member
+  decided_name TEXT,
+  decided_at   TEXT,
+  created_at   TEXT    NOT NULL DEFAULT (datetime('now')),
+  updated_at   TEXT    NOT NULL DEFAULT (datetime('now')),
+  UNIQUE (user_id, year)
+);
+CREATE INDEX IF NOT EXISTS idx_officer_apps_year ON officer_applications(year, status);
+-- The short written summary an officer adds to a year's archive page.
+CREATE TABLE IF NOT EXISTS year_summaries (
+  year       TEXT PRIMARY KEY,
+  body       TEXT NOT NULL,
+  updated_by TEXT NOT NULL DEFAULT '',
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+

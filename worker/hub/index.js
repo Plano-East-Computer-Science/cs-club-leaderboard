@@ -39,6 +39,7 @@ import { dataRouter, dataAdminRouter } from './data.js';
 import { readerRouter, readerAdminRouter } from './reader.js';
 import { editorialsRouter, editorialsAdminRouter } from './editorials.js';
 import { reviewsRouter } from './reviews.js';
+import { handoffRouter, handoffAdminRouter } from './handoff.js';
 
 export { Room } from './room-do.js';
 
@@ -70,6 +71,7 @@ hubAdmin.route('/', ctfAdminRouter);
 hubAdmin.route('/', dataAdminRouter);
 hubAdmin.route('/', editorialsAdminRouter);
 hubAdmin.route('/', readerAdminRouter);
+hubAdmin.route('/', handoffAdminRouter);
 
 /** Call BEFORE the catch-all `/api` and static handlers. */
 export function mountHub(app) {
@@ -106,4 +108,5 @@ export function mountHub(app) {
   app.route('/api', dataRouter);
   app.route('/api', readerRouter);
   app.route('/api', reviewsRouter);
+  app.route('/api', handoffRouter);
 }
