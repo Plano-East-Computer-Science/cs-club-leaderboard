@@ -28,6 +28,7 @@ import { teamPostsRouter } from './team-posts.js';
 
 import { safetyRouter, safetyAdminRouter } from './safety.js';
 import { recordsRouter, recordsAdminRouter } from './records.js';
+import { portfolioRouter, portfolioAdminRouter } from './portfolio.js';
 import { competeRouter, competeAdminRouter } from './compete.js';
 import { savedRouter } from './saved.js';
 import { analyticsAdminRouter } from './analytics.js';
@@ -61,6 +62,7 @@ hubAdmin.route('/', cyclesAdminRouter);
 
 hubAdmin.route('/', safetyAdminRouter);
 hubAdmin.route('/', recordsAdminRouter);
+hubAdmin.route('/', portfolioAdminRouter);
 hubAdmin.route('/', competeAdminRouter);
 hubAdmin.route('/', analyticsAdminRouter);
 hubAdmin.route('/', plannerAdminRouter);
@@ -94,6 +96,7 @@ export function mountHub(app) {
 
   app.route('/api', safetyRouter);
   app.route('/api', recordsRouter);
+  app.route('/api', portfolioRouter);
   app.route('/api', cyclesRouter);
   app.route('/api', teamPostsRouter);
   app.route('/api', competeRouter);

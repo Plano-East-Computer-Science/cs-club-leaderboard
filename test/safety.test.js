@@ -110,6 +110,7 @@ await check('public pages show first names; the opt-in shows the full name; offi
   const names = async () => (await call('/leaderboard')).body.students.map((s) => s.name);
   assert.ok((await names()).includes('Maya') && !(await names()).includes('Maya Patel'));
   assert.ok((await names()).includes('Jordan Lee'), 'officer-entered names stay');
+  await db.prepare('INSERT OR IGNORE INTO portfolio_public (user_id) VALUES (?)').bind(maya.id).run(); // D6: private until the owner opts in
   assert.equal((await call(`/portfolio/${maya.id}`)).body.name, 'Maya');
   assert.equal((await call('/projects')).body.projects[0].author, 'Maya');
   assert.equal((await call(`/student/${maya.sid}`)).body.name, 'Maya');

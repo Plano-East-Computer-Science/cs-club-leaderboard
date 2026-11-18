@@ -158,6 +158,8 @@ export async function exportFor(db, user) {
     data_submissions: await rows(db, 'SELECT challenge_id, public_score, final_score, created_at FROM data_submissions WHERE user_id = ?', id),
     duel_results: await rows(db, 'SELECT room_code, round, division, slug, attempts, solved_ms, won, code FROM duel_results WHERE user_id = ?', id),
     contest_attempts: await rows(db, 'SELECT room_code, team_id, slug, ok, ms, code, created_at FROM contest_attempts WHERE user_id = ?', id),
+    portfolio_public: Boolean((await db.prepare('SELECT 1 AS x FROM portfolio_public WHERE user_id = ?').bind(id).first())),
+    portfolio_signoffs: await rows(db, 'SELECT line, officer_name, created_at FROM portfolio_signoffs WHERE user_id = ?', id),
     codeforces_solves: await rows(db, 'SELECT contest_id, idx, rating, solved_at FROM cf_solves WHERE user_id = ?', id),
     ctf_solves: await rows(db, 'SELECT challenge_id, solved_at FROM ctf_solves WHERE user_id = ?', id),
     problem_solves: await rows(db, 'SELECT slug, ms, solved_at FROM problem_solves WHERE user_id = ?', id),
@@ -227,7 +229,7 @@ export async function purgeUser(db, id) {
   for (const t of [
     'step_progress', 'room_checkins', 'projects', 'link_requests', 'ideas', 'idea_votes', 'kudos', 'opportunity_interest',
     'daily_results', 'data_submissions', 'rung_progress', 'board_placement', 'duel_results', 'cf_solves', 'cf_challenges', 'record_codes', 'artifacts', 'workspaces', 'ctf_solves', 'contest_attempts',
-    'problem_solves', 'editorials', 'ghost_races', 'reviews', 'review_requests',
+    'problem_solves', 'editorials', 'ghost_races', 'reviews', 'review_requests', 'portfolio_public', 'portfolio_signoffs',
   ]) {
     mine(`DELETE FROM ${t} WHERE user_id = ?`, id); // t is from the fixed list above, never input
   }
@@ -238,6 +240,7 @@ export async function purgeUser(db, id) {
   mine('DELETE FROM subscribers WHERE email = ?', u.email);
   mine(`UPDATE officer_log SET officer_user_id = NULL, officer_name = 'former officer' WHERE officer_user_id = ?`, id);
   mine(`UPDATE activity SET decided_by = NULL, decided_name = 'former officer' WHERE decided_by = ?`, id);
+  mine(`UPDATE portfolio_signoffs SET officer_id = NULL, officer_name = 'former officer' WHERE officer_id = ?`, id);
 
   if (u.student_id) {
     // A raffle record keeps the winner's name as typed at the draw time; it must not outlive the account.

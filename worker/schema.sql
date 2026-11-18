@@ -817,3 +817,23 @@ CREATE TABLE IF NOT EXISTS reviews (
   UNIQUE (request_id, user_id)
 );
 CREATE INDEX IF NOT EXISTS idx_reviews_user ON reviews(user_id, status);
+/* ============================ D6: portfolio v2 ============================ */
+
+-- A portfolio is private until its owner turns it on: a row here means public.
+-- Members are minors, so the default is "nobody but you".
+CREATE TABLE IF NOT EXISTS portfolio_public (
+  user_id    INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  created_at TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+-- One sentence from an officer, shown on the member's portfolio with the
+-- officer's name and the date. officer_id is NULL for the shared login.
+CREATE TABLE IF NOT EXISTS portfolio_signoffs (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  line         TEXT    NOT NULL,
+  officer_id   INTEGER,
+  officer_name TEXT    NOT NULL,
+  created_at   TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_portfolio_signoffs_user ON portfolio_signoffs(user_id);
+
