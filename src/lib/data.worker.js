@@ -82,8 +82,11 @@ self.onmessage = async (ev) => {
   if (!py) return;
   try {
     if (m.type === 'files') {
-      for (const [name, text] of Object.entries(m.files)) py.FS.writeFile(`/home/pyodide/${name}`, text);
-      py.runPython(`_ns['train'] = pd.read_csv('train.csv')\n_ns['test'] = pd.read_csv('test.csv')`);
+      // Each name.csv becomes a DataFrame called `name` (train and test for C12, prices for C14).
+      for (const [name, text] of Object.entries(m.files)) {
+        py.FS.writeFile(`/home/pyodide/${name}`, text);
+        py.runPython(`_ns[${JSON.stringify(name.replace(/\.csv$/, ''))}] = pd.read_csv(${JSON.stringify(name)})`);
+      }
       postMessage({ type: 'result', id: m.id, stdout: '', stderr: '', images: [] });
     } else if (m.type === 'run') {
       // scikit-learn, scipy and friends load here, only when a cell imports them.

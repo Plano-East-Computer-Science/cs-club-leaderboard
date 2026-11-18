@@ -264,6 +264,7 @@ export default function Arena() {
                   )}
                   {track === 'contest' && <Usaco c={d.usaco} />}
                   {track === 'cyber' && <p className="ar-note"><Link className="uline g" to="/arena/ctf">Capture the flag board</Link>: puzzles by category, a scoreboard and upcoming events.</p>}
+                  {track === 'data' && <p className="ar-note"><Link className="uline g" to="/arena/quant">Quant game</Link>: a simulated trading game on made-up prices, and a Python backtest sandbox. Not investment advice.</p>}
                   {track === 'contest' && d.signedIn && <CodeforcesPanel onSynced={load} />}
                   <p className="ar-blurb">{t.blurb}</p>
                 </div>
@@ -294,7 +295,7 @@ export default function Arena() {
                     );
                   })}
                   <li className="ar-foot">
-                    Predict a hidden column with pandas in the <Link className="uline g" to="/arena/data">data challenges</Link>.{' '}
+                    Predict a hidden column with pandas in the <Link className="uline g" to="/arena/data">data challenges</Link>, or play the simulated <Link className="uline g" to="/arena/quant">quant game</Link>.{' '}
                     The club's own courses are still at <Link className="uline" to="/learn">/learn</Link>.
                     {d.signedIn && d.placement && (
                       <>

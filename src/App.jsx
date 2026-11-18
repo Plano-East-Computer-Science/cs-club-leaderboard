@@ -21,6 +21,7 @@ import Workspace from './pages/Workspace.jsx';
 import Reviews from './pages/Reviews.jsx';
 import Ctf from './pages/Ctf.jsx';
 import DataArena from './pages/DataArena.jsx';
+import Quant from './pages/Quant.jsx';
 import DataChallenge from './pages/DataChallenge.jsx';
 import Problem from './pages/Problem.jsx';
 import SignIn from './pages/SignIn.jsx';
@@ -159,6 +160,7 @@ function Shell() {
           <Route path="/arena/ctf" element={<Ctf />} />
           <Route path="/arena/data" element={<DataArena />} />
           <Route path="/arena/data/:id" element={<DataChallenge />} />
+          <Route path="/arena/quant" element={<Quant />} />
           <Route path="/compass" element={<Compass />} />
           <Route path="/build" element={<Build />} />
           <Route path="/workspace" element={<Workspace />} />

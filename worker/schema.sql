@@ -920,3 +920,36 @@ CREATE TABLE IF NOT EXISTS alumni_questions (
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_alumni_q_status ON alumni_questions(status, created_at);
+
+/* ================================ C14: quant sandbox ================================ */
+-- A round of the trading game on synthetic prices. The seed re-creates the series
+-- (shared/quant.js); no route shows it until the round closes, so the future stays
+-- hidden. `week` is set on the automatic weekly round and keeps it to one per week.
+CREATE TABLE IF NOT EXISTS quant_rounds (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  title      TEXT NOT NULL,
+  seed       INTEGER NOT NULL,
+  days       INTEGER NOT NULL DEFAULT 60,        -- played days, a multiple of step
+  step       INTEGER NOT NULL DEFAULT 5,         -- days each decision holds
+  short_cap  REAL NOT NULL DEFAULT 0,            -- 0 = no shorting, else the largest short
+  status     TEXT NOT NULL DEFAULT 'open',       -- open | closed
+  closes_at  INTEGER NOT NULL,                   -- ms; past it the round counts as closed
+  week       TEXT UNIQUE,
+  created_by TEXT NOT NULL DEFAULT 'weekly',
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+-- One member's decisions in a round. The score columns are computed by the server
+-- from the seed; nothing a browser reports about returns is stored. No points.
+CREATE TABLE IF NOT EXISTS quant_entries (
+  round_id     INTEGER NOT NULL REFERENCES quant_rounds(id) ON DELETE CASCADE,
+  user_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  positions    TEXT NOT NULL DEFAULT '[]',       -- JSON, one number per step
+  score        REAL,
+  sharpe       REAL,
+  max_drawdown REAL,
+  total_return REAL,
+  ranked       INTEGER NOT NULL DEFAULT 0,
+  finished_at  TEXT,
+  updated_at   TEXT NOT NULL DEFAULT (datetime('now')),
+  PRIMARY KEY (round_id, user_id)
+);

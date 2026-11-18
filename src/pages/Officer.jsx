@@ -26,6 +26,7 @@ import ReaderAdmin from './officer/Reader.jsx';
 import Handoff from './officer/Handoff.jsx';
 import AlumniAdmin from './officer/Alumni.jsx';
 import ResearchAdmin from './officer/Research.jsx';
+import QuantAdmin from './officer/Quant.jsx';
 
 const HOURS = [1, 2, 3, 6, 12];
 
@@ -37,7 +38,7 @@ const TABS = [
   {
     id: 'content',
     label: 'Content',
-    screens: [Problems, DailyAdmin, Board, DataAdmin, CtfAdmin, Cycles, CompetitionAdmin, IdeasAdmin, ResearchAdmin],
+    screens: [Problems, DailyAdmin, Board, DataAdmin, QuantAdmin, CtfAdmin, Cycles, CompetitionAdmin, IdeasAdmin, ResearchAdmin],
   },
   { id: 'club', label: 'Club', screens: [Announce, Gateway, ReaderAdmin] },
 ];
