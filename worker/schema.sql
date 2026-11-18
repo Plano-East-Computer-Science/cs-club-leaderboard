@@ -920,3 +920,22 @@ CREATE TABLE IF NOT EXISTS alumni_questions (
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_alumni_q_status ON alumni_questions(status, created_at);
+/* ================================ E5: pathways ================================ */
+-- Pathway content lives in shared/pathways.js. These hold only what a member
+-- chose: which pathways they follow (at most two) and the steps they ticked by
+-- hand. Steps the data already proves (a rung done, a cycle shipped) are
+-- worked out on read, never stored. Ticks are private and earn no points.
+CREATE TABLE IF NOT EXISTS pathway_follows (
+  user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  pathway    TEXT    NOT NULL,                       -- PATHWAYS id
+  created_at TEXT    NOT NULL DEFAULT (datetime('now')),
+  PRIMARY KEY (user_id, pathway)
+);
+CREATE TABLE IF NOT EXISTS pathway_ticks (
+  user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  pathway    TEXT    NOT NULL,
+  step       TEXT    NOT NULL,                       -- step id within the pathway
+  created_at TEXT    NOT NULL DEFAULT (datetime('now')),
+  PRIMARY KEY (user_id, pathway, step)
+);
+

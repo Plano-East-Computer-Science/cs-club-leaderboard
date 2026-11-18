@@ -42,6 +42,7 @@ import { reviewsRouter } from './reviews.js';
 import { handoffRouter, handoffAdminRouter } from './handoff.js';
 import { researchRouter, researchAdminRouter } from './research.js';
 import { alumniRouter, alumniAdminRouter } from './alumni.js';
+import { pathwaysRouter } from './pathways.js';
 
 export { Room } from './room-do.js';
 
@@ -115,4 +116,5 @@ export function mountHub(app) {
   app.route('/api', handoffRouter);
   app.route('/api', researchRouter);
   app.route('/api', alumniRouter);
+  app.route('/api', pathwaysRouter);
 }

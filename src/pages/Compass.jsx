@@ -117,6 +117,7 @@ function Result({ path }) {
             <li key={f.title}><Link to={f.to}>{f.title}</Link></li>
           ))}
         </ol>
+        <p className="cmp-about">Have a goal in mind, like USACO Silver or a first internship? <Link to="/pathways">Pick a pathway</Link> and Today will show its next step.</p>
         <div className="cmp-nav">
           <Link className="btn pri" to="/">Go to Today</Link>
           <button type="button" className="linkb" onClick={() => location.reload()}>Retake it</button>

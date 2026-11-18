@@ -36,6 +36,7 @@ import Quests from './pages/Quests.jsx';
 import Ideas from './pages/Ideas.jsx';
 import Daily from './pages/Daily.jsx';
 import Compass from './pages/Compass.jsx';
+import Pathways, { Pathway } from './pages/Pathways.jsx';
 import Privacy from './pages/Privacy.jsx';
 import Parents from './pages/Parents.jsx';
 import Archive from './pages/Archive.jsx';
@@ -160,6 +161,8 @@ function Shell() {
           <Route path="/arena/data" element={<DataArena />} />
           <Route path="/arena/data/:id" element={<DataChallenge />} />
           <Route path="/compass" element={<Compass />} />
+          <Route path="/pathways" element={<Pathways />} />
+          <Route path="/pathways/:id" element={<Pathway />} />
           <Route path="/build" element={<Build />} />
           <Route path="/workspace" element={<Workspace />} />
           <Route path="/workspace/:id" element={<Workspace />} />
