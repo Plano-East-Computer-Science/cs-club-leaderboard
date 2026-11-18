@@ -584,7 +584,7 @@ Written before Wave 0 so parallel threads agree on names.
 - **Feed.** The club feed reads `activity` rows with `status = 'approved'`; no separate feed
   table.
 - **Officer UI.** New officer screens go in `src/pages/officer/<Name>.jsx` and are added to
-  `src/pages/Officer.jsx` with one import and one line, to keep merges clean.
+  `src/pages/Officer.jsx` with one import and one entry in the tab list (`TABS`), to keep merges clean.
 - **Schema.** New tables are appended to the end of `worker/schema.sql` under a comment with
   the item ID. Columns added to existing tables use `ALTER TABLE` in
   `worker/migrations/NNN-<name>.sql` (003 is the next free number) as well, because `CREATE TABLE IF NOT EXISTS` will not

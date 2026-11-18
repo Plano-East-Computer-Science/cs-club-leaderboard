@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { Spinner, ErrorNote, Empty } from '../components/bits.jsx';
 import Problems from './officer/Problems.jsx';
@@ -23,6 +23,67 @@ import Planner from './officer/Planner.jsx';
 import EditorialsAdmin from './officer/Editorials.jsx';
 
 const HOURS = [1, 2, 3, 6, 12];
+
+/** The whole console: one entry per tab, each listing the screens it mounts. Add a screen here. */
+const TABS = [
+  { id: 'meeting', label: 'Meeting', screens: [Rooms, Planner] },
+  { id: 'review', label: 'Review', screens: [Claims, EditorialsAdmin, Reports, LinkRequests, Merge] },
+  { id: 'members', label: 'Members', screens: [Records, Squads, Team, Raffle, Analytics] },
+  {
+    id: 'content',
+    label: 'Content',
+    screens: [Problems, DailyAdmin, Board, DataAdmin, CtfAdmin, Cycles, CompetitionAdmin, IdeasAdmin],
+  },
+  { id: 'club', label: 'Club', screens: [Announce, Gateway] },
+];
+
+/** Pending work across the review queues, from the same endpoints the screens use. */
+function useReviewCount(refreshKey) {
+  const [n, setN] = useState(null);
+  useEffect(() => {
+    if (refreshKey == null) return;
+    const len = (path, key) => api.get(path).then((d) => d[key].length).catch(() => 0);
+    Promise.all([
+      len('/admin/hub/claims?status=pending', 'claims'),
+      len('/admin/hub/editorials?status=pending', 'editorials'),
+      len('/admin/hub/reports?status=open', 'reports'),
+      len('/admin/hub/links', 'requests'),
+    ]).then((c) => setN(c.reduce((a, b) => a + b, 0)));
+  }, [refreshKey]);
+  return n;
+}
+
+function Tabs({ active, onSelect, counts }) {
+  const onKey = (e) => {
+    const i = TABS.findIndex((t) => t.id === active);
+    const next = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: TABS.length - 1 }[e.key];
+    if (next === undefined) return;
+    e.preventDefault();
+    const t = TABS[(next + TABS.length) % TABS.length];
+    onSelect(t.id);
+    document.getElementById(`otab-${t.id}`)?.focus();
+  };
+  return (
+    <div role="tablist" aria-label="Officer console sections" className="otabs" onKeyDown={onKey}>
+      {TABS.map((t) => (
+        <button
+          key={t.id}
+          id={`otab-${t.id}`}
+          type="button"
+          role="tab"
+          aria-selected={t.id === active}
+          aria-controls={`opanel-${t.id}`}
+          tabIndex={t.id === active ? 0 : -1}
+          className="otab"
+          onClick={() => onSelect(t.id)}
+        >
+          {t.label}
+          {counts[t.id] > 0 && <span className="otab-n">{counts[t.id]}</span>}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 /** Timestamps may arrive as ms numbers or SQLite "YYYY-MM-DD HH:MM:SS" (UTC). */
 function when(v) {
@@ -53,6 +114,9 @@ function CopyButton({ text, label = 'Copy' }) {
 
 export default function Officer() {
   const [session, setSession] = useState(null);
+  const [params, setParams] = useSearchParams();
+  const tab = TABS.find((t) => t.id === params.get('tab')) || TABS[0];
+  const reviewCount = useReviewCount(session?.authed ? tab.id : null);
 
   const check = useCallback(() => {
     api.get('/admin/session').then(setSession).catch(() => setSession({ authed: false }));
@@ -88,28 +152,12 @@ export default function Officer() {
           </button>
         </div>
       </header>
-      <Rooms />
-      <Planner />
-      <Claims />
-      <EditorialsAdmin />
-      <Reports />
-      <Records />
-      <CompetitionAdmin />
-      <Analytics />
-      <LinkRequests />
-      <Merge />
-      <Raffle />
-      <Squads />
-      <IdeasAdmin />
-      <Announce />
-      <Gateway />
-      <DailyAdmin />
-      <Problems />
-      <Team />
-      <Board />
-      <DataAdmin />
-      <Cycles />
-      <CtfAdmin />
+      <Tabs active={tab.id} onSelect={(id) => setParams({ tab: id }, { replace: true })} counts={{ review: reviewCount }} />
+      <div role="tabpanel" id={`opanel-${tab.id}`} aria-labelledby={`otab-${tab.id}`} className="grid gap-12">
+        {tab.screens.map((Screen, i) => (
+          <Screen key={i} />
+        ))}
+      </div>
     </div>
   );
 }

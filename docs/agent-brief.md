@@ -32,7 +32,7 @@ build against the contract and leave a clearly marked stub, do not build the oth
   ID. New columns on existing tables also go in `worker/migrations/NNN-<name>.sql` (next free
   number) as `ALTER TABLE`, and in the `CREATE TABLE` for fresh installs.
 - Officer screens: new file `src/pages/officer/<Name>.jsx`, added to `src/pages/Officer.jsx`
-  with one import and one line. Officer API routes go on `hubAdmin` (see
+  with one import and one entry in the tab list (`TABS`). Officer API routes go on `hubAdmin` (see
   `worker/hub/index.js`).
 - New API routers live in `worker/hub/<area>.js` and are mounted in `worker/hub/index.js`.
 
