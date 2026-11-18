@@ -27,7 +27,9 @@ export function useReveal() {
             io.unobserve(x.target);
           }
         }),
-      { threshold: 0.1 }
+      // Any visible pixel counts: a ratio threshold never fires for a pane much
+      // taller than the viewport (a long reader page sat invisible at 5%).
+      { threshold: 0 }
     );
     els.forEach((el) => io.observe(el));
     return () => io.disconnect();

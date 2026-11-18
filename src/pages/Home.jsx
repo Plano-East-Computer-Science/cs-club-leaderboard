@@ -238,6 +238,8 @@ const VERB = {
   daily: () => "solved the daily problem",
   duel: (t) => `finished a duel${t ? `: ${t}` : ''}`,
   manual: (t) => (t ? `was recognised for ${t}` : 'was recognised by an officer'),
+  quest: (t) => `finished a quest${t ? `: ${t}` : ''}`,
+  dropin: () => 'dropped in to Panther Pause',
 };
 
 function Feed() {
