@@ -8,6 +8,11 @@
 #   CLOUDFLARE_API_TOKEN   secret: token with Workers Scripts:Edit, D1:Edit,
 #                          and Zone:Read + DNS:Edit on peshcompsci.org
 #   CLOUDFLARE_ACCOUNT_ID  secret: the account id (wrangler whoami shows it)
+#
+# Optional, copied onto the dev Worker on every run (a blank one is skipped, so
+# a secret set by hand with `wrangler secret put` is left alone):
+#   DEV_SESSION_SECRET, DEV_ADMIN_PASSWORD, DEV_RESEND_API_KEY,
+#   DEV_INGEST_TOKEN, DEV_GOOGLE_CLIENT_ID
 
 name: Deploy dev
 
@@ -50,3 +55,20 @@ jobs:
 
       - name: Deploy dev Worker
         run: npx wrangler deploy --config wrangler.dev.toml
+
+      # After the deploy, so the Worker exists. Values go in on stdin, never on the command line.
+      - name: Copy secrets to the dev Worker
+        env:
+          SESSION_SECRET: ${{ secrets.DEV_SESSION_SECRET }}
+          ADMIN_PASSWORD: ${{ secrets.DEV_ADMIN_PASSWORD }}
+          RESEND_API_KEY: ${{ secrets.DEV_RESEND_API_KEY }}
+          INGEST_TOKEN: ${{ secrets.DEV_INGEST_TOKEN }}
+          GOOGLE_CLIENT_ID: ${{ secrets.DEV_GOOGLE_CLIENT_ID }}
+        run: |
+          for name in SESSION_SECRET ADMIN_PASSWORD RESEND_API_KEY INGEST_TOKEN GOOGLE_CLIENT_ID; do
+            if [ -n "${!name}" ]; then
+              printf '%s' "${!name}" | npx wrangler secret put "$name" --config wrangler.dev.toml
+            else
+              echo "$name: no DEV_$name secret in GitHub, left as is"
+            fi
+          done
