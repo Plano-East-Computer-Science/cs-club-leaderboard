@@ -23,6 +23,8 @@ import { dailyRouter, dailyAdminRouter } from './daily.js';
 import { boardRouter, boardAdminRouter } from './board.js';
 import { codeforcesRouter } from './codeforces.js';
 import { standingsRouter, standingsAdminRouter } from './standings.js';
+import { cyclesRouter, cyclesAdminRouter } from './cycles.js';
+import { teamPostsRouter } from './team-posts.js';
 
 export { Room } from './room-do.js';
 
@@ -42,6 +44,7 @@ hubAdmin.route('/', claimsAdminRouter);
 hubAdmin.route('/', dailyAdminRouter);
 hubAdmin.route('/', boardAdminRouter);
 hubAdmin.route('/', standingsAdminRouter);
+hubAdmin.route('/', cyclesAdminRouter);
 
 /** Call BEFORE the catch-all `/api` and static handlers. */
 export function mountHub(app) {
@@ -64,4 +67,6 @@ export function mountHub(app) {
   app.route('/api', boardRouter);
   app.route('/api', codeforcesRouter);
   app.route('/api', standingsRouter);
+  app.route('/api', cyclesRouter);
+  app.route('/api', teamPostsRouter);
 }

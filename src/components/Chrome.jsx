@@ -21,7 +21,7 @@ export const PAGES = [
   ['quests', '/quests'],
   ['daily', '/daily'],
   ['room', '/room'],
-  ['projects', '/projects'],
+  ['build', '/build'],
   ['opportunities', '/opportunities'],
   ['calendar', '/calendar'],
   ['ideas', '/ideas'],
@@ -35,19 +35,19 @@ export const PAGES = [
   ['join', '/join'],
   ['admin', '/admin'],
 ];
-const BAR = ['home', 'standings', 'arena', 'quests', 'room', 'projects', 'opportunities']; // always on the bar
+const BAR = ['home', 'standings', 'arena', 'quests', 'room', 'build', 'opportunities'];// always on the bar
 
 // The "all" panel: the whole site as a directory listing, grouped by what you came to do.
 const GROUPS = [
   ['meet', [['room', 'join the live meeting'], ['calendar', 'meetings and deadlines'], ['ideas', 'tell us what to run next']]],
   ['arena', [['arena', 'the board: your next problem, per track'], ['daily', 'one problem a day'], ['courses', 'the club\'s own lessons'], ['quests', 'small point bonuses'], ['puzzles', 'problem of the week'], ['curriculum', 'what we teach, by track']]],
-  ['build', [['projects', 'post what you made'], ['gateway', 'GitHub on school wifi']]],
+  ['build', [['build', 'ship cycles, templates, projects'], ['gateway', 'GitHub on school wifi']]],
   ['compete', [['standings', 'season points, tiers, the prize'], ['competitions', 'USACO, UIL, BOT and more'], ['opportunities', 'contests, programs, internships'], ['cyber', 'the cyber team']]],
   ['club', [['compass', 'find your path'], ['about', 'who runs this'], ['join', 'how to get involved']]],
 ];
 const pathOf = (name) => PAGES.find((x) => x[0] === name)[1];
 // `learn` and `board` used to mean the course list and the standings; both now land on the Arena.
-const ALIAS = { opps: 'opportunities', comps: 'competitions', lb: 'standings', board: 'arena', learn: 'arena', home: 'home' };
+const ALIAS = { projects: 'build', opps: 'opportunities', comps: 'competitions', lb: 'standings', board: 'arena', learn: 'arena', home: 'home' };
 
 const Logo = () => (
   <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">

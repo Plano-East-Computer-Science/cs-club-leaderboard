@@ -5,6 +5,7 @@ import { useUser } from '../lib/useUser.js';
 import { useData } from '../lib/data.jsx';
 import { formatDate, daysUntil, TYPE_LABELS, FORMAT_LABELS, COST_LABELS } from '../lib/format.js';
 import { useMedia } from '../lib/ui.js';
+import TeamPosts from '../components/TeamPosts.jsx';
 
 const TYPE_ORDER = ['competition', 'program', 'internship', 'resource', 'scholarship'];
 const COST_NOTE = {
@@ -53,6 +54,8 @@ export default function Opportunities() {
   });
   const listRef = useRef(null);
   const wide = useMedia('(min-width:960px)');
+  const [teams, setTeams] = useState({}); // D4: open teammate posts per opportunity
+  useEffect(() => { api.get('/team-posts/counts').then((r) => setTeams(r.counts)).catch(() => {}); }, []);
 
   // The `grep` command (and calendar links) arrive as ?q=
   useEffect(() => setQ(urlQ), [urlQ]);
@@ -209,6 +212,7 @@ export default function Opportunities() {
                         {o.format === 'local' && o.distance_mi != null ? `${Number(o.distance_mi).toFixed(1)} mi` : (FORMAT_LABELS[o.format] ?? o.format).toLowerCase()}
                       </span>
                       <span>{ddl(o)}</span>
+                      {teams[o.id] > 0 && <span className="tmc">{teams[o.id]} looking for a team</span>}
                     </div>
                     <button
                       className={`bk ${saved.has(o.id) ? 'on' : ''}`}
@@ -303,6 +307,10 @@ function Detail({ o, radius, on, onSave, onBack }) {
             </div>
           )}
           <div className="cell"><small>cost</small><b>{COST_LABELS[o.cost] ?? o.cost}</b><span>{COST_NOTE[o.cost] ?? ''}</span></div>
+        </div>
+        <div className="req" id="team">
+          <h4>looking for a team</h4>
+          <TeamPosts type="opp" id={o.id} />
         </div>
         <div className="req">
           <h4>requirements</h4>

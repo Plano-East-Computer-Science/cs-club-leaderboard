@@ -24,7 +24,7 @@ const isHttps = (s) => {
   try { return new URL(s).protocol === 'https:'; } catch { return false; }
 };
 
-export default function Projects() {
+export default function Projects({ embedded = false }) {
   const { user, loading } = useUser();
   const [projects, setProjects] = useState(null);
   const [error, setError] = useState(null);
@@ -50,7 +50,7 @@ export default function Projects() {
 
   return (
     <div>
-      <header className="mb-8">
+      {!embedded && <header className="mb-8">
         <p className="eyebrow">Member projects</p>
         <h1 className="display mt-2 text-[clamp(2.2rem,6vw,3.5rem)] leading-[0.95] font-extrabold">
           Things members built.
@@ -58,7 +58,7 @@ export default function Projects() {
         <p className="mt-4 max-w-2xl text-base" style={{ color: 'var(--ink-soft)' }}>
           Share what you have made, from a contest solution write-up to a hardware build.
         </p>
-      </header>
+      </header>}
 
       {!loading && (user ? (
         <ShareForm onDone={load} />

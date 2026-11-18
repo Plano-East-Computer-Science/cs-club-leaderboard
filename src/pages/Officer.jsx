@@ -11,6 +11,7 @@ import Raffle from './officer/Raffle.jsx';
 import Squads from './officer/Squads.jsx';
 import DailyAdmin from './officer/Daily.jsx';
 import Board from './officer/Board.jsx';
+import Cycles from './officer/Cycles.jsx';
 
 const HOURS = [1, 2, 3, 6, 12];
 
@@ -91,6 +92,7 @@ export default function Officer() {
       <Problems />
       <Team />
       <Board />
+      <Cycles />
     </div>
   );
 }

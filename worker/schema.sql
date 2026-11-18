@@ -475,3 +475,66 @@ CREATE TABLE IF NOT EXISTS raffle_draws (
   drawn_at      TEXT    NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_raffle_season ON raffle_draws(season, id);
+
+-- D1. Ship cycles: a themed run of a few weeks. Members enter with a project and a
+-- one-line pitch, post devlogs, demo on the last meeting, vote, and shipped projects
+-- earn a ship activity when an officer closes the cycle.
+CREATE TABLE IF NOT EXISTS cycles (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  slug       TEXT    NOT NULL UNIQUE,
+  title      TEXT    NOT NULL,
+  theme      TEXT    NOT NULL DEFAULT '',
+  rubric     TEXT    NOT NULL DEFAULT '',
+  starts_on  TEXT,                                   -- YYYY-MM-DD
+  demo_on    TEXT,                                   -- YYYY-MM-DD
+  status     TEXT    NOT NULL DEFAULT 'draft',       -- draft | open | demo | closed
+  idea_id    INTEGER REFERENCES ideas(id) ON DELETE SET NULL,
+  created_at TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+CREATE TABLE IF NOT EXISTS cycle_entries (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  cycle_id   INTEGER NOT NULL REFERENCES cycles(id) ON DELETE CASCADE,
+  project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  pitch      TEXT    NOT NULL,
+  demoed     INTEGER NOT NULL DEFAULT 0,             -- an officer ticks this at the demo
+  created_at TEXT    NOT NULL DEFAULT (datetime('now')),
+  UNIQUE (cycle_id, project_id)
+);
+-- The team, owner included. cycle_id is repeated so one person is on one entry per cycle.
+CREATE TABLE IF NOT EXISTS cycle_members (
+  entry_id INTEGER NOT NULL REFERENCES cycle_entries(id) ON DELETE CASCADE,
+  cycle_id INTEGER NOT NULL REFERENCES cycles(id) ON DELETE CASCADE,
+  user_id  INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  is_owner INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (entry_id, user_id),
+  UNIQUE (cycle_id, user_id)
+);
+CREATE TABLE IF NOT EXISTS devlogs (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  entry_id   INTEGER NOT NULL REFERENCES cycle_entries(id) ON DELETE CASCADE,
+  user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  text       TEXT    NOT NULL,
+  url        TEXT    NOT NULL DEFAULT '',            -- optional https link or image
+  created_at TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_devlogs_entry ON devlogs(entry_id, id);
+CREATE TABLE IF NOT EXISTS cycle_votes (
+  cycle_id INTEGER NOT NULL REFERENCES cycles(id) ON DELETE CASCADE,
+  entry_id INTEGER NOT NULL REFERENCES cycle_entries(id) ON DELETE CASCADE,
+  user_id  INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  category TEXT    NOT NULL DEFAULT 'best',
+  PRIMARY KEY (cycle_id, user_id, category)
+);
+
+-- D4. "Looking for a teammate" posts, on a ship cycle or an opportunity.
+CREATE TABLE IF NOT EXISTS team_posts (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  target_type TEXT    NOT NULL,                      -- cycle | opp
+  target_id   INTEGER NOT NULL,
+  text        TEXT    NOT NULL,
+  skills      TEXT    NOT NULL DEFAULT '',
+  status      TEXT    NOT NULL DEFAULT 'open',       -- open | closed
+  created_at  TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_team_posts_target ON team_posts(target_type, target_id, status);
