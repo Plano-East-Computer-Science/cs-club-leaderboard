@@ -40,6 +40,7 @@ Roll back: Revert #6. Migration 012 columns stay, unused.
 | [#7](https://github.com/Plano-East-Computer-Science/cs-club-leaderboard/pull/7) | One officer home at /officer (the admin panel moved in, /admin redirects); officer tab only for officers |
 | [#8](https://github.com/Plano-East-Computer-Science/cs-club-leaderboard/pull/8) | Visual pass: surfaces that separate, readable muted text, quieter footer, no sideways wobble on phones |
 | [#9](https://github.com/Plano-East-Computer-Science/cs-club-leaderboard/pull/9) | Phone nav: brand, menu, account instead of a clipped tab strip |
+| [#10](https://github.com/Plano-East-Computer-Science/cs-club-leaderboard/pull/10) | Moves one CSS block so every PR above (and #6) reverts cleanly on its own |
 
 Test on dev:
 1. Sign in with an officer account. An **officer** tab appears in the top bar.
@@ -54,5 +55,6 @@ Test on dev:
 6. On a phone: the top bar shows the logo, "menu" and your name. "menu" lists
    every page. Pages no longer slide sideways. Typing in a field does not zoom.
 
-Roll back: Revert #9, #8 or #7 on their own (any order works today), or all
-three, newest first, for the whole wave. No database changes.
+Roll back: Revert #9, #8 or #7 on its own (each was checked to revert
+cleanly), or #9, #8, #7 in that order for the whole wave. #10 only moves CSS
+and never needs reverting. No database changes.
