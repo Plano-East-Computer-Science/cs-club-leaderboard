@@ -32,6 +32,7 @@ import { competeRouter, competeAdminRouter } from './compete.js';
 import { savedRouter } from './saved.js';
 import { analyticsAdminRouter } from './analytics.js';
 import { workspaceRouter } from './workspace.js';
+import { plannerAdminRouter } from './planner.js';
 import { ctfRouter, ctfAdminRouter } from './ctf.js';
 import { dataRouter, dataAdminRouter } from './data.js';
 
@@ -59,6 +60,7 @@ hubAdmin.route('/', safetyAdminRouter);
 hubAdmin.route('/', recordsAdminRouter);
 hubAdmin.route('/', competeAdminRouter);
 hubAdmin.route('/', analyticsAdminRouter);
+hubAdmin.route('/', plannerAdminRouter);
 hubAdmin.route('/', ctfAdminRouter);
 hubAdmin.route('/', dataAdminRouter);
 

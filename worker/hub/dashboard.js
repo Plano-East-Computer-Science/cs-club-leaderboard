@@ -18,6 +18,8 @@ import { problemFor } from './daily.js';
 import { chicagoDate } from '../../shared/daily.js';
 import { getLeaderboard } from '../db.js';
 import { rankInfo } from './standings.js';
+import { nextPublicPlan } from './planner.js';
+import { whenLabel } from '../../shared/planner.js';
 
 export { streakOf };
 
@@ -153,8 +155,11 @@ dashboardRouter.get('/me/dashboard', requireUser, async (c) => {
   let meeting = { kind: 'none' };
   if (live) meeting = { kind: 'live', code: live.code, title: live.title, since: live.created_at, here: Boolean(live.here) };
   else {
+    // G1: the next planned session (member-safe fields only), else what officers wrote on the Join page
+    const plan = await nextPublicPlan(db);
     const info = (await db.prepare(`SELECT value FROM settings WHERE key = 'join_meeting_info'`).first())?.value?.trim();
-    if (info) meeting = { kind: 'planned', info };
+    if (plan) meeting = { kind: 'planned', info: `${whenLabel(plan.date)}: ${plan.title} (${plan.kind})`, plan: { date: plan.date, title: plan.title, kind: plan.kind }, extra: info || '' };
+    else if (info) meeting = { kind: 'planned', info };
   }
 
   /* 2. next action */

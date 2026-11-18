@@ -16,6 +16,7 @@ import { recordActivity } from './ledger.js';
 import { syncQuests } from './quests.js';
 import { publicName } from './names.js';
 import { TEMPLATES } from '../../shared/session-templates.js';
+import { getPlan } from './planner.js';
 
 export const roomsRouter = new Hono();
 export const roomsAdminRouter = new Hono();
@@ -64,9 +65,18 @@ const secretOf = (env) => env.SESSION_SECRET || env.ADMIN_PASSWORD;
 
 roomsAdminRouter.post('/rooms', async (c) => {
   const body = await c.req.json().catch(() => ({}));
-  const title = String(body?.title ?? '').trim().slice(0, 80) || 'Meeting';
+  // G1: a room opened from the planner takes the plan's template and blocks.
+  let plan = null;
+  if (body?.planId != null) {
+    plan = await getPlan(c.env.DB, Number(body.planId));
+    if (!plan) return c.json({ error: 'No such planned session.' }, 404);
+    if (plan.roomCode && (await c.env.DB.prepare('SELECT 1 AS x FROM rooms WHERE code = ?').bind(plan.roomCode).first())) {
+      return c.json({ error: `That session already has room ${plan.roomCode}.` }, 409);
+    }
+  }
+  const title = String(body?.title ?? plan?.title ?? '').trim().slice(0, 80) || 'Meeting';
   // B1/B10: a template id, or "dropin" for a Panther Pause room with no agenda.
-  const template = String(body?.template ?? 'build');
+  const template = plan ? plan.template : String(body?.template ?? 'build');
   if (template !== 'dropin' && !Object.hasOwn(TEMPLATES, template)) return c.json({ error: 'Pick a template.' }, 400);
   const kind = template === 'dropin' ? 'dropin' : 'meeting';
   for (let i = 0; i < 5; i++) {
@@ -75,6 +85,7 @@ roomsAdminRouter.post('/rooms', async (c) => {
       await c.env.DB.prepare('INSERT INTO rooms (code, title, kind, template) VALUES (?, ?, ?, ?)')
         .bind(code, title, kind, kind === 'dropin' ? '' : template)
         .run();
+      if (plan) await c.env.DB.prepare('UPDATE planned_sessions SET room_code = ? WHERE id = ?').bind(code, plan.id).run();
       await notify(c.env, c.env.DB, `Room ${code} is open: ${title}. Join at ${new URL(c.req.url).origin}/room`);
       return c.json({ code, title, kind, template });
     } catch {
@@ -254,6 +265,9 @@ roomsRouter.get('/rooms/:code/ws', async (c) => {
   headers.set('x-code', code); // the room records duel results and artifacts under it
   headers.set('x-kind', room.kind || 'meeting');
   headers.set('x-template', room.template || 'build');
+  // G1: a planned session's blocks (already validated when saved) are the room's run-of-show.
+  const planned = await c.env.DB.prepare('SELECT blocks FROM planned_sessions WHERE room_code = ?').bind(code).first();
+  if (planned) headers.set('x-blocks', encodeURIComponent(planned.blocks)); // ASCII-safe for a header
   const stub = c.env.ROOMS.get(c.env.ROOMS.idFromName(code));
   return stub.fetch(new Request(c.req.raw, { headers }));
 });

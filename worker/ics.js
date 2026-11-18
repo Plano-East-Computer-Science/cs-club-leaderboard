@@ -103,6 +103,20 @@ export function opportunitiesToICS(opportunities, opts = {}) {
     lines.push('END:VEVENT');
   }
 
+  // G1: planned club meetings, member-safe fields only (date, title, kind). All-day, since no start time is stored.
+  for (const s of opts.sessions ?? []) {
+    lines.push(
+      'BEGIN:VEVENT',
+      line('UID', `session-${s.id}@${domain}`),
+      `DTSTAMP:${stamp}`,
+      `DTSTART;VALUE=DATE:${asDate(s.date)}`,
+      `DTEND;VALUE=DATE:${dayAfter(s.date)}`,
+      line('SUMMARY', escapeText(`CS Club: ${s.title}`)),
+      line('DESCRIPTION', escapeText(s.kind)),
+      'END:VEVENT'
+    );
+  }
+
   lines.push('END:VCALENDAR');
   return lines.join(CRLF) + CRLF;
 }

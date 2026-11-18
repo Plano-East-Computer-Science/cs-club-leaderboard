@@ -1585,3 +1585,6 @@ textarea.fi{resize:vertical;line-height:1.5}
 .dt-board th{text-align:left;font-weight:400;color:var(--mute);padding:4px 6px;border-bottom:1px solid var(--line)}
 .dt-board td{padding:5px 6px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
 .dt-board tr.me td{color:var(--gold)}
+
+/* ---- G1: meeting planner ---- */
+.pl-warn{margin:0;padding:8px 12px;border:1px solid var(--gold);color:var(--gold);font-size:13px}
