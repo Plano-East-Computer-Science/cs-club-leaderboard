@@ -182,8 +182,19 @@ Also merged and browser-checked (33 test files pass):
   credited through Codeforces for now.
 
 All new tables in this half are plain `CREATE TABLE` in `worker/schema.sql` (no new migration).
-In progress when this was written: C14 quant sandbox (synthetic seeded prices only, no real market
-data, no ledger points), on an agent branch.
+- C14 quant game (`/arena/quant`): seeded synthetic prices only (real historical data would need a
+  license check), weekly round opens itself, server recomputes every score from the seed, seed
+  hidden until the round closes, no ledger points; client-only Python backtest sandbox.
+
+The roadmap build order is now done except C9 and C13 (AI features, deferred by the lead).
+Sensible next work: a full click-through of the app as a new student and as an officer looking
+for rough edges between features; the C8 C++ prototype per docs/c8-spike.md; and the deploy, when
+the lead says go.
 
 Screenshot tip: the in-app browser pane is often hidden, which stalls CSS transitions; add
 `?static=1` to the URL so panes are revealed at once.
+
+Cookie collisions in local testing: cookies ignore ports, so every agent dev server on
+`localhost:<port>` or `127.0.0.1:<port>` overwrites the same `cslb_user` cookie. While agents are
+running, give each its own loopback address (`wrangler dev --ip 127.0.0.2` and browse that
+address) or sign in again right before checking.
