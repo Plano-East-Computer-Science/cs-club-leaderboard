@@ -45,6 +45,23 @@ export function placementFor(answers = {}) {
   return { start, focus };
 }
 
+/**
+ * A starting square from the onboarding compass (E1), so a member who answered
+ * it is not asked the same things again. Returns null when the compass has no
+ * usable "coded" answer; the Board then asks its own three questions.
+ * Doing contests means at least "a few" contest problems; how hard they go is
+ * unknown, so it does not jump to the top start.
+ */
+const FOCUS_OF_PATH = { contest: 'contest', builder: 'build', ai: 'ai', data: 'data', cyber: 'cyber' };
+const FOCUS_OF_FUN = { contests: 'contest', apps: 'build', ai: 'ai', data: 'data', security: 'cyber' };
+export function placementFromCompass(answers, path) {
+  const coded = { never: 0, little: 1, builds: 2, contests: 2 }[answers?.coded];
+  if (coded === undefined) return null;
+  const fun = Array.isArray(answers.fun) ? answers.fun : [];
+  const focusId = FOCUS_OF_PATH[path] ?? FOCUS_OF_FUN[fun.find((x) => FOCUS_OF_FUN[x])] ?? 'contest';
+  return placementFor({ coded, contest: answers.coded === 'contests' ? 1 : 0, focus: TRACK_IDS.indexOf(focusId) });
+}
+
 /** A track's rungs in ladder order: tier, then the officer's order. */
 export function ladderOf(rungs, track) {
   return rungs

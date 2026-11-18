@@ -99,7 +99,7 @@ function Footer() {
         </div>
         <p className="fine">
           {settings.school_name || 'Plano East Senior High School'}. Go Panthers.
-          Points update whenever an officer awards them.
+          Points come from meetings, competitions, solved problems and shipped projects, by the club's rules.
         </p>
       </div>
     </footer>

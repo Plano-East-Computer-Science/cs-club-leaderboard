@@ -295,7 +295,10 @@ export default function Arena() {
                   <li className="ar-foot">
                     The club's own courses are still at <Link className="uline" to="/learn">/learn</Link>.
                     {d.signedIn && d.placement && (
-                      <> <button type="button" className="linkb" onClick={() => setD({ ...d, placement: null })}>Retake placement</button></>
+                      <>
+                        {d.placement.fromCompass && ' Your starting squares come from your compass answers.'}{' '}
+                        <button type="button" className="linkb" onClick={() => setD({ ...d, placement: null })}>{d.placement.fromCompass ? 'Place me differently' : 'Retake placement'}</button>
+                      </>
                     )}
                   </li>
                 </ol>

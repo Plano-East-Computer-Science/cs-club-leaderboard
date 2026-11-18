@@ -154,7 +154,7 @@ const CMDS = [
   ['join <code>', 'enter a meeting room, e.g. join ABCD'],
   ['daily', 'today\'s problem'],
   ['next', 'back to today'],
-  ['claim', 'link your account to a leaderboard entry'],
+  ['claim', 'claim a competition, a placing or a shipped project'],
   ['top', 'print the top five this season'],
   ['prize', 'what first place wins'],
   ['tiers', 'season tiers and the 7 ranks'],

@@ -8,7 +8,7 @@ import fs from 'node:fs';
 import { Hono } from 'hono';
 
 import { makeTestDb } from './d1-shim.js';
-import { placementFor, ladderOf, nextRung, rungStates, normAnswer, parseContests, hostOf, TRACK_IDS, trackOf } from '../shared/board.js';
+import { placementFor, placementFromCompass, ladderOf, nextRung, rungStates, normAnswer, parseContests, hostOf, TRACK_IDS, trackOf } from '../shared/board.js';
 import { hashAnswer, validateRung, titleFromUrl } from '../worker/hub/board.js';
 import { rungActivity } from '../worker/hub/board-awards.js';
 import { mountHub } from '../worker/hub/index.js';
@@ -23,6 +23,14 @@ const schema = read('../worker/schema.sql');
 
 assert.deepEqual(placementFor({ coded: 0, contest: 0, focus: 0 }), { start: { contest: 1, build: 1, ai: 1, data: 1, cyber: 1 }, focus: 'contest' });
 assert.equal(placementFor({ coded: 1, contest: 1, focus: 1 }).start.contest, 2, 'a few contest problems starts past the basics');
+// The compass places the Board when it was answered, so nobody is asked twice.
+assert.equal(placementFromCompass(null, null), null);
+assert.equal(placementFromCompass({ fun: ['ai'] }, 'ai'), null, 'no coded answer, the Board asks its own questions');
+assert.deepEqual(placementFromCompass({ coded: 'never', fun: ['unsure'] }, 'explorer'), placementFor({ coded: 0, contest: 0, focus: 0 }));
+assert.equal(placementFromCompass({ coded: 'builds', fun: ['apps'] }, 'builder').focus, 'build');
+assert.equal(placementFromCompass({ coded: 'little', fun: ['security', 'data'] }, 'explorer').focus, 'cyber', 'an explorer falls back to the first fun pick');
+const cp = placementFromCompass({ coded: 'contests', fun: ['contests'] }, 'contest');
+assert.deepEqual({ f: cp.focus, c: cp.start.contest, b: cp.start.build }, { f: 'contest', c: 2, b: 2 });
 assert.equal(placementFor({ coded: 2, contest: 2, focus: 3 }).start.contest, 3, 'Bronze or harder starts at difficulty 3');
 assert.equal(placementFor({ coded: 2, contest: 0 }).start.contest, 2, 'comfortable coders skip the very first contest rungs');
 assert.equal(placementFor({ coded: 2 }).start.data, 2);

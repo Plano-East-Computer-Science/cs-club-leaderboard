@@ -243,8 +243,8 @@ function Account({ user, refresh, signOut }) {
         <Link className="btn btn-primary" to="/room" style={{ textDecoration: 'none' }}>
           Join a live room
         </Link>
-        <Link className="btn btn-ghost" to="/learn" style={{ textDecoration: 'none' }}>
-          Learn
+        <Link className="btn btn-ghost" to="/arena" style={{ textDecoration: 'none' }}>
+          Arena
         </Link>
         <Link className="btn btn-ghost" to="/projects" style={{ textDecoration: 'none' }}>
           Projects

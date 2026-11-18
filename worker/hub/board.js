@@ -10,7 +10,7 @@
  */
 import { Hono } from 'hono';
 
-import { TRACK_IDS, VERIFY, trackOf, ladderOf, normAnswer, parseContests, placementFor } from '../../shared/board.js';
+import { TRACK_IDS, VERIFY, trackOf, ladderOf, normAnswer, parseContests, placementFor, placementFromCompass } from '../../shared/board.js';
 import { getSetting, setSetting } from '../db.js';
 import { currentUser, requireUser } from './users.js';
 import { awardFromUser } from './award.js';
@@ -108,6 +108,12 @@ boardRouter.get('/board', async (c) => {
     progress = Object.fromEntries(rows.map(({ rung_id, ...p }) => [rung_id, p]));
     const p = await db.prepare('SELECT start, focus FROM board_placement WHERE user_id = ?').bind(user.id).first();
     if (p) placement = { start: parseJson(p.start, {}), focus: p.focus };
+    else {
+      // No Board placement yet: start from the compass answers when there are some.
+      const u = await db.prepare('SELECT compass, path FROM users WHERE id = ?').bind(user.id).first();
+      const fromCompass = placementFromCompass(parseJson(u?.compass, null), u?.path);
+      if (fromCompass) placement = { ...fromCompass, fromCompass: true };
+    }
   }
 
   return c.json({
