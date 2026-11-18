@@ -180,7 +180,9 @@ CREATE TABLE IF NOT EXISTS login_tokens (
   email      TEXT NOT NULL,
   name       TEXT NOT NULL DEFAULT '',
   created_at INTEGER NOT NULL,           -- ms since epoch
-  used       INTEGER NOT NULL DEFAULT 0
+  used       INTEGER NOT NULL DEFAULT 0,
+  code_hash  TEXT,                       -- keyed hash of the 6-digit code in the same email
+  tries      INTEGER NOT NULL DEFAULT 0  -- wrong code guesses; the code dies at CODE_TRIES
 );
 CREATE INDEX IF NOT EXISTS idx_login_email ON login_tokens(email, created_at);
 
