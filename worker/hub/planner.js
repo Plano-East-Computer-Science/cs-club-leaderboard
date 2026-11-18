@@ -111,6 +111,7 @@ plannerAdminRouter.put('/planner/:id', async (c) => {
   const id = Number(c.req.param('id'));
   const old = await getPlan(db, id);
   if (!old) return c.json({ error: 'No such session.' }, 404);
+  if (old.roomCode) return c.json({ error: 'That session already has a room, so its plan is locked.' }, 409);
   const p = await clean(db, await c.req.json().catch(() => ({})));
   if (p.error) return c.json({ error: p.error }, 400);
   await db

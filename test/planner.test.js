@@ -152,6 +152,9 @@ await check('opening a room from a plan uses its blocks and marks the plan held'
   // a second room for the same plan is refused; an unknown plan is 404
   assert.equal((await call('/api/admin/hub/rooms', { method: 'POST', cookie: officer, body: { planId } })).status, 409);
   assert.equal((await call('/api/admin/hub/rooms', { method: 'POST', cookie: officer, body: { planId: 9999 } })).status, 404);
+  // a held plan can no longer be edited, and students cannot open rooms from plans
+  assert.equal((await call(`${A}/${planId}`, { method: 'PUT', cookie: officer, body: { date: future, title: 'x', template: 'build' } })).status, 409);
+  assert.equal((await call('/api/admin/hub/rooms', { method: 'POST', cookie: member, body: { planId } })).status, 401);
   // held plans leave the member-facing "next meeting"
   const today = await call('/api/me/dashboard', { cookie: member, raw: true });
   assert.ok(!today.body.includes('Build night 2') || today.body.includes('"kind":"live"'));
