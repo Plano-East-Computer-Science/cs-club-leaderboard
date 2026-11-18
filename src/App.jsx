@@ -8,6 +8,7 @@ import Opportunities from './pages/Opportunities.jsx';
 import CalendarPage from './pages/Calendar.jsx';
 import Curriculum from './pages/Curriculum.jsx';
 import Competitions from './pages/Competitions.jsx';
+import Competition from './pages/Competition.jsx';
 import Puzzles from './pages/Puzzles.jsx';
 import Cyber from './pages/Cyber.jsx';
 import Join from './pages/Join.jsx';
@@ -133,6 +134,7 @@ function Shell() {
           <Route path="/calendar" element={<CalendarPage />} />
           <Route path="/curriculum" element={<Curriculum />} />
           <Route path="/competitions" element={<Competitions />} />
+          <Route path="/competitions/:id" element={<Competition />} />
           <Route path="/puzzles" element={<Puzzles />} />
           <Route path="/join" element={<Join />} />
           <Route path="/about" element={<About />} />

@@ -15,6 +15,7 @@ import {
 import { sendEmail, esc, unsubscribeHeaders, emailEnabled } from './email.js';
 
 const DEADLINE_WINDOW_DAYS = 14;
+const MINE_WINDOW_DAYS = 30;
 /** First run has no "last send" to measure from, so it looks back a week. */
 const DEFAULT_LOOKBACK_DAYS = 7;
 
@@ -43,6 +44,26 @@ export async function buildDigest(db, since) {
 
   if (!points.length && !opportunities.length && !notes.length) return null;
   return { since, points, opportunities, deadlines, notes };
+}
+
+/**
+ * E2: the deadlines one reader marked "I'm doing this", matched by email to
+ * their club account. A section added per recipient inside the existing
+ * one-send-per-address loop, so it costs one small query each. It never
+ * decides whether an email goes out (see buildDigest), only what is in it.
+ */
+export async function myDeadlines(db, email) {
+  return (
+    await db
+      .prepare(
+        `SELECT o.title, o.url, o.deadline FROM opportunity_interest i
+         JOIN users u ON u.id = i.user_id JOIN opportunities o ON o.id = i.opportunity_id
+         WHERE lower(u.email) = lower(?) AND o.status = 'live' AND o.deadline >= date('now') AND o.deadline <= date('now', ?)
+         ORDER BY o.deadline`
+      )
+      .bind(email, `+${MINE_WINDOW_DAYS} days`)
+      .all()
+  ).results;
 }
 
 /* ---------------------------------- render --------------------------------- */
@@ -154,6 +175,23 @@ function renderHtml(digest, origin, unsubscribeUrl) {
     );
   }
 
+  if (digest.mine?.length) {
+    parts.push(
+      section(
+        `Your deadlines (next ${MINE_WINDOW_DAYS} days)`,
+        `<ul style="margin:0;padding-left:18px">${digest.mine
+          .map(
+            (d) =>
+              `<li style="margin:4px 0"><span style="color:#c42e2e;font-variant-numeric:tabular-nums">${fmtDate(
+                d.deadline
+              )}</span> — ${d.url ? `<a href="${esc(d.url)}">${esc(d.title)}</a>` : esc(d.title)}</li>`
+          )
+          .join('')}</ul>
+         <p style="margin:12px 0 0"><a href="${origin}/opportunities">Your list</a></p>`
+      )
+    );
+  }
+
   return `<div style="font:400 15px/1.6 system-ui,-apple-system,sans-serif;color:#1a1d23;max-width:34rem;margin:0 auto;padding:24px">
     <p style="font:800 22px/1.1 system-ui;margin:0">Plano East CS Club</p>
     <p style="color:#6b7689;margin:4px 0 0">What happened this week.</p>
@@ -194,11 +232,12 @@ export async function runDigest(env, { dry = false } = {}) {
 
   for (const m of recipients) {
     const unsubscribeUrl = `${origin}/api/subscribe/unsubscribe?t=${m.unsubscribe_token}`;
+    const mine = { ...digest, mine: await myDeadlines(db, m.email) };
     const preview = {
       to: m.email,
       subject,
-      text: renderText(digest, origin, unsubscribeUrl),
-      html: renderHtml(digest, origin, unsubscribeUrl),
+      text: renderText(mine, origin, unsubscribeUrl),
+      html: renderHtml(mine, origin, unsubscribeUrl),
       headers: unsubscribeHeaders(unsubscribeUrl),
     };
     // One send per address, not one bcc blast: each carries its own

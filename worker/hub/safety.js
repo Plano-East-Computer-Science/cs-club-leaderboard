@@ -132,6 +132,7 @@ export async function exportFor(db, user) {
     idea_votes: await rows(db, 'SELECT idea_id FROM idea_votes WHERE user_id = ?', id),
     kudos_given: await rows(db, 'SELECT activity_id, created_at FROM kudos WHERE user_id = ?', id),
     opportunities_marked: await rows(db, 'SELECT opportunity_id FROM opportunity_interest WHERE user_id = ?', id),
+    competition_signups: await rows(db, 'SELECT competition_id, joined_at, participated, placement FROM competition_roster WHERE user_id = ?', id),
     arena_progress: await rows(db, 'SELECT rung_id, status, done_at, method FROM rung_progress WHERE user_id = ?', id),
     arena_placement: (await db.prepare('SELECT answers, start, focus FROM board_placement WHERE user_id = ?').bind(id).first()) ?? null,
     daily_results: await rows(db, 'SELECT date, attempts, solved_at, ms FROM daily_results WHERE user_id = ?', id),

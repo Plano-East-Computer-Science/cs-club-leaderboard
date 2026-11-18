@@ -579,3 +579,22 @@ CREATE TABLE IF NOT EXISTS team_posts (
   created_at  TEXT    NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_team_posts_target ON team_posts(target_type, target_id, status);
+
+/* ================================ E4: competition pages ================================ */
+-- Members sign up for a competition; results fill in `participated` and `placement`.
+CREATE TABLE IF NOT EXISTS competition_roster (
+  competition_id INTEGER NOT NULL REFERENCES competitions(id) ON DELETE CASCADE,
+  user_id        INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  joined_at      TEXT    NOT NULL DEFAULT (datetime('now')),
+  participated   INTEGER NOT NULL DEFAULT 0,
+  placement      INTEGER,                              -- NULL = did not place
+  PRIMARY KEY (competition_id, user_id)
+);
+-- Prep plan: Arena rungs and bank problems an officer picked, in order.
+CREATE TABLE IF NOT EXISTS competition_prep (
+  competition_id INTEGER NOT NULL REFERENCES competitions(id) ON DELETE CASCADE,
+  kind           TEXT    NOT NULL CHECK (kind IN ('rung', 'problem')),
+  ref_id         INTEGER NOT NULL,                     -- rungs.id or problems.id
+  ord            INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (competition_id, kind, ref_id)
+);

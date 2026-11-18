@@ -14,6 +14,8 @@ import Board from './officer/Board.jsx';
 import Reports from './officer/Reports.jsx';
 import Records from './officer/Records.jsx';
 import Cycles from './officer/Cycles.jsx';
+import CompetitionAdmin from './officer/Competition.jsx';
+import Analytics from './officer/Analytics.jsx';
 
 const HOURS = [1, 2, 3, 6, 12];
 
@@ -85,6 +87,8 @@ export default function Officer() {
       <Claims />
       <Reports />
       <Records />
+      <CompetitionAdmin />
+      <Analytics />
       <LinkRequests />
       <Merge />
       <Raffle />

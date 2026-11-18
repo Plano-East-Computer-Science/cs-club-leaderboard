@@ -52,13 +52,14 @@ export default function Competitions() {
                   {list.map((c) => (
                     <article key={c.id} className={`cc sp ${c.result ? 'hit' : ''}`}>
                       <span className="no">{String(c.i + 1).padStart(2, '0')}</span>
-                      <h2>{c.name}</h2>
+                      <h2><Link to={`/competitions/${c.id}`}>{c.name}</Link></h2>
                       <p>{c.description}</p>
                       <div className="res">
                         {c.result ? <span className="stamp">{c.result}</span> : <span className="nores">no result posted</span>}
                       </div>
                       <div className="dl2">
                         <span>{c.event_date ? formatDate(c.event_date) : 'Date not set yet'}</span>
+                        <Link to={`/competitions/${c.id}`}>Roster and prep</Link>
                         {c.url && <a href={c.url} target="_blank" rel="noreferrer noopener">More info</a>}
                       </div>
                     </article>
