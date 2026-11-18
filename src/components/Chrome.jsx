@@ -29,6 +29,7 @@ export const PAGES = [
   ['calendar', '/calendar'],
   ['ideas', '/ideas'],
   ['compass', '/compass'],
+  ['pathways', '/pathways'], // E5
   ['curriculum', '/curriculum'],
   ['competitions', '/competitions'],
   ['cyber', '/cyber'],
@@ -46,7 +47,7 @@ const GROUPS = [
   ['arena', [['arena', 'the board: your next problem, per track'], ['daily', 'one problem a day'], ['ctf', 'capture the flag: puzzles, scoreboard, events'], ['data', 'datasets to predict, pandas in the browser'], ['courses', 'the club\'s own lessons'], ['quests', 'small point bonuses'], ['puzzles', 'problem of the week'], ['curriculum', 'what we teach, by track']]],
   ['build', [['build', 'ship cycles, templates, projects'], ['workspace', 'your code, saved: Python and web pages'], ['gateway', 'GitHub on school wifi']]],
   ['compete', [['standings', 'season points, tiers, the prize'], ['competitions', 'USACO, UIL, BOT and more'], ['opportunities', 'contests, programs, internships'], ['cyber', 'the cyber team']]],
-  ['club', [['compass', 'find your path'], ['about', 'who runs this'], ['join', 'how to get involved']]],
+  ['club', [['compass', 'find your path'], ['pathways', 'goal plans: USACO, AP CSA, internships'], ['about', 'who runs this'], ['join', 'how to get involved']]],
 ];
 const pathOf = (name) => PAGES.find((x) => x[0] === name)[1];
 // `learn` and `board` used to mean the course list and the standings; both now land on the Arena.

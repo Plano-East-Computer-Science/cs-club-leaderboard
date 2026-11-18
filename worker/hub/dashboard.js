@@ -20,6 +20,7 @@ import { getLeaderboard } from '../db.js';
 import { rankInfo } from './standings.js';
 import { nextPublicPlan } from './planner.js';
 import { whenLabel } from '../../shared/planner.js';
+import { pathwayNextFor } from './pathways.js';
 
 export { streakOf };
 
@@ -44,9 +45,11 @@ const ORDER = {
  *   arena        falsy when the Arena board is empty, else { rung: { title } | null } (a started, unfinished rung)
  *   firsts       the path's first things: [{ title, to, course?, check?, done, started }]
  *   quest        the unfinished quest closest to done, or null
+ *   pathway      E5: { pathway: { id, title }, step: { title }, n, total } from a pathway you follow, or null.
+ *                Following one is an explicit choice, so it beats what the compass path would suggest.
  * Returns { kind, title, why, to, cta, oppId? }.
  */
-export function pickNext({ compassDone, path, openClaim, daily, arena, firsts = [], quest }) {
+export function pickNext({ compassDone, path, openClaim, daily, arena, firsts = [], quest, pathway }) {
   if (!compassDone)
     return { kind: 'compass', title: 'Find your path', why: 'Six quick questions. Today changes to fit your answers.', to: '/compass', cta: 'Start the compass' };
   if (openClaim)
@@ -58,6 +61,14 @@ export function pickNext({ compassDone, path, openClaim, daily, arena, firsts = 
       cta: 'I competed',
       oppId: openClaim.id,
       oppTitle: openClaim.title,
+    };
+  if (pathway)
+    return {
+      kind: 'pathway',
+      title: pathway.step.title,
+      why: `Step ${pathway.n} of ${pathway.total} on your ${pathway.pathway.title} pathway.`,
+      to: `/pathways/${pathway.pathway.id}`,
+      cta: 'Open the pathway',
     };
   const p = PATHS[path] ? path : 'explorer';
   const tracked = firsts.filter((f) => f.course || f.check);
@@ -213,6 +224,7 @@ dashboardRouter.get('/me/dashboard', requireUser, async (c) => {
     arena: arenaOn && { rung },
     firsts,
     quest: open[0] ?? null,
+    pathway: await pathwayNextFor(db, user),
   });
 
   /* 3. season strip */

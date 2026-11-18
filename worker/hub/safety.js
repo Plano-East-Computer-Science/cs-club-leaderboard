@@ -171,6 +171,8 @@ export async function exportFor(db, user) {
     link_request: (await db.prepare('SELECT student_id, created_at FROM link_requests WHERE user_id = ?').bind(id).first()) ?? null,
     reports_filed: await rows(db, 'SELECT kind, target_id, reason, status, created_at FROM reports WHERE reporter_user_id = ?', id),
     verified_record_codes: await rows(db, 'SELECT code, issued_by_name, created_at, revoked_at FROM record_codes WHERE user_id = ?', id),
+    pathways_followed: await rows(db, 'SELECT pathway, created_at FROM pathway_follows WHERE user_id = ?', id),
+    pathway_ticks: await rows(db, 'SELECT pathway, step, created_at FROM pathway_ticks WHERE user_id = ?', id),
     email_list: (await db.prepare('SELECT confirmed, created_at FROM subscribers WHERE email = ?').bind(account.email).first()) ?? null,
   };
 }
@@ -230,6 +232,7 @@ export async function purgeUser(db, id) {
     'step_progress', 'room_checkins', 'projects', 'link_requests', 'ideas', 'idea_votes', 'kudos', 'opportunity_interest',
     'daily_results', 'data_submissions', 'rung_progress', 'board_placement', 'duel_results', 'cf_solves', 'cf_challenges', 'record_codes', 'artifacts', 'workspaces', 'ctf_solves', 'contest_attempts',
     'problem_solves', 'editorials', 'ghost_races', 'reviews', 'review_requests', 'portfolio_public', 'portfolio_signoffs',
+    'pathway_follows', 'pathway_ticks',
   ]) {
     mine(`DELETE FROM ${t} WHERE user_id = ?`, id); // t is from the fixed list above, never input
   }
