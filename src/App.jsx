@@ -15,6 +15,8 @@ import About from './pages/About.jsx';
 import Admin from './pages/Admin.jsx';
 import Learn from './pages/Learn.jsx';
 import Course from './pages/Course.jsx';
+import Arena from './pages/Arena.jsx';
+import Problem from './pages/Problem.jsx';
 import SignIn from './pages/SignIn.jsx';
 import Room from './pages/Room.jsx';
 import Host from './pages/Host.jsx';
@@ -131,7 +133,9 @@ function Shell() {
           <Route path="/quests" element={<Quests />} />
           <Route path="/ideas" element={<Ideas />} />
           <Route path="/daily" element={<Daily />} />
+          <Route path="/arena" element={<Arena />} />
           <Route element={<HubLayout />}>
+            <Route path="/p/:slug" element={<Problem />} />
             <Route path="/learn" element={<Learn />} />
             <Route path="/learn/:slug" element={<Course />} />
             <Route path="/signin" element={<SignIn />} />

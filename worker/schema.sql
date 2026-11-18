@@ -327,3 +327,42 @@ CREATE TABLE IF NOT EXISTS daily_results (
   PRIMARY KEY (user_id, date)
 );
 CREATE INDEX IF NOT EXISTS idx_daily_results_date ON daily_results(date);
+-- C1. The Board: ladders of rungs per track, most pointing at outside sites.
+-- `answer_hash` is SHA-256 of the normalised answer and never leaves the server.
+CREATE TABLE IF NOT EXISTS rungs (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  track       TEXT    NOT NULL,                     -- contest | build | ai | data | cyber
+  tier        TEXT    NOT NULL,                     -- per track, see shared/board.js
+  ord         INTEGER NOT NULL DEFAULT 0,           -- order within the tier
+  title       TEXT    NOT NULL,
+  url         TEXT    NOT NULL,                     -- https://... or /p/<slug> or /learn/<course>
+  hint        TEXT    NOT NULL DEFAULT '',
+  difficulty  INTEGER NOT NULL DEFAULT 1 CHECK (difficulty BETWEEN 1 AND 5),
+  tags        TEXT    NOT NULL DEFAULT '',
+  verify      TEXT    NOT NULL DEFAULT 'checkbox',  -- checkbox | answer | codeforces | internal
+  answer_hash TEXT    NOT NULL DEFAULT '',
+  hidden      INTEGER NOT NULL DEFAULT 0,
+  created_by  TEXT    NOT NULL DEFAULT '',
+  created_at  TEXT    NOT NULL DEFAULT (datetime('now')),
+  updated_at  TEXT    NOT NULL DEFAULT (datetime('now')),
+  UNIQUE (track, url)
+);
+CREATE INDEX IF NOT EXISTS idx_rungs_track ON rungs(track, tier, ord);
+
+CREATE TABLE IF NOT EXISTS rung_progress (
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  rung_id INTEGER NOT NULL REFERENCES rungs(id) ON DELETE CASCADE,
+  status  TEXT    NOT NULL DEFAULT 'started',       -- started | done
+  done_at TEXT,
+  method  TEXT    NOT NULL DEFAULT '',              -- self | answer | judge | codeforces
+  PRIMARY KEY (user_id, rung_id)
+);
+
+-- Where the placement questions dropped a member: starting difficulty per track.
+CREATE TABLE IF NOT EXISTS board_placement (
+  user_id    INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  answers    TEXT NOT NULL DEFAULT '{}',
+  start      TEXT NOT NULL DEFAULT '{}',            -- JSON { track: difficulty }
+  focus      TEXT NOT NULL DEFAULT 'contest',
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);

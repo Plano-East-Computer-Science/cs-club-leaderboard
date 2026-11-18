@@ -15,7 +15,8 @@ import { setXmas, useXmas, xmasOn } from '../lib/xmas.js';
 export const PAGES = [
   ['home', '/'],
   ['standings', '/standings'],
-  ['learn', '/learn'],
+  ['arena', '/arena'],
+  ['courses', '/learn'], // C1: courses stay reachable; the Board links into them
   ['quests', '/quests'],
   ['daily', '/daily'],
   ['room', '/room'],
@@ -32,18 +33,19 @@ export const PAGES = [
   ['join', '/join'],
   ['admin', '/admin'],
 ];
-const BAR = ['home', 'standings', 'learn', 'quests', 'room', 'projects', 'opportunities']; // always on the bar
+const BAR = ['home', 'standings', 'arena', 'quests', 'room', 'projects', 'opportunities']; // always on the bar
 
 // The "all" panel: the whole site as a directory listing, grouped by what you came to do.
 const GROUPS = [
   ['meet', [['room', 'join the live meeting'], ['calendar', 'meetings and deadlines'], ['ideas', 'tell us what to run next']]],
-  ['learn', [['learn', 'lessons that run in the page'], ['quests', 'earn xp and a rank'], ['daily', 'one problem a day'], ['puzzles', 'problem of the week'], ['curriculum', 'what we teach, by track']]],
+  ['arena', [['arena', 'the board: your next problem, per track'], ['daily', 'one problem a day'], ['courses', 'the club\'s own lessons'], ['quests', 'earn xp and a rank'], ['puzzles', 'problem of the week'], ['curriculum', 'what we teach, by track']]],
   ['build', [['projects', 'post what you made'], ['gateway', 'GitHub on school wifi']]],
   ['compete', [['standings', 'points, tiers, the prize'], ['competitions', 'USACO, UIL, BOT and more'], ['opportunities', 'contests, programs, internships'], ['cyber', 'the cyber team']]],
   ['club', [['about', 'who runs this'], ['join', 'how to get involved']]],
 ];
 const pathOf = (name) => PAGES.find((x) => x[0] === name)[1];
-const ALIAS = { opps: 'opportunities', comps: 'competitions', lb: 'standings', board: 'standings', home: 'home' };
+// `learn` and `board` used to mean the course list and the standings; both now land on the Arena.
+const ALIAS = { opps: 'opportunities', comps: 'competitions', lb: 'standings', board: 'arena', learn: 'arena', home: 'home' };
 
 const Logo = () => (
   <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
@@ -60,7 +62,14 @@ export function TabBar() {
   const barRef = useRef(null);
   const [open, setOpen] = useState(false);
   const [user, setUser] = useState(null);
-  const cur = (to) => (to === '/' ? pathname === '/' : to === '/standings' ? pathname.startsWith('/standings') || pathname.startsWith('/student') : pathname.startsWith(to));
+  const cur = (to) =>
+    to === '/'
+      ? pathname === '/'
+      : to === '/standings'
+        ? pathname.startsWith('/standings') || pathname.startsWith('/student')
+        : to === '/arena'
+          ? pathname.startsWith('/arena') || pathname.startsWith('/p/')
+          : pathname.startsWith(to);
   const elsewhere = !BAR.some((n) => cur(pathOf(n))); // current page lives only in the panel
 
   useEffect(() => {
