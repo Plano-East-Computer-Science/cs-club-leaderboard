@@ -20,12 +20,17 @@ function day(v) {
   return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
 }
 
+const KIND = { compete: 'Competed in', place: 'Placed in', ship: 'Shipped' };
+const ymd = (iso) => (iso ? new Date(`${iso}T12:00:00Z`).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }) : '');
+
+// Light page, no site chrome. Chrome is the tab bar, dock, footer, boot and snow layers.
 const PRINT_CSS = `
 @media print {
-  header, nav, footer, .no-print { display: none !important; }
-  body { background: #fff !important; color: #000 !important; }
-  .pf-sheet { box-shadow: none !important; border: none !important; padding: 0 !important; max-width: none !important; }
-  .pf-sheet, .pf-sheet * { color: #000 !important; }
+  .tabs, .dock, footer, #boot, #snow, .no-print { display: none !important; }
+  html, body { background: #fff !important; color: #000 !important; padding: 0 !important; }
+  .hub { padding: 0 !important; max-width: none !important; }
+  .pf-sheet { box-shadow: none !important; border: none !important; padding: 0 !important; max-width: none !important; background: #fff !important; }
+  .pf-sheet, .pf-sheet * { color: #000 !important; background: transparent !important; }
   .pf-item { break-inside: avoid; }
   a { text-decoration: none; }
 }`;
@@ -34,6 +39,27 @@ export default function Portfolio() {
   const { id } = useParams();
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
+  const [busy, setBusy] = useState(false);
+
+  const setPublic = async (on) => {
+    setBusy(true);
+    try {
+      await api.put('/me/portfolio', { public: on });
+      setData((d) => ({ ...d, public: on }));
+    } catch (e) {
+      setError(e.message);
+    }
+    setBusy(false);
+  };
+
+  // A page about a minor is not for search engines.
+  useEffect(() => {
+    const meta = document.createElement('meta');
+    meta.name = 'robots';
+    meta.content = 'noindex';
+    document.head.appendChild(meta);
+    return () => meta.remove();
+  }, []);
 
   useEffect(() => {
     setData(null);
@@ -46,6 +72,8 @@ export default function Portfolio() {
 
   const courses = data.courses ?? [];
   const projects = data.projects ?? [];
+  const results = data.results ?? [];
+  const signoffs = data.signoffs ?? [];
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -53,8 +81,21 @@ export default function Portfolio() {
 
       <div className="no-print mb-4 flex flex-wrap items-center justify-between gap-3">
         <Link to="/" className="mono text-xs" style={{ color: 'var(--ink-soft)' }}>← Back to the club</Link>
-        <button className="btn btn-primary" onClick={() => window.print()}>Print / save as PDF</button>
+        <button className="btn pri" onClick={() => window.print()}>Print / save as PDF</button>
       </div>
+
+      {data.owner && (
+        <div className="no-print card mb-4 flex flex-wrap items-center justify-between gap-3 p-4">
+          <p className="text-sm" style={{ color: 'var(--ink-soft)' }}>
+            {data.public
+              ? 'Anyone with this link can see this page. It shows your first name unless you chose to show your full name, and never your email or grade.'
+              : 'Only you can see this page. Make it public to share the link on an application.'}
+          </p>
+          <button className="btn" disabled={busy} onClick={() => setPublic(!data.public)}>
+            {data.public ? 'Make private' : 'Make public'}
+          </button>
+        </div>
+      )}
 
       <article className="pf-sheet card p-8 sm:p-10">
         <div className="border-b pb-5">
@@ -71,7 +112,39 @@ export default function Portfolio() {
           )}
         </div>
 
-        <section className="mt-6">
+        {signoffs.length > 0 && (
+          <section className="mt-6" aria-label="Signed by officers">
+            <h2 className="eyebrow mb-3">From the officers</h2>
+            <ul className="grid gap-3">
+              {signoffs.map((g) => (
+                <li key={g.id} className="pf-item">
+                  <p className="leading-relaxed">{g.line}</p>
+                  <p className="mono mt-1 text-xs" style={{ color: 'var(--ink-faint)' }}>Signed {g.by}, {ymd(g.date)}</p>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {results.length > 0 && (
+          <section className="mt-8" aria-label="Approved results">
+            <h2 className="eyebrow mb-3">Competitions and shipped work</h2>
+            <ul className="grid gap-2">
+              {results.map((r, i) => (
+                <li key={i} className="pf-item flex flex-wrap items-baseline justify-between gap-x-4">
+                  <span>
+                    <span className="font-semibold">{KIND[r.kind] ?? r.kind}</span> {r.title}
+                    {r.place ? <span className="mono ml-2 text-xs">place {r.place}</span> : null}
+                  </span>
+                  <span className="mono text-xs" style={{ color: 'var(--ink-faint)' }}>{ymd(r.date)}</span>
+                </li>
+              ))}
+            </ul>
+            <p className="mono mt-2 text-xs" style={{ color: 'var(--ink-faint)' }}>Each line was approved by a club officer.</p>
+          </section>
+        )}
+
+        <section className="mt-8">
           <h2 className="eyebrow mb-3">Courses</h2>
           {courses.length === 0 ? (
             <p className="text-sm" style={{ color: 'var(--ink-soft)' }}>No courses started yet.</p>

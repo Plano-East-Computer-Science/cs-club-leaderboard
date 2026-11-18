@@ -783,3 +783,23 @@ CREATE TABLE IF NOT EXISTS contest_attempts (
 CREATE INDEX IF NOT EXISTS idx_contest_attempts_room ON contest_attempts(room_code, team_id);
 CREATE INDEX IF NOT EXISTS idx_contest_attempts_user ON contest_attempts(user_id);
 
+/* ============================ D6: portfolio v2 ============================ */
+
+-- A portfolio is private until its owner turns it on: a row here means public.
+-- Members are minors, so the default is "nobody but you".
+CREATE TABLE IF NOT EXISTS portfolio_public (
+  user_id    INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  created_at TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+-- One sentence from an officer, shown on the member's portfolio with the
+-- officer's name and the date. officer_id is NULL for the shared login.
+CREATE TABLE IF NOT EXISTS portfolio_signoffs (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  line         TEXT    NOT NULL,
+  officer_id   INTEGER,
+  officer_name TEXT    NOT NULL,
+  created_at   TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_portfolio_signoffs_user ON portfolio_signoffs(user_id);
+

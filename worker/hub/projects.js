@@ -5,7 +5,8 @@
 import { Hono } from 'hono';
 
 import { COURSES } from '../../shared/courses.js';
-import { requireUser } from './users.js';
+import { requireUser, currentUser } from './users.js';
+import { isPortfolioPublic, signoffsFor } from './portfolio.js';
 import { questProgress } from '../../shared/quests.js';
 import { withRepoStats } from './github.js';
 import { statsFor, syncQuests } from './quests.js';
@@ -71,11 +72,33 @@ projectsRouter.delete('/projects/:id', requireUser, async (c) => {
   return c.json({ ok: true });
 });
 
-/** Public portfolio: courses finished, steps passed, projects shipped. */
+/**
+ * Portfolio (D6): attendance, approved results, courses, projects with cached
+ * repository data, rank and officer-signed lines. Private unless the member
+ * turned it on; a private one answers exactly like a missing one, except to
+ * its owner. Only approved, unhidden ledger rows count as results.
+ */
 projectsRouter.get('/portfolio/:id', async (c) => {
   const id = Number(c.req.param('id'));
-  const user = await c.env.DB.prepare('SELECT id, name, created_at, show_full_name FROM users WHERE id = ? AND deleted_at IS NULL').bind(id).first();
-  if (!user) return c.json({ error: 'No such member.' }, 404);
+  const user = await c.env.DB.prepare('SELECT id, name, student_id, created_at, show_full_name FROM users WHERE id = ? AND deleted_at IS NULL').bind(id).first();
+  const viewer = await currentUser(c);
+  const owner = Boolean(user && viewer?.id === user.id);
+  if (!user || !(owner || (await isPortfolioPublic(c.env.DB, id)))) return c.json({ error: 'No such portfolio.' }, 404);
+  c.header('Cache-Control', 'no-store');
+  c.header('X-Robots-Tag', 'noindex');
+
+  const results = user.student_id
+    ? (
+        await c.env.DB
+          .prepare(
+            `SELECT kind, json_extract(meta, '$.title') AS title, json_extract(meta, '$.place') AS place, substr(decided_at, 1, 10) AS date
+             FROM activity WHERE student_id = ? AND status = 'approved' AND hidden = 0 AND kind IN ('compete', 'place', 'ship')
+             ORDER BY decided_at DESC, id DESC LIMIT 40`
+          )
+          .bind(user.student_id)
+          .all()
+      ).results.map((r) => ({ kind: r.kind, title: r.title ?? '', place: r.place ?? null, date: r.date ?? '' }))
+    : [];
 
   const done = (
     await c.env.DB
@@ -129,5 +152,9 @@ projectsRouter.get('/portfolio/:id', async (c) => {
     courses: courses.map((x) => ({ ...x, complete: x.passed === x.steps })),
     projects: await withRepoStats(c.env.DB, projects),
     artifacts,
+    results,
+    signoffs: await signoffsFor(c.env.DB, id),
+    owner,
+    public: await isPortfolioPublic(c.env.DB, id),
   });
 });

@@ -13,6 +13,7 @@ import DailyAdmin from './officer/Daily.jsx';
 import Board from './officer/Board.jsx';
 import Reports from './officer/Reports.jsx';
 import Records from './officer/Records.jsx';
+import Signoffs from './officer/Signoffs.jsx';
 import Cycles from './officer/Cycles.jsx';
 import CtfAdmin from './officer/Ctf.jsx';
 import CompetitionAdmin from './officer/Competition.jsx';
@@ -29,7 +30,7 @@ const HOURS = [1, 2, 3, 6, 12];
 const TABS = [
   { id: 'meeting', label: 'Meeting', screens: [Rooms, Planner] },
   { id: 'review', label: 'Review', screens: [Claims, EditorialsAdmin, Reports, LinkRequests, Merge] },
-  { id: 'members', label: 'Members', screens: [Records, Squads, Team, Raffle, Analytics] },
+  { id: 'members', label: 'Members', screens: [Records, Signoffs, Squads, Team, Raffle, Analytics] },
   {
     id: 'content',
     label: 'Content',
