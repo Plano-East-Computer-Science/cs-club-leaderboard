@@ -704,3 +704,45 @@ CREATE TABLE IF NOT EXISTS data_submissions (
   created_at   TEXT    NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_data_sub ON data_submissions(challenge_id, user_id);
+
+/* ================================ C6: editorials by members ================================ */
+-- A member's honour-system solve of a bank problem (daily, problem page). Duel
+-- solves live in duel_results; editorial access and ghost times read both.
+CREATE TABLE IF NOT EXISTS problem_solves (
+  user_id   INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  slug      TEXT    NOT NULL,
+  ms        INTEGER NOT NULL,
+  solved_at TEXT    NOT NULL DEFAULT (datetime('now')),
+  PRIMARY KEY (user_id, slug)
+);
+CREATE INDEX IF NOT EXISTS idx_problem_solves_slug ON problem_solves(slug);
+
+-- One short explanation per member per problem. Readers see only 'accepted' ones;
+-- 'hidden' is a report an officer upheld.
+CREATE TABLE IF NOT EXISTS editorials (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  slug         TEXT    NOT NULL,
+  user_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  body         TEXT    NOT NULL,
+  code         TEXT    NOT NULL DEFAULT '',
+  status       TEXT    NOT NULL DEFAULT 'pending',   -- pending | accepted | rejected | hidden
+  created_at   TEXT    NOT NULL DEFAULT (datetime('now')),
+  decided_name TEXT,
+  decided_at   TEXT,
+  UNIQUE (slug, user_id)
+);
+CREATE INDEX IF NOT EXISTS idx_editorials_slug ON editorials(slug, status);
+
+/* ================================ C7: ghost races ================================ */
+-- Your own race history. The ghost is stored as a first name and a time, never an id or code.
+CREATE TABLE IF NOT EXISTS ghost_races (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  slug       TEXT    NOT NULL,
+  ghost_name TEXT    NOT NULL,                       -- first name, or 'the club median'
+  ghost_ms   INTEGER NOT NULL,
+  ms         INTEGER NOT NULL,
+  won        INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_ghost_races_user ON ghost_races(user_id, id);

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { Pane, PageHead } from '../components/Pane.jsx';
 import CodeRunner from '../components/CodeRunner.jsx';
+import Editorials from '../components/Editorials.jsx';
 import { Body } from './Course.jsx';
 import { useReveal } from '../lib/ui.js';
 import { formatMs, shareText } from '../../shared/daily.js';
@@ -110,6 +111,7 @@ export default function Daily() {
                   </div>
                 </Pane>
               )}
+              {done && d.mine && <Editorials slug={p.slug} refreshKey={1} />}
               <Pane file="today.log" meta={d.date}>
                 <div className="pn-b">
                   <dl className="daily-kv">

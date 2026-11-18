@@ -2,12 +2,14 @@
  * /p/<slug>: one problem from the bank (C2) with the in-browser judge. Passing
  * every test ticks any Board rung that points here (C1).
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { warmUp } from '../lib/pyrunner.js';
 import { Spinner, ErrorNote } from '../components/bits.jsx';
 import CodeRunner from '../components/CodeRunner.jsx';
+import Editorials from '../components/Editorials.jsx';
+import GhostRace from '../components/GhostRace.jsx';
 import { Body } from './Course.jsx';
 
 export default function Problem() {
@@ -15,11 +17,17 @@ export default function Problem() {
   const [p, setP] = useState(null);
   const [error, setError] = useState(null);
   const [solved, setSolved] = useState(null); // null | 'saved' | 'local'
+  const started = useRef(Date.now());
+  const [race, setRace] = useState(null); // C7: { ghost, start } while racing a ghost
+  const [raceDone, setRaceDone] = useState(null);
 
   const load = () => {
     setError(null);
     setP(null);
     setSolved(null);
+    setRace(null);
+    setRaceDone(null);
+    started.current = Date.now();
     api.get(`/problems/${encodeURIComponent(slug)}`).then((x) => {
       setP(x);
       warmUp();
@@ -32,11 +40,20 @@ export default function Problem() {
 
   const onResults = async (_res, passed) => {
     if (!passed || solved) return;
+    const ms = Math.min(Date.now() - (race?.start ?? started.current), 86_400_000);
     try {
       await api.post('/board/solve', { slug, passed: true });
       setSolved('saved');
     } catch {
       setSolved('local'); // signed out: the pass shows, nothing is saved
+      return;
+    }
+    // C6/C7: remember the solve (unlocks editorials, becomes a ghost time), then settle any race.
+    await api.post(`/problems/${encodeURIComponent(slug)}/solve`, { ms }).catch(() => {});
+    if (race) {
+      api.post(`/problems/${encodeURIComponent(slug)}/ghost-result`, { ghost: race.ghost.id, ms })
+        .then((r) => setRaceDone({ ...r, ms }))
+        .catch(() => {});
     }
   };
 
@@ -60,6 +77,7 @@ export default function Problem() {
           )}
         </article>
         <section className="min-w-0" aria-label="Your solution">
+          {(!solved || race) && <div className="mb-4"><GhostRace slug={slug} race={race} result={raceDone} refresh={raceDone ? 1 : 0} onStart={(ghost) => setRace({ ghost, start: Date.now() })} /></div>}
           <CodeRunner id={`p-${p.slug}`} cases={p.cases} initial={p.starter} onResults={onResults} />
           {solved && (
             <p className="mt-4 text-sm" role="status" style={{ color: 'var(--up)' }}>
@@ -67,6 +85,7 @@ export default function Problem() {
               <Link className="uline" to="/arena">Back to the board</Link>
             </p>
           )}
+          <div className="mt-4"><Editorials slug={slug} refreshKey={solved ? 1 : 0} /></div>
         </section>
       </div>
     </div>

@@ -14,6 +14,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { api } from '../lib/api.js';
 import { runCases, warmUp } from '../lib/pyrunner.js';
 import CodeRunner from '../components/CodeRunner.jsx';
+import Editorials from '../components/Editorials.jsx';
 import { Spinner } from '../components/bits.jsx';
 import { Body } from './Course.jsx';
 
@@ -455,6 +456,7 @@ function Result({ duel, match }) {
           <b className="g">{duel.spotlight.name}</b> is explaining how they solved it.
         </p>
       )}
+      {mine.solved && match.slug && <div className="mt-4"><Editorials slug={match.slug} /></div>}
       <p className="m mono mt-4 text-sm">{duel.phase === 'done' ? 'That was the last round. Thanks for playing.' : 'Next round soon.'}</p>
     </section>
   );

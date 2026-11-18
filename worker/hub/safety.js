@@ -16,7 +16,7 @@ export const safetyRouter = new Hono();
 export const safetyAdminRouter = new Hono();
 
 export const PURGE_GRACE_MS = 7 * 86_400_000;
-export const REPORT_KINDS = ['idea', 'project', 'feed'];
+export const REPORT_KINDS = ['idea', 'project', 'feed', 'editorial'];
 const REPORTS_PER_DAY = 10;
 
 /* --------------------------------- reports --------------------------------- */
@@ -27,6 +27,7 @@ async function reportable(db, kind, id) {
     idea: `SELECT 1 AS x FROM ideas WHERE id = ? AND status != 'hidden'`,
     project: `SELECT 1 AS x FROM projects WHERE id = ? AND hidden = 0`,
     feed: `SELECT 1 AS x FROM activity WHERE id = ? AND status = 'approved' AND hidden = 0`,
+    editorial: `SELECT 1 AS x FROM editorials WHERE id = ? AND status = 'accepted'`,
   }[kind];
   return Boolean(sql && (await db.prepare(sql).bind(id).first()));
 }
@@ -55,11 +56,13 @@ const PREVIEW = `
     WHEN 'idea' THEN (SELECT body FROM ideas WHERE id = r.target_id)
     WHEN 'project' THEN (SELECT title || ' - ' || description FROM projects WHERE id = r.target_id)
     WHEN 'feed' THEN (SELECT json_extract(meta, '$.title') FROM activity WHERE id = r.target_id)
+    WHEN 'editorial' THEN (SELECT body FROM editorials WHERE id = r.target_id)
   END AS content,
   CASE r.kind
     WHEN 'idea' THEN (SELECT u.name FROM ideas i JOIN users u ON u.id = i.user_id WHERE i.id = r.target_id)
     WHEN 'project' THEN (SELECT u.name FROM projects p JOIN users u ON u.id = p.user_id WHERE p.id = r.target_id)
     WHEN 'feed' THEN (SELECT s.name FROM activity a JOIN students s ON s.id = a.student_id WHERE a.id = r.target_id)
+    WHEN 'editorial' THEN (SELECT u.name FROM editorials e JOIN users u ON u.id = e.user_id WHERE e.id = r.target_id)
   END AS author`;
 
 safetyAdminRouter.get('/reports', async (c) => {
@@ -88,6 +91,7 @@ async function decide(c, status) {
     idea: `UPDATE ideas SET status = 'hidden' WHERE id = ?`,
     project: `UPDATE projects SET hidden = 1 WHERE id = ?`,
     feed: `UPDATE activity SET hidden = 1 WHERE id = ?`,
+    editorial: `UPDATE editorials SET status = 'hidden' WHERE id = ?`,
   }[rep.kind];
   const mark = db
     .prepare(`UPDATE reports SET status = ?, decided_name = ?, decided_at = datetime('now') WHERE kind = ? AND target_id = ? AND status = 'open'`)
@@ -147,6 +151,9 @@ export async function exportFor(db, user) {
     duel_results: await rows(db, 'SELECT room_code, round, division, slug, attempts, solved_ms, won, code FROM duel_results WHERE user_id = ?', id),
     codeforces_solves: await rows(db, 'SELECT contest_id, idx, rating, solved_at FROM cf_solves WHERE user_id = ?', id),
     ctf_solves: await rows(db, 'SELECT challenge_id, solved_at FROM ctf_solves WHERE user_id = ?', id),
+    problem_solves: await rows(db, 'SELECT slug, ms, solved_at FROM problem_solves WHERE user_id = ?', id),
+    editorials_written: await rows(db, 'SELECT slug, body, code, status, created_at FROM editorials WHERE user_id = ?', id),
+    ghost_races: await rows(db, 'SELECT slug, ghost_name, ghost_ms, ms, won, created_at FROM ghost_races WHERE user_id = ?', id),
     ctf_challenges_written: await rows(db, 'SELECT slug, title, category, difficulty, body, file_name, file_data, hint, status, created_at FROM ctf_challenges WHERE author_user_id = ?', id),
     link_request: (await db.prepare('SELECT student_id, created_at FROM link_requests WHERE user_id = ?').bind(id).first()) ?? null,
     reports_filed: await rows(db, 'SELECT kind, target_id, reason, status, created_at FROM reports WHERE reporter_user_id = ?', id),
@@ -199,12 +206,14 @@ export async function purgeUser(db, id) {
   if (!u.keep_history && u.student_id) {
     mine(`DELETE FROM reports WHERE kind = 'feed' AND target_id IN (SELECT id FROM activity WHERE student_id = ?)`, u.student_id);
   }
+  mine(`DELETE FROM reports WHERE kind = 'editorial' AND target_id IN (SELECT id FROM editorials WHERE user_id = ?)`, id);
   mine('DELETE FROM reports WHERE reporter_user_id = ?', id);
   mine('DELETE FROM workspace_files WHERE workspace_id IN (SELECT id FROM workspaces WHERE user_id = ?)', id);
 
   for (const t of [
     'step_progress', 'room_checkins', 'projects', 'link_requests', 'ideas', 'idea_votes', 'kudos', 'opportunity_interest',
     'daily_results', 'data_submissions', 'rung_progress', 'board_placement', 'duel_results', 'cf_solves', 'cf_challenges', 'record_codes', 'artifacts', 'workspaces', 'ctf_solves',
+    'problem_solves', 'editorials', 'ghost_races',
   ]) {
     mine(`DELETE FROM ${t} WHERE user_id = ?`, id); // t is from the fixed list above, never input
   }
