@@ -35,6 +35,7 @@ import { workspaceRouter } from './workspace.js';
 import { plannerAdminRouter } from './planner.js';
 import { ctfRouter, ctfAdminRouter } from './ctf.js';
 import { dataRouter, dataAdminRouter } from './data.js';
+import { editorialsRouter, editorialsAdminRouter } from './editorials.js';
 
 export { Room } from './room-do.js';
 
@@ -63,6 +64,7 @@ hubAdmin.route('/', analyticsAdminRouter);
 hubAdmin.route('/', plannerAdminRouter);
 hubAdmin.route('/', ctfAdminRouter);
 hubAdmin.route('/', dataAdminRouter);
+hubAdmin.route('/', editorialsAdminRouter);
 
 /** Call BEFORE the catch-all `/api` and static handlers. */
 export function mountHub(app) {
@@ -78,6 +80,7 @@ export function mountHub(app) {
   app.route('/api', googleRouter);
   app.route('/api', questsRouter);
   app.route('/api', ideasRouter);
+  app.route('/api', editorialsRouter);
   app.route('/api', problemsRouter);
   app.route('/api', ledgerRouter);
   app.route('/api', claimsRouter);

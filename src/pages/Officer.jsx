@@ -20,6 +20,7 @@ import Analytics from './officer/Analytics.jsx';
 import TemplatePicker from './officer/TemplatePicker.jsx';
 import DataAdmin from './officer/Data.jsx';
 import Planner from './officer/Planner.jsx';
+import EditorialsAdmin from './officer/Editorials.jsx';
 
 const HOURS = [1, 2, 3, 6, 12];
 
@@ -90,6 +91,7 @@ export default function Officer() {
       <Rooms />
       <Planner />
       <Claims />
+      <EditorialsAdmin />
       <Reports />
       <Records />
       <CompetitionAdmin />

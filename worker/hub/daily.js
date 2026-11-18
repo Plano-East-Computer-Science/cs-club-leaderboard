@@ -62,7 +62,10 @@ dailyRouter.post('/daily/result', requireUser, async (c) => {
   if (!Number.isInteger(ms) || ms < 0 || ms > 86_400_000) return c.json({ error: 'Time must be under a day.' }, 400);
   const user = c.get('user');
   const date = chicagoDate();
-  if (!(await problemFor(c.env.DB, date))) return c.json({ error: 'There is no daily problem today.' }, 409);
+  const today = await problemFor(c.env.DB, date);
+  if (!today) return c.json({ error: 'There is no daily problem today.' }, 409);
+  // C6/C7: the same solve unlocks editorials and becomes a ghost time on the problem.
+  await c.env.DB.prepare('INSERT INTO problem_solves (user_id, slug, ms) VALUES (?, ?, ?) ON CONFLICT(user_id, slug) DO UPDATE SET ms = MIN(ms, excluded.ms)').bind(user.id, today.slug, ms).run();
   await c.env.DB
     .prepare(`INSERT OR IGNORE INTO daily_results (user_id, date, attempts, solved_at, ms) VALUES (?, ?, ?, datetime('now'), ?)`)
     .bind(user.id, date, attempts, ms)
