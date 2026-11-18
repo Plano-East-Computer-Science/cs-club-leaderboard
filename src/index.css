@@ -1721,3 +1721,22 @@ textarea.fi{resize:vertical;line-height:1.5}
 .pw-tick input{position:absolute;opacity:0;width:1px;height:1px}
 .pw-tick:focus-within span{outline:1px solid var(--gold);outline-offset:2px}
 .pw-tick input:disabled+span{opacity:.6;cursor:default}
+/* ---- C14: quant game ---- */
+.qt-banner{border:1px solid var(--gold-d);background:var(--panel2);padding:10px 14px;font-size:13px;color:var(--dim)}
+.qt-banner b{color:var(--gold)}
+.qt-rounds{display:grid;gap:4px;margin-bottom:14px;max-width:420px}
+.qt-chart{margin:10px 0 0;border:1px solid var(--line);background:#0c0b07}
+.qt-chart svg{display:block;width:100%;height:150px}
+.qt-chart figcaption{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:4px 8px;border-top:1px solid var(--line);font-size:12px;color:var(--mute)}
+.qt-split{stroke:var(--line2);stroke-dasharray:4 4;vector-effect:non-scaling-stroke}
+.qt-decide{border:0;margin-top:16px;display:grid;gap:12px;justify-items:start}
+.qt-decide legend{font-size:13px;color:var(--text);margin-bottom:10px}
+.qt-score{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));border:1px solid var(--line);margin-top:12px}
+.qt-score div{padding:8px 12px;border-right:1px solid var(--line)}
+.qt-score div:last-child{border-right:0}
+.qt-score dt{font-size:12px;color:var(--mute)}
+.qt-score dd{font:800 22px/1.2 var(--disp)}
+.qt-h{font-size:13px;color:var(--mute);font-weight:400;margin:18px 0 6px}
+.qt-controls{display:flex;flex-wrap:wrap;gap:10px;align-items:end;margin-top:12px}
+.qt-controls>div{display:grid;gap:4px;min-width:min(100%,220px)}
+.qt-rules .ul{display:grid;gap:8px;margin:10px 0 0}

@@ -181,6 +181,7 @@ export async function exportFor(db, user) {
     alumni_questions: await rows(db, 'SELECT alumni_id, question, status, created_at FROM alumni_questions WHERE user_id = ?', id),
     pathways_followed: await rows(db, 'SELECT pathway, created_at FROM pathway_follows WHERE user_id = ?', id),
     pathway_ticks: await rows(db, 'SELECT pathway, step, created_at FROM pathway_ticks WHERE user_id = ?', id),
+    quant_entries: await rows(db, 'SELECT round_id, positions, score, sharpe, max_drawdown, total_return, ranked, finished_at FROM quant_entries WHERE user_id = ?', id),
     email_list: (await db.prepare('SELECT confirmed, created_at FROM subscribers WHERE email = ?').bind(account.email).first()) ?? null,
   };
 }
@@ -241,7 +242,7 @@ export async function purgeUser(db, id) {
     'step_progress', 'room_checkins', 'projects', 'link_requests', 'ideas', 'idea_votes', 'kudos', 'opportunity_interest',
     'daily_results', 'data_submissions', 'rung_progress', 'board_placement', 'duel_results', 'cf_solves', 'cf_challenges', 'record_codes', 'artifacts', 'workspaces', 'ctf_solves', 'contest_attempts',
     'problem_solves', 'editorials', 'ghost_races', 'reviews', 'review_requests', 'portfolio_public', 'portfolio_signoffs',
-    'officer_applications', 'paper_notes', 'science_projects', 'alumni_questions', 'pathway_follows', 'pathway_ticks',
+    'officer_applications', 'paper_notes', 'science_projects', 'alumni_questions', 'pathway_follows', 'pathway_ticks', 'quant_entries',
   ]) {
     mine(`DELETE FROM ${t} WHERE user_id = ?`, id); // t is from the fixed list above, never input
   }
