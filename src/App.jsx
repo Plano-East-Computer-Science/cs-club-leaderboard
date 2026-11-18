@@ -18,6 +18,8 @@ import Learn from './pages/Learn.jsx';
 import Course from './pages/Course.jsx';
 import Arena from './pages/Arena.jsx';
 import Ctf from './pages/Ctf.jsx';
+import DataArena from './pages/DataArena.jsx';
+import DataChallenge from './pages/DataChallenge.jsx';
 import Problem from './pages/Problem.jsx';
 import SignIn from './pages/SignIn.jsx';
 import Room from './pages/Room.jsx';
@@ -146,6 +148,8 @@ function Shell() {
           <Route path="/daily" element={<Daily />} />
           <Route path="/arena" element={<Arena />} />
           <Route path="/arena/ctf" element={<Ctf />} />
+          <Route path="/arena/data" element={<DataArena />} />
+          <Route path="/arena/data/:id" element={<DataChallenge />} />
           <Route path="/compass" element={<Compass />} />
           <Route path="/build" element={<Build />} />
           <Route path="/build/start/:slug" element={<Starter />} />

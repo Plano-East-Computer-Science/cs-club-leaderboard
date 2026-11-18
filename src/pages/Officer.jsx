@@ -18,6 +18,7 @@ import CtfAdmin from './officer/Ctf.jsx';
 import CompetitionAdmin from './officer/Competition.jsx';
 import Analytics from './officer/Analytics.jsx';
 import TemplatePicker from './officer/TemplatePicker.jsx';
+import DataAdmin from './officer/Data.jsx';
 
 const HOURS = [1, 2, 3, 6, 12];
 
@@ -102,6 +103,7 @@ export default function Officer() {
       <Problems />
       <Team />
       <Board />
+      <DataAdmin />
       <Cycles />
       <CtfAdmin />
     </div>

@@ -676,3 +676,31 @@ CREATE TABLE IF NOT EXISTS ctf_solves (
   PRIMARY KEY (challenge_id, user_id)
 );
 CREATE INDEX IF NOT EXISTS idx_ctf_solves_user ON ctf_solves(user_id);
+
+/* ================================ C12: data arena ================================ */
+-- A challenge is a dataset plus hidden answers. answers_csv is read only by the
+-- scorer; no route returns it. Submissions keep scores, not the uploaded files.
+CREATE TABLE IF NOT EXISTS data_challenges (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  title       TEXT    NOT NULL,
+  summary     TEXT    NOT NULL DEFAULT '',
+  metric      TEXT    NOT NULL,                       -- accuracy | rmse | mae
+  id_col      TEXT    NOT NULL,
+  target_col  TEXT    NOT NULL,
+  train_csv   TEXT    NOT NULL,
+  test_csv    TEXT    NOT NULL,
+  answers_csv TEXT    NOT NULL,
+  rows        INTEGER NOT NULL DEFAULT 0,             -- rows to predict
+  status      TEXT    NOT NULL DEFAULT 'open',        -- open | closed (closed shows final scores)
+  created_by  TEXT    NOT NULL DEFAULT '',
+  created_at  TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+CREATE TABLE IF NOT EXISTS data_submissions (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  challenge_id INTEGER NOT NULL REFERENCES data_challenges(id) ON DELETE CASCADE,
+  user_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  public_score REAL    NOT NULL,
+  final_score  REAL    NOT NULL,
+  created_at   TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_data_sub ON data_submissions(challenge_id, user_id);

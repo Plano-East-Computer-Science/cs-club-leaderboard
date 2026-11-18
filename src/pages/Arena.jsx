@@ -294,6 +294,7 @@ export default function Arena() {
                     );
                   })}
                   <li className="ar-foot">
+                    Predict a hidden column with pandas in the <Link className="uline g" to="/arena/data">data challenges</Link>.{' '}
                     The club's own courses are still at <Link className="uline" to="/learn">/learn</Link>.
                     {d.signedIn && d.placement && (
                       <>

@@ -48,8 +48,8 @@ export function Ring({ p = 0, value, label, size = 132, color }) {
   return (
     <div className="ring" style={{ '--sz': `${size}px`, '--c': color }} role="img" aria-label={`${Math.round(pct * 100)} percent`}>
       <svg viewBox="0 0 100 100" aria-hidden="true">
-        <circle className="tr" cx="50" cy="50" r={r} />
-        <circle className="fg" cx="50" cy="50" r={r} strokeDasharray={c} strokeDashoffset={c * (1 - pct)} />
+        <circle className="ring-tr" cx="50" cy="50" r={r} />
+        <circle className="ring-fg" cx="50" cy="50" r={r} strokeDasharray={c} strokeDashoffset={c * (1 - pct)} />
       </svg>
       <div className="ring-c">
         <b>{value}</b>
@@ -66,15 +66,15 @@ export function Ring({ p = 0, value, label, size = 132, color }) {
 export function Track({ stops = [], p = 0, me = 'you' }) {
   const pct = `${Math.max(0, Math.min(1, p)) * 100}%`;
   return (
-    <div className="track">
-      <div className="track-rail">
-        <i className="track-fill" style={{ width: pct }} />
+    <div className="rtrack">
+      <div className="rtrack-rail">
+        <i className="rtrack-fill" style={{ width: pct }} />
         {stops.map((s) => (
-          <span key={s.label} className={`track-stop${s.at <= p ? ' done' : ''}`} style={{ left: `${s.at * 100}%` }}>
+          <span key={s.label} className={`rtrack-stop${s.at <= p ? ' done' : ''}`} style={{ left: `${s.at * 100}%` }}>
             <span>{s.label}</span>
           </span>
         ))}
-        <span className="track-me" style={{ left: pct }}>{me}</span>
+        <span className="rtrack-me" style={{ left: pct }}>{me}</span>
       </div>
     </div>
   );
