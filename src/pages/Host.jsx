@@ -12,6 +12,7 @@ import { useRoomSocket } from '../lib/useRoomSocket.js';
 import { Spinner } from '../components/bits.jsx';
 import { Board, LETTERS, PULSES, useCountdown } from './Room.jsx';
 import { DuelBoard, DuelSetup, Notice, PairPanel, clock } from './Duel.jsx';
+import { ContestConsole, ContestSetup } from './Contest.jsx';
 import { BLOCK_LABEL } from '../../shared/session-templates.js';
 import { BlockEditor, HelpConsole, LabCounts, Projector, RunOfShow, ShowConsole, SpeakerConsole, blockOf, useCheckin, useLeft } from './Session.jsx';
 
@@ -362,6 +363,8 @@ function CurrentBlock({ state, send, skew }) {
     ) : (
       <DuelSetup send={send} disabled={state.ended} />
     );
+  } else if (block.type === 'contest') {
+    body = state.contest ? <ContestConsole c={state.contest} send={send} skew={skew} /> : <ContestSetup send={send} disabled={state.ended} block={block} />;
   } else if (block.type === 'show') {
     body = (
       <section className="card p-5" aria-label="Show">

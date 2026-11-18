@@ -1,7 +1,7 @@
 /**
  * One Durable Object per meeting room. It holds the run-of-show (B1) and
  * everything live inside it: the quiz, the pulse meter, the agenda links, the
- * duel engine (B2), lab progress (B3), the show gallery (B6), the help queue
+ * duel engine (B2), the team contest (B5, shared/contest.js), lab progress (B3), the show gallery (B6), the help queue
  * (B7) and speaker questions (B8). It fans changes out to every connected
  * screen over WebSockets.
  *
@@ -24,6 +24,7 @@ import { duelActivities } from './duel-awards.js';
 import { awardFromUser } from './award.js';
 import { findCourse } from '../../shared/courses.js';
 import * as S from './session.js';
+import * as C from '../../shared/contest.js';
 
 const PULSE = ['fast', 'slow', 'lost', 'great'];
 const MAX_CODE = 20_000;
@@ -43,6 +44,7 @@ const fresh = () => ({
   exits: {}, // B4: uid -> what counted as their exit artifact
   duelSolved: {}, // uid -> title of the last duel problem they solved, for the show block
   duel: null, // B2, see duel.js
+  contest: null, // B5, see shared/contest.js
   pairs: null, // B9: [[uid, uid], ...] from "pair the room"
   pairAvoid: [], // last pairs, so the next press rotates
   code: '', // the room code, for D1 rows
@@ -161,6 +163,7 @@ export class Room {
         s.ended = true;
         s.q = s.q && { ...s.q, open: false };
         if (s.duel?.phase === 'live') await this.closeRound();
+        if (s.contest?.phase === 'live') C.endContest(s.contest);
         break;
       case 'pairs': {
         // B9: pair everyone connected; remembers this set so the next press rotates.
@@ -211,6 +214,7 @@ export class Room {
       }
       default:
         if (typeof m.t === 'string' && m.t.startsWith('duel_')) return this.hostDuel(m);
+        if (typeof m.t === 'string' && m.t.startsWith('contest_')) return this.hostContest(m);
         return 'skip';
     }
     return r?.error ?? null;
@@ -325,6 +329,26 @@ export class Room {
         if (everyoneSolved(s.duel)) await this.closeRound();
         break;
       }
+      case 'contest_submit': {
+        if (!s.contest) return 'skip';
+        r = C.submit(s.contest, uid, { team: m.team, slug: m.slug, passed: m.passed === true }, Date.now());
+        if (r.error) break;
+        // Every attempt is kept with its code for officer spot-checks. The pass/fail came from the
+        // member's browser (Pyodide), the same honour-system trust as duels: no server-side judge.
+        const sub = s.contest.subs.at(-1);
+        await this.d1(
+          'INSERT INTO contest_attempts (room_code, team_id, user_id, slug, ok, ms, code) VALUES (?, ?, ?, ?, ?, ?, ?)',
+          s.code || '?',
+          r.team,
+          Number(uid),
+          sub.slug,
+          sub.ok ? 1 : 0,
+          sub.ms,
+          String(m.code ?? '').slice(0, MAX_CODE)
+        );
+        await this.exit(uid, 'contest'); // playing a contest is this member's exit artifact for attendance
+        break;
+      }
       default:
         return 'skip';
     }
@@ -385,6 +409,13 @@ export class Room {
       await this.closeRound();
       changed = true;
     }
+    if (this.s.contest?.phase === 'live') {
+      // The freeze moment changes what every screen shows; the end closes submissions.
+      // STUB: placing in a mock contest pays nothing yet. If officers decide it should, award `place`
+      // through awardFromUser here from C.rank(C.scoreRows(contest)) with ref `contest:<room>:<team>`.
+      if (now >= this.s.contest.endsAt - 50) C.endContest(this.s.contest);
+      changed = true;
+    }
     await this.schedule();
     if (changed) {
       await this.save();
@@ -397,6 +428,8 @@ export class Room {
     const due = [];
     if (this.s.q?.open) due.push(this.s.q.openedAt + this.s.q.seconds * 1000);
     if (this.s.duel?.phase === 'live') due.push(this.s.duel.endsAt);
+    const cd = C.nextDue(this.s.contest, Date.now());
+    if (cd != null) due.push(cd);
     if (due.length) await this.ctx.storage.setAlarm(Math.min(...due));
   }
 
@@ -469,6 +502,120 @@ export class Room {
       return 'Unknown duel command.';
     }
     return null;
+  }
+
+  /** Host contest controls (B5). Returns an error sentence, or nothing on success. */
+  async hostContest(m) {
+    const s = this.s;
+    const db = this.env?.DB;
+    if (m.t === 'contest_setup') {
+      if (s.contest) return 'A contest is already set up. Close it first.';
+      const asked = [...new Set((Array.isArray(m.problems) ? m.problems : []).map(String))].slice(0, C.MAX_PROBLEMS);
+      if (!asked.length || !db) return `Pick ${C.MIN_PROBLEMS} to ${C.MAX_PROBLEMS} problems.`;
+      // Only live problems from the bank; titles come from there, not from the message.
+      const rows = (await db.prepare(`SELECT slug, title FROM problems WHERE status = 'live' AND slug IN (${asked.map(() => '?').join(',')})`).bind(...asked).all()).results;
+      const title = Object.fromEntries(rows.map((r) => [r.slug, r.title]));
+      const r = C.newContest({ problems: asked.filter((x) => x in title).map((slug) => ({ slug, title: title[slug] })), minutes: m.minutes, freeze: m.freeze, penalty: m.penalty });
+      if (r.error) return r.error;
+      s.contest = r.contest;
+      return null;
+    }
+    const c = s.contest;
+    if (!c) return 'Set up a contest first.';
+    if (m.t === 'contest_teams') {
+      const mode = m.mode === 'mixed' ? 'mixed' : 'random';
+      const ids = this.present();
+      // Level for mixed teams is lifetime points (the same number the standings use); a member with none counts as 0.
+      const levels = {};
+      if (mode === 'mixed' && db && ids.length) {
+        try {
+          const rows = (
+            await db
+              .prepare(
+                `SELECT u.id, COALESCE(SUM(p.delta), 0) AS pts FROM users u LEFT JOIN point_events p ON p.student_id = u.student_id
+                 WHERE u.id IN (${ids.map(() => '?').join(',')}) GROUP BY u.id`
+              )
+              .bind(...ids.map(Number))
+              .all()
+          ).results;
+          for (const r of rows) levels[String(r.id)] = r.pts;
+        } catch (err) {
+          console.error('contest levels failed', err?.message ?? err);
+        }
+      }
+      return C.setTeams(c, C.dealTeams(ids, { mode, levels })).error ?? null;
+    }
+    if (m.t === 'contest_move') {
+      const uid = String(m.uid ?? '');
+      if (!(uid in s.names)) return 'No such member.';
+      return C.moveMember(c, uid, m.to ?? null).error ?? null;
+    }
+    if (m.t === 'contest_start') {
+      const r = C.startContest(c, Date.now());
+      if (r.error) return r.error;
+      await this.schedule();
+      return null;
+    }
+    if (m.t === 'contest_end') return C.endContest(c).error ?? null;
+    if (m.t === 'contest_reveal') return C.revealNext(c).error ?? null;
+    if (m.t === 'contest_close') {
+      if (c.phase === 'live') return 'End the contest first.';
+      s.contest = null;
+      return null;
+    }
+    return 'Unknown contest command.';
+  }
+
+  /**
+   * The contest as one screen sees it. Never code. The board is the public one
+   * (frozen when it should be); a member also gets their own team's live
+   * result, and the host console gets the true standings.
+   */
+  contestView(role, uid) {
+    const c = this.s.contest;
+    if (!c) return null;
+    const now = Date.now();
+    const pub = C.publicBoard(c, now);
+    const mine = role === 'student' ? C.teamOf(c, uid) : null;
+    const nm = (u) => first(this.s.names[u]);
+    const cell = (x) => ({ ok: x.ok, wrong: x.wrong, ms: x.ms });
+    const row = (r) => ({ id: r.id, name: r.name, place: r.place, solved: r.solved, penalty: r.penalty, cells: r.cells.map(cell), you: mine?.id === r.id });
+    const live = c.phase === 'setup' ? [] : C.rank(C.scoreRows(c));
+    const open = c.phase !== 'setup';
+    const out = {
+      phase: c.phase,
+      problems: role === 'host' || open ? c.problems : [],
+      minutes: c.minutes,
+      freeze: c.freeze,
+      penalty: c.penalty,
+      startedAt: c.startedAt,
+      endsAt: c.endsAt,
+      freezeAt: C.freezeAt(c),
+      frozen: pub.frozen,
+      final: pub.final,
+      board: pub.rows.map(row),
+    };
+    if (role === 'host') {
+      const placed = new Set(c.teams.flatMap((t) => t.members));
+      const here = this.present();
+      return {
+        ...out,
+        teams: c.teams.map((t) => ({ id: t.id, name: t.name, members: t.members.map((u) => ({ uid: u, name: this.s.names[u] ?? 'Student' })) })),
+        unassigned: here.filter((u) => !placed.has(u)).map((u) => ({ uid: u, name: this.s.names[u] ?? 'Student' })),
+        live: live.map(row), // the true standings, for the console only: the projector never draws this
+        revealed: c.revealed.length,
+        nextReveal: C.nextReveal(c),
+      };
+    }
+    return {
+      ...out,
+      team: mine && {
+        id: mine.id,
+        name: mine.name,
+        mates: mine.members.filter((u) => u !== uid).map(nm),
+        row: open ? row(live.find((r) => r.id === mine.id)) : null,
+      },
+    };
   }
 
   /** Ends the live round and writes its results, with each student's last code, to D1. */
@@ -590,6 +737,7 @@ export class Room {
       earned: host ? undefined : this.earned(uid),
       lab: this.labView(role, uid),
       duel: duelView(s.duel, { role, uid, names: s.names, present: [...connected] }),
+      contest: this.contestView(role, uid),
       pairs: host ? s.pairs?.map((g) => g.map(name)) : s.pairs?.find((g) => g.includes(uid))?.filter((u) => u !== uid).map(name),
       q: q && {
         id: q.id,
