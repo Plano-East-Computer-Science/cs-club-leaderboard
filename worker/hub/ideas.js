@@ -24,7 +24,7 @@ ideasRouter.get('/ideas', async (c) => {
                 (SELECT COUNT(*) FROM idea_votes v WHERE v.idea_id = i.id) AS votes,
                 EXISTS (SELECT 1 FROM idea_votes v WHERE v.idea_id = i.id AND v.user_id = ?) AS voted
          FROM ideas i JOIN users u ON u.id = i.user_id
-         WHERE i.status != 'hidden'
+         WHERE i.status != 'hidden' AND u.deleted_at IS NULL
          ORDER BY (i.status = 'done'), votes DESC, i.created_at DESC LIMIT 200`
       )
       .bind(user?.id ?? 0)

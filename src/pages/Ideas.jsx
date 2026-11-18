@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { Pane, PageHead } from '../components/Pane.jsx';
 import { useReveal } from '../lib/ui.js';
+import ReportButton from '../components/ReportButton.jsx';
 
 const KIND_HINT = {
   lesson: 'Something you want taught. "How do neural nets actually learn?"',
@@ -146,7 +147,9 @@ export default function Ideas() {
                         <span className="chip">{i.kind}</span>
                         {i.status !== 'open' && <span className={`chip ${i.status}`}>{i.status}</span>}
                         <span>{i.author}</span>
-                        {i.mine && <button type="button" className="linkb" onClick={() => remove(i)}>delete</button>}
+                        {i.mine
+                          ? <button type="button" className="linkb" onClick={() => remove(i)}>delete</button>
+                          : d.signedIn && <ReportButton kind="idea" id={i.id} what="this idea" />}
                       </div>
                     </div>
                   </div>

@@ -164,7 +164,12 @@ CREATE TABLE IF NOT EXISTS users (
   cf_verified_at TEXT,
   cf_rating      INTEGER,
   cf_synced_at   INTEGER,                        -- ms, last sync attempt (round-robin order)
-  cf_last_error  TEXT
+  cf_last_error  TEXT,
+  -- G5: full name on public pages is opt-in; deletion is soft (deleted_at) and
+  -- purged later; keep_history is the member's choice about their points.
+  show_full_name INTEGER NOT NULL DEFAULT 0,
+  deleted_at     TEXT,
+  keep_history   INTEGER NOT NULL DEFAULT 0
 );
 
 -- One-time sign-in links. Single use, short-lived.
@@ -311,6 +316,7 @@ CREATE TABLE IF NOT EXISTS activity (
   decided_name   TEXT,
   decided_at     TEXT,
   created_at     TEXT    NOT NULL DEFAULT (datetime('now')),
+  hidden         INTEGER NOT NULL DEFAULT 0,                -- G5: an officer hid it from the public feed
   UNIQUE (student_id, kind, ref)
 );
 CREATE INDEX IF NOT EXISTS idx_activity_status ON activity(status, decided_at);
@@ -475,3 +481,39 @@ CREATE TABLE IF NOT EXISTS raffle_draws (
   drawn_at      TEXT    NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_raffle_season ON raffle_draws(season, id);
+
+/* ============================ G5 safety and privacy, E7 verified record ============================ */
+
+-- Sliding-window rate limits (sign-in, officer password, reports, verify lookups).
+CREATE TABLE IF NOT EXISTS rate_hits (
+  key TEXT    NOT NULL,
+  ts  INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_rate_hits ON rate_hits(key, ts);
+
+-- A member flags someone's content. Officers hide it or dismiss the report.
+-- kind: idea | project | feed (feed = an activity id).
+CREATE TABLE IF NOT EXISTS reports (
+  id               INTEGER PRIMARY KEY AUTOINCREMENT,
+  reporter_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  kind             TEXT    NOT NULL,
+  target_id        INTEGER NOT NULL,
+  reason           TEXT    NOT NULL DEFAULT '',
+  status           TEXT    NOT NULL DEFAULT 'open',   -- open | hidden | dismissed
+  created_at       TEXT    NOT NULL DEFAULT (datetime('now')),
+  decided_name     TEXT,
+  decided_at       TEXT,
+  UNIQUE (reporter_user_id, kind, target_id)
+);
+CREATE INDEX IF NOT EXISTS idx_reports_status ON reports(status, created_at);
+
+-- E7: random, unguessable codes an officer issues for a member's verified
+-- record. Revoking sets revoked_at; a revoked code answers like an unknown one.
+CREATE TABLE IF NOT EXISTS record_codes (
+  code           TEXT PRIMARY KEY,
+  user_id        INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  issued_by_name TEXT    NOT NULL,
+  created_at     INTEGER NOT NULL,
+  revoked_at     INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_record_codes_user ON record_codes(user_id);

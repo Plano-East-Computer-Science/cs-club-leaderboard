@@ -11,6 +11,7 @@ import { withRepoStats } from './github.js';
 import { statsFor, syncQuests } from './quests.js';
 import { getLeaderboard } from '../db.js';
 import { rankInfo } from './standings.js';
+import { publicName } from './names.js';
 
 export const projectsRouter = new Hono();
 
@@ -30,12 +31,12 @@ projectsRouter.get('/projects', async (c) => {
     await c.env.DB
       .prepare(
         `SELECT p.id, p.title, p.description, p.track, p.repo_url, p.demo_url, p.created_at,
-                u.id AS user_id, u.name AS author
+                u.id AS user_id, u.name AS author, u.show_full_name AS full
          FROM projects p JOIN users u ON u.id = p.user_id
-         WHERE p.hidden = 0 ORDER BY p.created_at DESC LIMIT 100`
+         WHERE p.hidden = 0 AND u.deleted_at IS NULL ORDER BY p.created_at DESC LIMIT 100`
       )
       .all()
-  ).results;
+  ).results.map(({ full, author, ...p }) => ({ ...p, author: publicName(author, full) }));
   return c.json({ projects: await withRepoStats(c.env.DB, rows) });
 });
 
@@ -73,7 +74,7 @@ projectsRouter.delete('/projects/:id', requireUser, async (c) => {
 /** Public portfolio: courses finished, steps passed, projects shipped. */
 projectsRouter.get('/portfolio/:id', async (c) => {
   const id = Number(c.req.param('id'));
-  const user = await c.env.DB.prepare('SELECT id, name, created_at FROM users WHERE id = ?').bind(id).first();
+  const user = await c.env.DB.prepare('SELECT id, name, created_at, show_full_name FROM users WHERE id = ? AND deleted_at IS NULL').bind(id).first();
   if (!user) return c.json({ error: 'No such member.' }, 404);
 
   const done = (
@@ -107,7 +108,7 @@ projectsRouter.get('/portfolio/:id', async (c) => {
   // A4: the portfolio label is the lifetime rank, which never drops.
   const me = stats.studentId ? (await getLeaderboard(c.env.DB, 'all')).find((r) => r.id === stats.studentId) : null;
   return c.json({
-    name: user.name,
+    name: publicName(user.name, user.show_full_name),
     rank: rankInfo(me).rankName,
     points: me?.lifetime ?? 0,
     badges: q.quests.filter((x) => x.done).map((x) => x.title),

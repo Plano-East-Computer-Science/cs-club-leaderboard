@@ -302,7 +302,7 @@ dashboardRouter.post('/me/compass/skip', requireUser, async (c) => {
 async function kudosTarget(c) {
   const id = Number(c.req.param('id'));
   if (!Number.isInteger(id) || id < 1) return { error: c.json({ error: 'No such activity.' }, 404) };
-  const act = await c.env.DB.prepare(`SELECT id, student_id FROM activity WHERE id = ? AND status = 'approved'`).bind(id).first();
+  const act = await c.env.DB.prepare(`SELECT id, student_id FROM activity WHERE id = ? AND status = 'approved' AND hidden = 0`).bind(id).first();
   if (!act) return { error: c.json({ error: 'No such activity.' }, 404) };
   return { act };
 }

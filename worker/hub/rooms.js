@@ -10,6 +10,7 @@ import { notify } from './notify.js';
 import { officerOf } from './team.js';
 import { recordActivity } from './ledger.js';
 import { syncQuests } from './quests.js';
+import { publicName } from './names.js';
 
 export const roomsRouter = new Hono();
 export const roomsAdminRouter = new Hono();
@@ -170,7 +171,8 @@ roomsRouter.get('/rooms/:code/ws', async (c) => {
       .run();
     headers.set('x-role', 'student');
     headers.set('x-uid', String(user.id));
-    headers.set('x-name', user.name);
+    // The room shows names on a projector and to every phone: first name unless the member opted in.
+    headers.set('x-name', publicName(user.name, user.show_full_name));
   }
 
   headers.set('x-code', code); // the room records duel results under it

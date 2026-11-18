@@ -4,6 +4,7 @@ import { api } from '../lib/api.js';
 import { useUser } from '../lib/useUser.js';
 import { Spinner } from '../components/bits.jsx';
 import CodeforcesPanel from '../components/CodeforcesPanel.jsx';
+import PrivacyPanel from '../components/PrivacyPanel.jsx';
 
 export default function SignIn() {
   const { user, loading, refresh, signOut } = useUser();
@@ -252,6 +253,10 @@ function Account({ user, refresh, signOut }) {
 
       <div className="border-t pt-4">
         <CodeforcesPanel />
+      </div>
+
+      <div className="border-t pt-4">
+        <PrivacyPanel user={user} refresh={refresh} />
       </div>
 
       <div className="border-t pt-4">
