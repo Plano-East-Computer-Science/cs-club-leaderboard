@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 /**
  * Live connection to one meeting room.
  *
- * Returns { state, status, refused, skew, send }.
+ * Returns { state, status, refused, skew, notice, send }.
  *  - state: the last {t:'state'} frame from the Durable Object (or null)
  *  - status: 'connecting' | 'open' | 'closed'
  *  - refused: true when the server never let us in (not signed in, room closed,
@@ -16,6 +16,7 @@ export function useRoomSocket(code) {
   const [status, setStatus] = useState('connecting');
   const [refused, setRefused] = useState(false);
   const [skew, setSkew] = useState(0);
+  const [notice, setNotice] = useState(null); // { text, id }: why the room refused our last action
   const ws = useRef(null);
 
   useEffect(() => {
@@ -46,6 +47,10 @@ export function useRoomSocket(code) {
         try {
           m = JSON.parse(e.data);
         } catch {
+          return;
+        }
+        if (m?.t === 'notice') {
+          setNotice({ text: String(m.text ?? ''), id: Date.now() });
           return;
         }
         if (m?.t !== 'state') return;
@@ -83,5 +88,5 @@ export function useRoomSocket(code) {
     if (ws.current?.readyState === WebSocket.OPEN) ws.current.send(JSON.stringify(obj));
   }, []);
 
-  return { state, status, refused, skew, send };
+  return { state, status, refused, skew, notice, send };
 }
