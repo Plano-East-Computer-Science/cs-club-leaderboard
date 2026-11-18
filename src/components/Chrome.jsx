@@ -39,7 +39,6 @@ export const PAGES = [
   ['gateway', '/gateway'],
   ['about', '/about'],
   ['join', '/join'],
-  ['admin', '/admin'],
 ];
 const BAR = ['home', 'standings', 'arena', 'quests', 'room', 'build', 'opportunities'];// always on the bar
 
@@ -78,7 +77,8 @@ export function TabBar() {
         : to === '/arena'
           ? pathname.startsWith('/arena') || pathname.startsWith('/p/')
           : pathname.startsWith(to);
-  const elsewhere = !BAR.some((n) => cur(pathOf(n))); // current page lives only in the panel
+  const elsewhere = !BAR.some((n) => cur(pathOf(n))) && !pathname.startsWith('/officer'); // current page lives only in the panel
+  const isOfficer = user?.role === 'officer' || user?.role === 'lead';
 
   useEffect(() => {
     setOpen(false);
@@ -117,7 +117,12 @@ export function TabBar() {
       <button type="button" className={`allb${elsewhere || open ? ' on' : ''}`} aria-expanded={open} aria-controls="site-map" onClick={() => setOpen(!open)}>
         <span className="hide-xs">ls </span>all<span aria-hidden="true">{open ? ' ▴' : ' ▾'}</span>
       </button>
-      <Link className={`acct${user ? ' in' : ''}`} to={user ? '/' : '/signin'} title={user ? 'Your hub' : 'Sign in'}>
+      {isOfficer && (
+        <Link className="offb" to="/officer" aria-current={pathname.startsWith('/officer') ? 'page' : undefined}>
+          officer
+        </Link>
+      )}
+      <Link className={`acct${user ? ' in' : ''}`} to={user ? '/signin' : '/signin'} title={user ? 'Your account' : 'Sign in'}>
         {user ? <><i aria-hidden="true" />{user.name.split(' ')[0]}</> : 'sign in'}
       </Link>
       <div className="hint">
@@ -141,9 +146,6 @@ export function TabBar() {
               </section>
             ))}
           </div>
-          <p className="mega-f">
-            officers: <Link to="/officer">run a meeting</Link> <Link to="/admin">admin panel</Link>
-          </p>
         </div>
       )}
       <div className="lights" aria-hidden="true" />
@@ -205,6 +207,11 @@ export function Dock() {
 
   const go = (n) => {
     n = ALIAS[n] || n;
+    // Officer tools are not in the member page list; the address still works for officers.
+    if (n === 'officer' || n === 'admin') {
+      navigate('/officer');
+      return close();
+    }
     const p = PAGES.find((x) => x[0] === n);
     if (!p) return out(`open: no such page "${n}". try: ${PAGES.map((x) => x[0]).join(', ')}`);
     navigate(p[1]);

@@ -984,6 +984,9 @@ textarea.fi{resize:vertical;line-height:1.5}
 /* ---- tab bar v2: fixed tabs, an "all" panel that lists the whole site, account chip ---- */
 .tabs .allb,.tabs .acct{flex:none;background:none;border:0;border-left:1px solid var(--line);font:inherit;font-size:13px;color:var(--dim);padding:10px 14px;cursor:pointer;display:flex;align-items:center;gap:7px;white-space:nowrap}
 .tabs .allb:hover,.tabs .acct:hover{color:var(--text);background:var(--panel2)}
+.tabs .offb{flex:none;display:flex;align-items:center;padding:10px 14px;border-left:1px solid var(--line);font-size:13px;color:var(--gold);white-space:nowrap}
+.tabs .offb:hover{background:var(--panel2)}
+.tabs .offb[aria-current]{box-shadow:inset 0 -2px 0 var(--gold)}
 .tabs .allb.on{color:var(--gold);box-shadow:inset 0 -2px 0 var(--gold)}
 .tabs .acct{color:var(--gold)}
 .tabs .acct.in{color:var(--text);max-width:150px;overflow:hidden;text-overflow:ellipsis}
@@ -1772,3 +1775,37 @@ textarea.fi{resize:vertical;line-height:1.5}
 .si-link:hover{color:var(--gold)}
 .si-note{margin-top:10px;font-size:12.5px;color:var(--up)}
 }
+
+/* ================= officer home =================
+   Unlayered on purpose: it must beat the Tailwind utilities the older officer
+   screens put on their headings, so every screen gets the same heading levels. */
+.ofc{display:grid;gap:18px}
+.ofc-head{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px 24px}
+.ofc-title{font:900 clamp(40px,6vw,64px)/.9 var(--disp);text-transform:uppercase;margin-top:6px}
+.ofc-who{display:flex;align-items:center;gap:16px;font-size:13px;color:var(--dim)}
+.ofc-who i{font-style:normal;font-size:11px;color:#000;background:var(--gold);padding:1px 7px;margin-left:6px;font-weight:700;text-transform:uppercase;letter-spacing:.06em}
+.ofc-shell{display:grid;grid-template-columns:minmax(0,1fr);border:1px solid var(--line2);background:var(--panel)}
+@media(min-width:960px){.ofc-shell{grid-template-columns:232px minmax(0,1fr)}}
+.ofc-side{display:none}
+@media(min-width:960px){
+  .ofc-side{display:block;background:var(--bg);border-right:1px solid var(--line2);padding:8px 0 16px;position:sticky;top:41px;align-self:start;max-height:calc(100dvh - 140px);overflow:auto;scrollbar-width:thin;scrollbar-color:var(--line2) transparent}
+}
+.ofc-side section+section{margin-top:6px;border-top:1px solid var(--line);padding-top:6px}
+.ofc-g{display:flex;align-items:center;gap:8px;padding:8px 16px 4px;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--mute)}
+.ofc-side a{display:flex;align-items:center;gap:8px;padding:6px 16px 6px 14px;border-left:2px solid transparent;font-size:13px;color:var(--dim);transition:color .15s,background .15s}
+.ofc-side a:hover{color:var(--text);background:var(--panel)}
+.ofc-side a[aria-current]{color:var(--gold);background:var(--panel2);border-left-color:var(--gold);font-weight:600}
+.ofc-n{margin-left:auto;min-width:20px;text-align:center;font-size:11px;font-weight:800;color:#000;background:var(--gold);padding:0 5px;letter-spacing:0}
+.ofc-g .ofc-n{margin-left:0}
+.ofc-pick{display:grid;gap:6px;padding:14px 16px;border-bottom:1px solid var(--line2);background:var(--bg)}
+.ofc-pick>span{font-size:12px;font-weight:600;color:var(--text)}
+@media(min-width:960px){.ofc-pick{display:none}}
+.ofc-main{min-width:0;padding:20px 16px 28px}
+@media(min-width:960px){.ofc-main{padding:26px 30px 36px}}
+.ofc-flash{font-size:13px}
+.ofc-flash.ok,.ofc-flash.bad{margin:-6px 0 16px;padding:8px 12px;border-left:2px solid currentColor;background:var(--panel2)}
+.ofc-flash.ok{color:var(--up)}.ofc-flash.bad{color:var(--down)}
+.ofc-main h2,.ofc-main .ofc-h{font:800 clamp(28px,3.4vw,40px)/1 var(--disp)!important;text-transform:uppercase;letter-spacing:.005em;color:var(--text);margin:4px 0 10px!important}
+.ofc-main h3{font-size:14px;font-weight:700;color:var(--text)}
+.ofc-main>section+section{margin-top:36px;padding-top:28px;border-top:1px solid var(--line2)}
+.ofc-main .ap-two{margin-top:6px}

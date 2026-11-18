@@ -13,7 +13,6 @@ import Puzzles from './pages/Puzzles.jsx';
 import Cyber from './pages/Cyber.jsx';
 import Join from './pages/Join.jsx';
 import About from './pages/About.jsx';
-import Admin from './pages/Admin.jsx';
 import Learn from './pages/Learn.jsx';
 import Course from './pages/Course.jsx';
 import Arena from './pages/Arena.jsx';
@@ -94,7 +93,7 @@ function Footer() {
             <SubscribeBox />
           </div>
           <div className="links">
-            {PAGES.filter(([n]) => n !== 'admin').map(([n, to]) => (
+            {PAGES.map(([n, to]) => (
               <Link key={n} to={to}>
                 {n}
               </Link>
@@ -190,10 +189,7 @@ function Shell() {
             <Route path="/officers/apply" element={<OfficerApply />} />
             <Route path="/verify/:code" element={<Verify />} />
           </Route>
-          <Route
-            path="/admin"
-            element={<Admin />}
-          />
+          <Route path="/admin" element={<Navigate to="/officer" replace />} />
           <Route
             path="*"
             element={
@@ -209,7 +205,7 @@ function Shell() {
           />
         </Routes>
       </main>
-      {pathname.startsWith('/admin') ? null : <Footer />}
+      {/^\/(admin|officer|signin)/.test(pathname) ? null : <Footer />}
       <Dock />
       <Boot />
       <Snow />

@@ -1,152 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { api } from '../lib/api.js';
-import { formatDate, relativeDate, TYPE_LABELS, FORMAT_LABELS } from '../lib/format.js';
-import { Avatar, TierMark, Spinner } from '../components/bits.jsx';
+import { api } from '../../lib/api.js';
+import { formatDate, relativeDate, TYPE_LABELS, FORMAT_LABELS } from '../../lib/format.js';
+import { Avatar, TierMark, Spinner } from '../../components/bits.jsx';
 
-const TABS = [
-  { id: 'points', label: 'Award points' },
-  { id: 'members', label: 'Members' },
-  { id: 'badges', label: 'Badges' },
-  { id: 'opportunities', label: 'Opportunities' },
-  { id: 'queue', label: 'Pending' },
-  { id: 'officers', label: 'Officers' },
-  { id: 'curriculum', label: 'Curriculum' },
-  { id: 'competitions', label: 'Competitions' },
-  { id: 'puzzles', label: 'Puzzles' },
-  { id: 'email', label: 'Email' },
-  { id: 'text', label: 'Page text' },
-  { id: 'backup', label: 'Backup' },
-];
-
-export default function Admin() {
-  const [authed, setAuthed] = useState(null);
-  const [actionsUrl, setActionsUrl] = useState('');
-  const [tab, setTab] = useState('points');
-  const [flash, setFlash] = useState(null);
-
-  const say = useCallback((message, tone = 'ok') => {
-    setFlash({ message, tone });
-    setTimeout(() => setFlash(null), 4000);
-  }, []);
-
-  useEffect(() => {
-    api
-      .get('/admin/session')
-      .then((d) => {
-        setAuthed(d.authed);
-        setActionsUrl(d.actions_url ?? '');
-      })
-      .catch(() => setAuthed(false));
-  }, []);
-
-  if (authed === null) return <Spinner label="Checking session" />;
-  if (!authed) return <Login onIn={() => setAuthed(true)} />;
-
-  const cur = TABS.find((t) => t.id === tab);
-  return (
-    <div className="wrap">
-      <div className="pf-crumb">
-        <span className="d" style={{ fontSize: 13 }}>
-          <b className="g">officer@pehs-cs</b> ~/admin/{tab}
-        </span>
-        <button
-          className="btn btn-ghost"
-          onClick={() => api.post('/admin/logout').then(() => api.post('/auth/logout')).then(() => setAuthed(false))}
-        >
-          sign out
-        </button>
-      </div>
-      <div className="ap-shell">
-        <nav className="ap-side" role="tablist" aria-label="Admin sections">
-          {TABS.map((t, i) => (
-            <button key={t.id} role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)}>
-              <b>{String(i + 1).padStart(2, '0')}</b>
-              {t.label}
-            </button>
-          ))}
-        </nav>
-        <div className="ap-main">
-          <div className={`flash ${flash ? (flash.tone === 'ok' ? 'ok' : 'bad') : ''}`} role="status">
-            {flash ? `> ${flash.message}` : '> ready'}
-          </div>
-          <div className="ap-body">
-            <h2>{cur.label}</h2>
-      {tab === 'points' && <PointsTab say={say} />}
-      {tab === 'members' && <MembersTab say={say} />}
-      {tab === 'badges' && <BadgesTab say={say} />}
-      {tab === 'opportunities' && <OpportunitiesTab say={say} />}
-      {tab === 'queue' && <QueueTab say={say} actionsUrl={actionsUrl} />}
-      {tab === 'officers' && <OfficersTab say={say} />}
-      {tab === 'curriculum' && <CurriculumTab say={say} />}
-      {tab === 'competitions' && <CompetitionsTab say={say} />}
-      {tab === 'puzzles' && <PuzzlesTab say={say} />}
-      {tab === 'email' && <EmailTab say={say} />}
-      {tab === 'text' && <TextTab say={say} />}
-      {tab === 'backup' && <BackupTab say={say} />}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* -------------------------------- login -------------------------------- */
-
-function Login({ onIn }) {
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState(null);
-  const [busy, setBusy] = useState(false);
-
-  const submit = async (e) => {
-    e.preventDefault();
-    setBusy(true);
-    setError(null);
-    try {
-      await api.post('/admin/login', { password });
-      onIn();
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <div className="ap-login wrap">
-      <div className="ap-box">
-        <div className="pane-h"><span><b>admin</b> sudo</span><span>officers only</span></div>
-        <div className="bd">
-      <h1>Sign in</h1>
-      <p className="mb-6 text-sm">
-        Officers sign in with their own club account at <a href="/signin">/signin</a>, then come back here.
-        The shared password below is break-glass only, and its actions are logged as shared login.
-      </p>
-      <form onSubmit={submit} className="grid gap-3 mt-4">
-        <label className="grid gap-1.5">
-          <span className="eyebrow">Shared password</span>
-          <input
-            className="field"
-            type="password"
-            value={password}
-            autoFocus
-            autoComplete="current-password"
-            onChange={(e) => setPassword(e.target.value)}
-          />
-        </label>
-        {error && (
-          <p className="mono text-xs" style={{ color: '#c42e2e' }}>
-            {error}
-          </p>
-        )}
-        <button className="btn btn-primary" disabled={busy}>
-          {busy ? 'Checking…' : 'Sign in'}
-        </button>
-      </form>
-        </div>
-      </div>
-    </div>
-  );
-}
+/*
+ * The screens of the original admin panel. They now live inside the officer
+ * home (src/pages/Officer.jsx), which gives each one `say` (the status line)
+ * and its heading. /admin redirects there.
+ */
 
 /* ------------------------------ shared bits ------------------------------ */
 
@@ -204,7 +65,7 @@ const PRESETS = [
   { amount: 50, reason: 'Placed in a competition' },
 ];
 
-function PointsTab({ say }) {
+export function PointsTab({ say }) {
   const [data, setData] = useState(null);
   const [mode, setMode] = useState('one');
   const [studentId, setStudentId] = useState('');
@@ -367,10 +228,10 @@ function PointsTab({ say }) {
 
       <Section title="Standings right now">
         <ol className="grid gap-2">
-          {recent.slice(0, 12).map((s) => (
+          {recent.slice(0, 12).map((s, i) => (
             <li key={s.id} className="flex items-center gap-2.5">
               <span className="mono w-6 text-xs" style={{ color: 'var(--ink-faint)' }}>
-                {String(s.rank).padStart(2, '0')}
+                {String(i + 1).padStart(2, '0')}
               </span>
               <Avatar name={s.name} seed={s.avatar_seed} points={s.points} size={26} ring={false} />
               <span className="min-w-0 flex-1 truncate text-sm">{s.name}</span>
@@ -385,7 +246,7 @@ function PointsTab({ say }) {
 
 /* -------------------------------- members -------------------------------- */
 
-function MembersTab({ say }) {
+export function MembersTab({ say }) {
   const [data, setData] = useState(null);
   const [name, setName] = useState('');
   const [grade, setGrade] = useState('');
@@ -532,7 +393,7 @@ function MembersTab({ say }) {
 
 const BADGE_COLOR_NAMES = ['amber', 'emerald', 'violet', 'sky', 'rose', 'orange', 'teal', 'lime'];
 
-function BadgesTab({ say }) {
+export function BadgesTab({ say }) {
   const [badges, setBadges] = useState(null);
   const [students, setStudents] = useState([]);
   const [form, setForm] = useState({ name: '', emoji: '🏅', description: '', color: 'violet' });
@@ -789,7 +650,7 @@ function OpportunityForm({ value, onChange, onSubmit, submitLabel, onCancel }) {
   );
 }
 
-function OpportunitiesTab({ say }) {
+export function OpportunitiesTab({ say }) {
   const [items, setItems] = useState(null);
   const [draft, setDraft] = useState(BLANK_OPP);
   const [editing, setEditing] = useState(null);
@@ -865,7 +726,7 @@ function OpportunitiesTab({ say }) {
 
 /* -------------------------------- queue -------------------------------- */
 
-function QueueTab({ say, actionsUrl }) {
+export function QueueTab({ say, actionsUrl }) {
   const [items, setItems] = useState(null);
 
   const load = useCallback(() => {
@@ -967,7 +828,7 @@ function QueueTab({ say, actionsUrl }) {
 
 const BLANK_OFFICER = { name: '', role: '', note: '', committee: 'main', sort_order: 0 };
 
-function OfficersTab({ say }) {
+export function OfficersTab({ say }) {
   const [officers, setOfficers] = useState(null);
   const [form, setForm] = useState(BLANK_OFFICER);
 
@@ -1040,7 +901,7 @@ function OfficersTab({ say }) {
 
 /* ------------------------------- curriculum ------------------------------- */
 
-function CurriculumTab({ say }) {
+export function CurriculumTab({ say }) {
   const [topics, setTopics] = useState(null);
   const [form, setForm] = useState({ track: 'fall', title: '' });
 
@@ -1119,7 +980,7 @@ const BLANK_COMPETITION = {
   name: '', description: '', result: '', event_date: '', url: '', status: 'upcoming', sort_order: 0,
 };
 
-function CompetitionsTab({ say }) {
+export function CompetitionsTab({ say }) {
   const [competitions, setCompetitions] = useState(null);
   const [form, setForm] = useState(BLANK_COMPETITION);
 
@@ -1207,7 +1068,7 @@ const BLANK_PUZZLE = {
   hints: '', difficulty: '', is_current: false,
 };
 
-function PuzzlesTab({ say }) {
+export function PuzzlesTab({ say }) {
   const [puzzles, setPuzzles] = useState(null);
   const [form, setForm] = useState(BLANK_PUZZLE);
 
@@ -1319,7 +1180,7 @@ function PuzzlesTab({ say }) {
  * its owner has clicked the confirmation link -- "unconfirmed" rows are people
  * who typed an address and never clicked.
  */
-function EmailTab({ say }) {
+export function EmailTab({ say }) {
   const [subs, setSubs] = useState(null);
   const [digest, setDigest] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -1431,7 +1292,7 @@ const TEXT_FIELDS = [
   ['discord_webhook_url', 'Discord webhook URL', 'input'],
 ];
 
-function TextTab({ say }) {
+export function TextTab({ say }) {
   const [settings, setSettings] = useState(null);
 
   const load = useCallback(() => {
@@ -1491,7 +1352,7 @@ function TextTab({ say }) {
 
 /* -------------------------------- backup -------------------------------- */
 
-function BackupTab({ say }) {
+export function BackupTab({ say }) {
   const fileRef = useRef(null);
 
   const restore = async (file) => {

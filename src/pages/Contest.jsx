@@ -153,7 +153,7 @@ export function ContestSetup({ send, disabled, block }) {
       {!all ? (
         !err && <Spinner label="Loading problems" />
       ) : !shown.length ? (
-        <p className="d text-sm">No live problems at this level. Add some under Officer, Problems.</p>
+        <p className="d text-sm">No live problems at this level. Add some in Officer tools, Problem bank.</p>
       ) : (
         <ul className="duel-pick" aria-label="Problems for the contest">
           {shown.map((p) => {
