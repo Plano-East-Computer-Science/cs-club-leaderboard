@@ -1,7 +1,7 @@
 /**
- * H3 officer screen: which sites members can open in reader mode. Hosts from
- * the gateway list are always readable too, so they are shown but not edited
- * here. Save an empty box to go back to the default documentation sites.
+ * H3 officer screen: which sites members can open in reader mode, at any
+ * time. Separate from the gateway list on purpose. Save an empty box to go
+ * back to the default documentation sites.
  */
 import { useEffect, useState } from 'react';
 import { api } from '../../lib/api.js';
@@ -9,12 +9,11 @@ import { Spinner, ErrorNote } from '../../components/bits.jsx';
 
 export default function ReaderAdmin() {
   const [text, setText] = useState(null);
-  const [always, setAlways] = useState([]);
   const [error, setError] = useState(null);
   const [note, setNote] = useState(null);
 
   useEffect(() => {
-    api.get('/admin/hub/reader').then((d) => { setText(d.hosts.join('\n')); setAlways(d.always); }).catch((e) => setError(e.message));
+    api.get('/admin/hub/reader').then((d) => { setText(d.hosts.join('\n'));}).catch((e) => setError(e.message));
   }, []);
 
   const save = async (e) => {
@@ -35,7 +34,7 @@ export default function ReaderAdmin() {
         <p className="eyebrow">Reader mode</p>
         <h2 className="display mt-1 text-2xl font-bold">Sites members can read</h2>
         <p className="mt-2 max-w-2xl text-sm" style={{ color: 'var(--ink-soft)' }}>
-          One host per line. Members see text and code only, never the site itself. The gateway sites ({always.length}) are always included.
+          One host per line. Members can read these at any time, as text and code only, never the site itself. Add a site only once it is approved for school use.
         </p>
       </div>
       {error && <ErrorNote>{error}</ErrorNote>}

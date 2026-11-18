@@ -20,20 +20,21 @@ async function check(name, fn) {
   console.log(`  ok   ${name}`);
 }
 
-const hosts = readerHosts('', '');
+const hosts = readerHosts('');
 const page = (body, type = 'text/html; charset=utf-8', status = 200) =>
   new Response(body, { status, headers: { 'content-type': type } });
 const redirect = (location) => new Response(null, { status: 302, headers: { location } });
 
-await check('allowlist: defaults plus gateway hosts, exact match only', () => {
+await check('allowlist: defaults only (not the gateway list), exact match only', () => {
   for (const h of READER_DEFAULT_HOSTS) assert.ok(hosts.includes(h));
-  assert.ok(hosts.includes('github.com'));
+  assert.ok(!hosts.includes('github.com') && !hosts.includes('www.bing.com'), 'meeting-only gateway hosts are not readable any time');
+  assert.ok(!hosts.includes('usaco.guide'), 'no unapproved host on by default');
   assert.ok(checkUrl('https://docs.python.org/3/tutorial/', hosts).url);
   assert.ok(checkUrl('https://DOCS.python.org/3/', hosts).url);
   assert.equal(checkUrl('https://evil.com/', hosts).status, 403);
   assert.equal(checkUrl('https://docs.python.org.evil.com/', hosts).status, 403);
   assert.equal(checkUrl('https://evildocs.python.org/', hosts).status, 403);
-  assert.equal(readerHosts('a.example.com', '')[0], 'a.example.com');
+  assert.deepEqual(readerHosts('a.example.com'), ['a.example.com']);
 });
 
 await check('url tricks are refused', () => {

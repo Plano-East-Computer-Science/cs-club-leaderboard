@@ -19,13 +19,19 @@ import { Hono } from 'hono';
 
 import { requireUser } from './users.js';
 import { hitOrRefuse } from './ratelimit.js';
-import { DEFAULT_HOSTS, hostsFrom, parseHostList } from './gateway.js';
+import { parseHostList } from './gateway.js';
 
 export const readerRouter = new Hono(); // mounted at /api
 export const readerAdminRouter = new Hono(); // officers, mounted at /api/admin/hub
 
-/** Documentation hosts readable without the gateway. Officers can replace this list. */
-export const READER_DEFAULT_HOSTS = ['docs.python.org', 'developer.mozilla.org', 'en.cppreference.com', 'usaco.guide', 'cses.fi'];
+/**
+ * Documentation hosts readable outside meetings. Only sites the gateway was
+ * already approved for are on by default (the club lead deferred new hosts);
+ * officers can add others, such as usaco.guide or cses.fi, once approved.
+ * This list is NOT merged with the gateway list: the gateway's search and
+ * GitHub hosts were approved for meeting use behind a code, not for any time.
+ */
+export const READER_DEFAULT_HOSTS = ['docs.python.org', 'developer.mozilla.org', 'en.cppreference.com'];
 
 export const MAX_BYTES = 2 * 1024 * 1024;
 export const MAX_REDIRECTS = 3;
@@ -36,10 +42,10 @@ const PER_MINUTE = 20;
 
 /* ------------------------------ allowlist ------------------------------ */
 
-/** The reader list from settings (or the default), plus everything the gateway already approves. */
-export function readerHosts(readerSetting, gatewaySetting) {
+/** The reader list from settings, or the default. */
+export function readerHosts(readerSetting) {
   const custom = String(readerSetting ?? '').split(',').map((h) => h.trim().toLowerCase()).filter(Boolean);
-  return [...new Set([...(custom.length ? custom : READER_DEFAULT_HOSTS), ...hostsFrom(gatewaySetting)])];
+  return custom.length ? [...new Set(custom)] : READER_DEFAULT_HOSTS;
 }
 
 /**
@@ -299,9 +305,8 @@ export const extractPlain = (text) => ({ title: '', blocks: text.trim() ? [{ t: 
 /* -------------------------------- routes -------------------------------- */
 
 async function loadHosts(db) {
-  const rows = (await db.prepare(`SELECT key, value FROM settings WHERE key IN ('reader_hosts', 'gateway_hosts')`).all()).results;
-  const get = (k) => rows.find((r) => r.key === k)?.value;
-  return readerHosts(get('reader_hosts'), get('gateway_hosts'));
+  const row = await db.prepare(`SELECT value FROM settings WHERE key = 'reader_hosts'`).first();
+  return readerHosts(row?.value);
 }
 
 readerRouter.get('/read', requireUser, async (c) => {
@@ -337,7 +342,7 @@ readerRouter.get('/read/hosts', requireUser, async (c) => c.json({ hosts: await 
 readerAdminRouter.get('/reader', async (c) => {
   const row = await c.env.DB.prepare(`SELECT value FROM settings WHERE key = 'reader_hosts'`).first();
   const custom = String(row?.value ?? '').split(',').filter(Boolean);
-  return c.json({ hosts: custom.length ? custom : READER_DEFAULT_HOSTS, always: DEFAULT_HOSTS });
+  return c.json({ hosts: custom.length ? custom : READER_DEFAULT_HOSTS });
 });
 
 /** Replace the reader list. An empty list restores the defaults. */
@@ -349,5 +354,5 @@ readerAdminRouter.put('/reader', async (c) => {
     .prepare(`INSERT INTO settings (key, value) VALUES ('reader_hosts', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`)
     .bind(parsed.hosts.join(','))
     .run();
-  return c.json({ hosts: parsed.hosts.length ? parsed.hosts : READER_DEFAULT_HOSTS, always: DEFAULT_HOSTS });
+  return c.json({ hosts: parsed.hosts.length ? parsed.hosts : READER_DEFAULT_HOSTS });
 });
