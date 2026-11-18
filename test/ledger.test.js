@@ -182,7 +182,8 @@ await check('closing a room pays a brand-new account with no officer action, and
   assert.deepEqual(await awardAttendance(db, 'WXYZ'), { awarded: 1, alreadyHad: 0, unlinked: 0 });
   assert.deepEqual(await awardAttendance(db, 'WXYZ'), { awarded: 0, alreadyHad: 1, unlinked: 0 });
   const sid = (await db.prepare('SELECT student_id FROM users WHERE id = 12').first()).student_id;
-  assert.equal(await count(db, 'SELECT SUM(delta) AS n FROM point_events WHERE student_id = ?', sid), 20);
+  // 20 for attending (doubled, first meeting) + 3 for the "In the room" quest bonus (A4).
+  assert.equal(await count(db, 'SELECT SUM(delta) AS n FROM point_events WHERE student_id = ?', sid), 23);
 });
 
 await check('merge moves points, activity, badges and accounts, drops shared activity, deactivates', async () => {

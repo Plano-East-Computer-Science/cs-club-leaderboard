@@ -11,7 +11,7 @@ import { Crest } from '../components/Crest.jsx';
 const bar = (p) => {
   const i = tierIndex(p);
   const nx = TIERS[i + 1];
-  if (!nx) return `[${'#'.repeat(20)}] max tier`;
+  if (!nx) return `[${'#'.repeat(20)}] top rank`;
   const f = Math.round(tierProgress(p) * 20);
   return `[${'#'.repeat(f)}${'-'.repeat(20 - f)}] ${nx.min - p} pts to ${nx.name.toLowerCase()}`;
 };
@@ -62,7 +62,7 @@ export default function Student() {
     );
   if (!data) return <div className="state-note">loading profile...</div>;
 
-  const ti = tierIndex(data.points);
+  const ti = tierIndex(data.peak);
   const t = TIERS[ti];
   const nx = TIERS[ti + 1];
   const lead = students[0];
@@ -74,7 +74,7 @@ export default function Student() {
   const best = earned.reduce((a, b) => (b.delta > (a?.delta ?? 0) ? b : a), null);
   const weekAgo = Date.now() - 7 * 86_400_000;
   const thisWeek = data.events.filter((e) => parseTs(e.created_at) >= weekAgo).reduce((a, e) => a + e.delta, 0);
-  const gap = idx > 0 && students[idx - 1] ? `${students[idx - 1].points - data.points} behind #${students[idx - 1].rank}` : students[1] && idx === 0 ? `${data.points - students[1].points} clear of #2` : '';
+  const gap = idx > 0 && students[idx - 1] ? `${students[idx - 1].points - data.points} behind #${students[idx - 1].place}` : students[1] && idx === 0 ? `${data.points - students[1].points} clear of #2` : '';
 
   return (
     <div className="wrap">
@@ -94,13 +94,14 @@ export default function Student() {
           <p className="pf-meta">
             <span>{data.grade ? <>grade <b>{data.grade}</b></> : <b>member</b>}</span>
             <span>joined <b>{formatDate(data.joined_at)}</b></span>
-            <span>tier <b style={{ color: t.color }}>{t.name.toUpperCase()}</b></span>
+            <span>rank <b style={{ color: t.color }}>{t.name.toUpperCase()}</b></span>
+            {data.squad && <span>squad <b style={{ color: data.squad.color }}>{data.squad.name}</b></span>}
             {gap && <span>{gap}</span>}
           </p>
         </div>
         <div className="pf-score">
           <strong>{data.points}</strong>
-          <span>points &middot; rank <b>{data.rank}</b> of {data.total_students}</span>
+          <span>season points &middot; place <b>{data.place}</b> of {data.total_students} &middot; {data.lifetime} all time</span>
         </div>
       </header>
 
@@ -111,7 +112,7 @@ export default function Student() {
               <span><b>points.plot</b> cumulative, {shortDate(season, 0)} to {shortDate(season, season.today)}</span>
               <span className="hide-xs">dashed = leader</span>
             </div>
-            <PointsChart m={data} lead={lead} events={allEvents} season={season} asc={asc} />
+            <PointsChart m={data} lead={lead} events={allEvents} season={season} asc={asc.filter((e) => dayOf(season, parseTs(e.created_at)) >= 0)} />
           </section>
           <section className="panel">
             <div className="pane-h">
@@ -144,13 +145,13 @@ export default function Student() {
 
         <aside className="pf-col">
           <section className="panel sp" style={{ '--c': t.color }}>
-            <div className="pane-h"><span><b>tier</b> cat tiers.conf</span><span>{ti + 1} of {TIERS.length}</span></div>
+            <div className="pane-h"><span><b>rank</b> lifetime, never drops</span><span>{ti + 1} of {TIERS.length}</span></div>
             <div className="pf-tier">
               <div className="tn"><Crest i={ti} /><h3>{t.name}</h3></div>
               <p>{t.blurb}</p>
-              <div className="prog">{bar(data.points)}</div>
-              <span className="xp" style={{ '--c': t.color }}><i className="fillbar" style={{ '--p': tierProgress(data.points), transform: `scaleX(${tierProgress(data.points)})` }} /></span>
-              <div className="pf-lab"><span>{t.min}</span><span>{nx ? `${nx.name.toLowerCase()} at ${nx.min}` : 'no higher tier'}</span></div>
+              <div className="prog">{bar(data.peak)}</div>
+              <span className="xp" style={{ '--c': t.color }}><i className="fillbar" style={{ '--p': tierProgress(data.peak), transform: `scaleX(${tierProgress(data.peak)})` }} /></span>
+              <div className="pf-lab"><span>{t.min}</span><span>{nx ? `${nx.name.toLowerCase()} at ${nx.min}` : 'no higher rank'}</span></div>
               <div className="pf-steps">
                 {TIERS.map((x, k) => <i key={x.name} className={`${k <= ti ? 'on' : ''} ${k === ti ? 'now' : ''}`} style={{ '--c': x.color }} title={x.name} />)}
               </div>

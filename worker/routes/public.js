@@ -7,21 +7,33 @@ import {
   getOfficers, getCurriculum, getCompetitions, getPuzzles, getCurrentPuzzle,
 } from '../db.js';
 import { RADIUS_MILES, SCHOOL } from '../geo.js';
+import { seasonOf } from '../../shared/points.js';
+import { seasonParam, rankInfo } from '../hub/standings.js';
 import { opportunitiesToICS } from '../ics.js';
 
 export const publicRouter = new Hono();
 
+// A4: `points` is season points (the current season unless ?season= says
+// otherwise); `lifetime` and the `rank` label cover all time.
 publicRouter.get('/leaderboard', async (c) => {
+  const season = seasonParam(c.req.query('season'));
+  if (!season) return c.json({ error: 'Unknown season.' }, 400);
   return c.json({
-    students: await getLeaderboard(c.env.DB),
-    events: await getAllPointEvents(c.env.DB),
+    season,
+    students: await getLeaderboard(c.env.DB, season),
+    events: await getAllPointEvents(c.env.DB, season),
   });
 });
 
 publicRouter.get('/student/:id', async (c) => {
-  const student = await getStudent(c.env.DB, c.req.param('id'));
+  const season = seasonOf(new Date());
+  const student = await getStudent(c.env.DB, c.req.param('id'), season);
   if (!student) return c.json({ error: 'No student with that id.' }, 404);
-  return c.json(student);
+  const squad = await c.env.DB
+    .prepare('SELECT q.id, q.name, q.color FROM squad_members m JOIN squads q ON q.id = m.squad_id WHERE m.student_id = ? AND m.season = ?')
+    .bind(student.id, season)
+    .first();
+  return c.json({ ...student, season, ...rankInfo(student), squad });
 });
 
 publicRouter.get('/opportunities', async (c) => {
@@ -81,7 +93,7 @@ publicRouter.get('/deadlines.ics', async (c) => {
  */
 const PUBLIC_SETTINGS = [
   'club_name', 'school_name', 'tagline',
-  'prize_title', 'prize_blurb', 'season_start', 'season_end',
+  'prize_title', 'prize_blurb', 'season_start', 'season_end', 'season_tiers',
   'about_heading', 'about_body',
   'discord_url', 'email',
   'cyber_intro', 'cyber_body',

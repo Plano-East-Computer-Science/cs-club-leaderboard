@@ -9,6 +9,7 @@ import { currentUser, ensureStudent } from './users.js';
 import { notify } from './notify.js';
 import { officerOf } from './team.js';
 import { recordActivity } from './ledger.js';
+import { syncQuests } from './quests.js';
 
 export const roomsRouter = new Hono();
 export const roomsAdminRouter = new Hono();
@@ -111,6 +112,7 @@ export async function awardAttendance(db, code) {
     const r = await recordActivity(db, { studentId: sid, kind: 'attend', ref: `room:${code}`, meta: { title: room.title } }, u.joined_at);
     if (r.duplicate) out.alreadyHad++;
     else out.awarded++;
+    await syncQuests(db, u.id); // A4: meetings finish quests
   }
   return out;
 }

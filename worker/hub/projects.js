@@ -7,8 +7,10 @@ import { Hono } from 'hono';
 import { COURSES } from '../../shared/courses.js';
 import { requireUser } from './users.js';
 import { questProgress } from '../../shared/quests.js';
-import { statsFor } from './quests.js';
 import { withRepoStats } from './github.js';
+import { statsFor, syncQuests } from './quests.js';
+import { getLeaderboard } from '../db.js';
+import { rankInfo } from './standings.js';
 
 export const projectsRouter = new Hono();
 
@@ -56,6 +58,7 @@ projectsRouter.post('/projects', requireUser, async (c) => {
     .prepare('INSERT INTO projects (user_id, title, description, track, repo_url, demo_url) VALUES (?, ?, ?, ?, ?, ?)')
     .bind(user.id, title, description, track, repo, demo)
     .run();
+  await syncQuests(c.env.DB, user.id); // A4: posting can finish a quest
   return c.json({ id: res.meta.last_row_id });
 });
 
@@ -99,11 +102,14 @@ projectsRouter.get('/portfolio/:id', async (c) => {
       .all()
   ).results;
 
-  const q = questProgress(await statsFor(c.env.DB, id));
+  const stats = await statsFor(c.env.DB, id);
+  const q = questProgress(stats);
+  // A4: the portfolio label is the lifetime rank, which never drops.
+  const me = stats.studentId ? (await getLeaderboard(c.env.DB, 'all')).find((r) => r.id === stats.studentId) : null;
   return c.json({
     name: user.name,
-    rank: q.rank,
-    xp: q.xp,
+    rank: rankInfo(me).rankName,
+    points: me?.lifetime ?? 0,
     badges: q.quests.filter((x) => x.done).map((x) => x.title),
     since: user.created_at,
     meetings: rooms.n,

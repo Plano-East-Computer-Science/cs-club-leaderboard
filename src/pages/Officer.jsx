@@ -7,6 +7,8 @@ import Announce from './officer/Announce.jsx';
 import Team from './officer/Team.jsx';
 import Claims from './officer/Claims.jsx';
 import Merge from './officer/Merge.jsx';
+import Raffle from './officer/Raffle.jsx';
+import Squads from './officer/Squads.jsx';
 import DailyAdmin from './officer/Daily.jsx';
 import Board from './officer/Board.jsx';
 
@@ -80,6 +82,8 @@ export default function Officer() {
       <Claims />
       <LinkRequests />
       <Merge />
+      <Raffle />
+      <Squads />
       <IdeasAdmin />
       <Announce />
       <Gateway />

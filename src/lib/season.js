@@ -1,10 +1,12 @@
 /**
- * Season dates and timestamp helpers.
+ * Season dates and timestamp helpers for charts and the countdown.
  *
- * A season is the school year. Officers can pin exact dates with the
- * `season_start` / `season_end` settings (YYYY-MM-DD); without them the season
- * runs Aug 24 to May 31 of the current school year.
+ * A4: a season is a semester, defined once in shared/points.js (fall is
+ * June to December, spring January to May) so the page and the ledger agree
+ * on which points count. `key` picks a season; 'all' starts at `since`
+ * (usually the first award) and runs to now.
  */
+import { seasonOf as seasonKey, seasonRange } from '../../shared/points.js';
 
 const DAY = 86_400_000;
 
@@ -15,17 +17,15 @@ export function parseTs(s) {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
-const parseDate = (s) => {
-  const d = s && /^\d{4}-\d{2}-\d{2}$/.test(s) ? new Date(`${s}T00:00:00`) : null;
-  return d && !Number.isNaN(d.getTime()) ? d : null;
-};
-
-export function seasonOf(settings = {}, now = new Date()) {
-  const y = now.getMonth() >= 7 ? now.getFullYear() : now.getFullYear() - 1;
-  const start = parseDate(settings.season_start) ?? new Date(y, 7, 24);
-  const end = parseDate(settings.season_end) ?? new Date(y + 1, 4, 31, 23, 59, 59);
-  const day = Math.max(1, Math.floor((now - start) / DAY) + 1);
-  return { start, end, day, today: Math.max(1, Math.floor((now - start) / DAY)), label: `season-${String(start.getFullYear()).slice(2)}` };
+export function seasonOf(_settings = {}, now = new Date(), key = seasonKey(now), since = null) {
+  const r = seasonRange(key) ?? seasonRange(seasonKey(now));
+  // `since` (the first award) trims empty summer weeks off the front of a chart.
+  const from = parseTs(r.start);
+  const start = key === 'all' ? (since ?? new Date(now.getTime() - 120 * DAY)) : since && since > from ? since : from;
+  const end = key === 'all' ? now : parseTs(r.end);
+  const at = Math.min(now, end);
+  const day = Math.max(1, Math.floor((at - start) / DAY) + 1);
+  return { key, start, end, day, today: Math.max(1, Math.floor((at - start) / DAY)), label: key === 'all' ? 'all-time' : key };
 }
 
 /** Whole days between the season start and a timestamp (can be negative). */

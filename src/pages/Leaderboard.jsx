@@ -1,102 +1,72 @@
+/**
+ * Standings (A4, A5, A6). Season points decide the prize; this page shows the
+ * top five, your own place with two members either side, how many members sit
+ * in each season tier, the raffle and the squads. Nobody sees a wall of names
+ * with themselves at the bottom; the full ranked list is for officers.
+ */
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { TIERS, tierIndex, tierProgress } from '../lib/tiers.js';
-import { useData } from '../lib/data.jsx';
-import { parseTs, dayOf, shortDate } from '../lib/season.js';
-import { first, useMedia, useReveal, reducedMotion } from '../lib/ui.js';
+import { api } from '../lib/api.js';
+import { TIERS, tierIndex } from '../lib/tiers.js';
+import { parseTs, dayOf, shortDate, seasonOf } from '../lib/season.js';
+import { first, useReveal, reducedMotion } from '../lib/ui.js';
 import { Crest } from '../components/Crest.jsx';
 import { Panther } from '../components/Panther.jsx';
 import { CountUp } from '../components/bits.jsx';
+import { TIER_NAMES } from '../../shared/standings.js';
 
-const DAY = 86_400_000;
 const COL = ['#ffc20e', '#f4f1e8', '#6b97ff', '#2dd4bf', '#ff6253'];
-const initials = (n) => n.split(' ').map((w) => w[0]).join('');
-
-const bar = (points) => {
-  const i = tierIndex(points);
-  if (!TIERS[i + 1]) return `[${'#'.repeat(20)}]`;
-  const f = Math.round(tierProgress(points) * 20);
-  return `[${'#'.repeat(f)}${'-'.repeat(20 - f)}]`;
-};
-const barText = (points) => {
-  const nx = TIERS[tierIndex(points) + 1];
-  return nx ? `${bar(points)} ${nx.min - points} to ${nx.name.toLowerCase()}` : `${bar(points)} max`;
-};
+const TIER_COL = ['#c98a4b', '#c9c9c0', '#ffc20e', '#7fd6ff', '#b093ff'];
+const rankOf = (id) => TIERS.find((t) => t.id === id) ?? TIERS[0];
 
 export default function Leaderboard() {
-  const { students, events, season, settings, errors, reload, board, totalPoints } = useData();
-  const wide = useMedia('(min-width:960px)');
-  const [sel, setSel] = useState(0);
-  const [exp, setExp] = useState(null);
-  const rosterRef = useRef(null);
-  const rowsRef = useRef(null);
+  const [key, setKey] = useState(() => new URLSearchParams(location.search).get('season') || '');
+  const [d, setD] = useState(null);
+  const [error, setError] = useState(null);
   useReveal();
 
-  const today = season.today;
+  const load = () => {
+    setError(null);
+    api
+      .get(`/standings${key ? `?season=${encodeURIComponent(key)}` : ''}`)
+      .then(setD)
+      .catch((e) => setError(e.message));
+  };
+  useEffect(load, [key]);
 
-  /* per-member event lists, rank change over 7 days, weekly gain */
-  const info = useMemo(() => {
-    const evs = events
-      .map((e) => {
-        const t = parseTs(e.created_at);
-        return t ? { sid: e.student_id, p: e.delta, l: e.reason, t, d: dayOf(season, t) } : null;
-      })
-      .filter(Boolean);
+  const season = useMemo(() => {
+    if (!d) return null;
+    // Start the chart a week before the first award, not on an empty June 1.
+    const since = d.race.length ? new Date(parseTs(d.race[0].created_at).getTime() - 7 * 86_400_000) : null;
+    return seasonOf({}, new Date(), d.season, since);
+  }, [d]);
+
+  const race = useMemo(() => {
+    if (!d || !season) return null;
     const bySid = new Map();
-    evs.forEach((e) => bySid.set(e.sid, [...(bySid.get(e.sid) ?? []), e]));
-    const cum = (sid, d) => (bySid.get(sid) ?? []).reduce((a, e) => (e.d <= d ? a + e.p : a), 0);
-    const prior = students
-      .map((s, i) => ({ s, i, v: cum(s.id, today - 7) }))
-      .sort((a, b) => b.v - a.v || a.i - b.i);
-    const prev = new Map(prior.map((x, k) => [x.s.id, k + 1]));
-    const per = new Map(
-      students.map((s, i) => [s.id, { delta: prev.get(s.id) - (i + 1), wk: cum(s.id, today) - cum(s.id, today - 7) }])
-    );
-    return { evs, bySid, cum, per };
-  }, [students, events, season, today]);
+    for (const e of d.race) {
+      const t = parseTs(e.created_at);
+      if (!t) continue;
+      const row = { p: e.delta, d: dayOf(season, t) };
+      bySid.set(e.student_id, [...(bySid.get(e.student_id) ?? []), row]);
+    }
+    const cum = (sid, day) => (bySid.get(sid) ?? []).reduce((a, e) => (e.d <= day ? a + e.p : a), 0);
+    return { cum };
+  }, [d, season]);
 
-  /* keep the selection valid, and honour the `rank` command */
-  useEffect(() => {
-    const f = (e) => selectMember(e.detail, true);
-    window.addEventListener('select-member', f);
-    return () => window.removeEventListener('select-member', f);
-  });
-  useEffect(() => {
-    const onKey = (e) => {
-      if (!wide || ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) return;
-      if (e.key === 'j' || e.key === 'ArrowDown') {
-        e.preventDefault();
-        selectMember(Math.min(students.length - 1, sel + 1), true);
-      }
-      if (e.key === 'k' || e.key === 'ArrowUp') {
-        e.preventDefault();
-        selectMember(Math.max(0, sel - 1), true);
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  });
-
-  function selectMember(i, scroll) {
-    if (!students[i]) return;
-    setSel(i);
-    if (scroll && wide) rowsRef.current?.querySelector(`tr.r[data-i="${i}"]`)?.scrollIntoView({ block: 'nearest' });
-  }
-
-  if (errors.board && !board)
+  if (error && !d)
     return (
       <div className="state-note bad">
-        {errors.board}
+        {error}
         <br />
-        <button className="btn btn-ghost" onClick={reload}>
-          Try again
-        </button>
+        <button className="btn btn-ghost" onClick={load}>Try again</button>
       </div>
     );
-  if (!board) return <div className="state-note">loading standings...</div>;
+  if (!d) return <div className="state-note">loading standings...</div>;
 
-  const lead = students[0];
-  const prize = settings.prize_title || 'Meta Ray-Ban Display Glasses';
+  const prize = d.prize || 'Meta Ray-Ban Display Glasses';
+  const current = d.season === d.seasons[0].key;
+  const lead = d.top[0];
 
   return (
     <>
@@ -104,179 +74,234 @@ export default function Leaderboard() {
         <div className="wrap">
           <div>
             <h1>
-              <span className="p">&gt;</span>First place wins <em>{prize}</em>.<span className="cursor" aria-hidden="true" />
+              <span className="p">&gt;</span>
+              {current ? <>This season wins <em>{prize}</em>.</> : <>{d.label}</>}
+              <span className="cursor" aria-hidden="true" />
             </h1>
             <p className="lead">
-              {settings.club_name || 'Plano East CS Club'} runs on points. <b>Show up, ship something, enter a contest</b>,
-              and every award is logged with a reason. {students.length} member{students.length === 1 ? ' is' : 's are'} on the
-              board. The season ends with {prize}.
+              One number: <b>points</b>. Season points reset each semester and decide the prize. Reach the first tier and you hold a raffle
+              ticket for every point, so you do not have to finish first to win something. Your <b>rank</b> comes from all the points you
+              have ever earned and never goes down.
             </p>
-            <Countdown end={season.end} />
+            <div className="chips st-seasons" role="group" aria-label="Season">
+              {d.seasons.map((s) => (
+                <button key={s.key} type="button" aria-pressed={d.season === s.key} onClick={() => setKey(s.key === d.seasons[0].key ? '' : s.key)}>
+                  {s.key === d.seasons[0].key ? `${s.label} (now)` : s.label}
+                </button>
+              ))}
+            </div>
+            {current && <Countdown end={season.end} />}
             <div className="kv">
-              <div>
-                <span>season day</span>
-                <strong>{season.day}</strong>
-              </div>
-              <div>
-                <span>points awarded</span>
-                <strong>{totalPoints}</strong>
-              </div>
-              <div>
-                <span>leader</span>
-                <strong>{lead?.name ?? '--'}</strong>
-              </div>
+              <div><span>members</span><strong>{d.members}</strong></div>
+              <div><span>points awarded</span><strong>{d.totalPoints}</strong></div>
+              <div><span>raffle tickets</span><strong>{d.raffle.tickets}</strong></div>
             </div>
           </div>
           <Panther />
         </div>
       </section>
 
-      {students.length === 0 ? (
+      <section className="sec">
+        <div className="wrap">
+          <You d={d} />
+        </div>
+      </section>
+
+      {d.top.length > 0 && (
         <section className="sec">
           <div className="wrap">
-            <p className="sub">No members yet. Add your first club members from the admin panel and they will appear here.</p>
+            <h2>Top five <small>top -n 5</small></h2>
+            <p className="sub">The front of the race this season. Everyone else is counted by tier below.</p>
+            <Top5 top={d.top} prize={current ? prize : null} />
           </div>
         </section>
-      ) : (
-        <>
-          <section className="sec">
-            <div className="wrap">
-              <h2>
-                Top three <small>top -n 3</small>
-              </h2>
-              <p className="sub">Click a card to open that member in the roster.</p>
-              <Top3
-                students={students}
-                per={info.per}
-                prize={prize}
-                sel={sel}
-                onGo={(i) => {
-                  selectMember(i, true);
-                  if (wide) rosterRef.current?.scrollIntoView({ behavior: reducedMotion() ? 'auto' : 'smooth', block: 'start' });
-                }}
-              />
-            </div>
-          </section>
+      )}
 
-          <section className="sec" id="roster" ref={rosterRef}>
-            <div className="wrap">
-              <h2>
-                Roster <small>ls -la --sort=points</small>
-              </h2>
-              <p className="sub">
-                Hover a row or use <span className="g">j / k</span> and the arrow keys to inspect a member. On a phone, tap to expand.
-              </p>
-              <div className="split">
-                <div>
-                  <div className="pane-h">
-                    <span>
-                      <b>roster.db</b> {students.length} entries
-                    </span>
-                    <span className="hide-xs">&Delta; is rank change over the last 7 days</span>
-                  </div>
-                  <table className="rt">
-                    <thead>
-                      <tr>
-                        <th>#</th>
-                        <th>&Delta;</th>
-                        <th>member</th>
-                        <th className="hide-xs hide-s">gr</th>
-                        <th>tier</th>
-                        <th className="hide-s">to next</th>
-                        <th style={{ textAlign: 'right' }}>pts</th>
-                      </tr>
-                    </thead>
-                    <tbody ref={rowsRef}>
-                      {students.map((m, i) => {
-                        const ti = tierIndex(m.points);
-                        const t = TIERS[ti];
-                        const d = info.per.get(m.id).delta;
-                        const open = exp === i && !wide;
-                        const tog = () => {
-                          if (wide) return selectMember(i);
-                          setExp(open ? null : i);
-                          setSel(i);
-                        };
-                        return (
-                          <Fragment key={m.id}>
-                            <tr
-                              className={`r ${sel === i ? 'sel' : ''}`}
-                              data-i={i}
-                              tabIndex={0}
-                              role="button"
-                              aria-label={`${m.name}, rank ${m.rank}, ${m.points} points`}
-                              onMouseEnter={() => wide && setSel(i)}
-                              onFocus={() => wide && setSel(i)}
-                              onClick={tog}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter' || e.key === ' ') {
-                                  e.preventDefault();
-                                  tog();
-                                }
-                              }}
-                            >
-                              <td className="n">{String(m.rank).padStart(2, '0')}</td>
-                              <td className="dl">
-                                {d > 0 ? <span className="up">&#9650;{d}</span> : d < 0 ? <span className="dn">&#9660;{-d}</span> : <span className="m">--</span>}
-                              </td>
-                              <td className="nm">{m.name}</td>
-                              <td className="hide-xs hide-s d">{m.grade ?? '-'}</td>
-                              <td>
-                                <span className="tc" style={{ color: t.color }}>
-                                  <Crest i={ti} cls="cs" />
-                                  <span className="hide-xs">{t.name}</span>
-                                </span>
-                              </td>
-                              <td className="hide-s bar">{bar(m.points)}</td>
-                              <td className="pts">{m.points}</td>
-                            </tr>
-                            {open && (
-                              <tr className="exp">
-                                <td colSpan={7}>
-                                  <div className="xin">
-                                    <Detail m={m} i={i} students={students} evs={info.bySid.get(m.id)} season={season} />
-                                  </div>
-                                </td>
-                              </tr>
-                            )}
-                          </Fragment>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-                <aside className="detail" aria-live="polite">
-                  <div className="pane-h">
-                    <span>
-                      <b>member --id {first(students[sel]?.name ?? '').toLowerCase()}</b>
-                    </span>
-                    <span>pane 2</span>
-                  </div>
-                  <div className="in">
-                    {students[sel] && (
-                      <Detail m={students[sel]} i={sel} students={students} evs={info.bySid.get(students[sel].id)} season={season} />
-                    )}
-                  </div>
-                </aside>
-              </div>
-            </div>
-          </section>
+      <section className="sec">
+        <div className="wrap two">
+          <Tiers d={d} />
+          <Squads d={d} />
+        </div>
+      </section>
 
-          <section className="sec">
-            <div className="wrap two">
-              <RankRace students={students} info={info} season={season} />
-              <Feed students={students} info={info} />
-            </div>
-          </section>
+      {d.top.length > 0 && season.today > 0 && (
+        <section className="sec">
+          <div className="wrap">
+            <RankRace top={d.top} cum={race.cum} season={season} />
+          </div>
+        </section>
+      )}
 
-          <TierLadder students={students} lead={lead} />
-        </>
+      {d.officer && (
+        <section className="sec">
+          <div className="wrap">
+            <p className="sub">
+              Officers: the full ranked list and the raffle draw are in the <Link className="g uline" to="/officer#raffle">meeting console</Link>.
+            </p>
+          </div>
+        </section>
       )}
     </>
   );
 }
 
-/* ------------------------------- hero bits ------------------------------- */
+/* --------------------------------- you --------------------------------- */
+
+function You({ d }) {
+  const me = d.me;
+  if (!me)
+    return (
+      <div className="sp panel rv st-you">
+        <div className="pane-h"><span><b>whoami</b> your place</span></div>
+        <div className="pn-b">
+          <p>
+            Sign in to see your own place, the two members either side of you, and how far you are from the next tier.{' '}
+            <Link className="g uline" to="/signin">sign in</Link>
+          </p>
+        </div>
+      </div>
+    );
+  const r = rankOf(me.rank);
+  const next = me.nextTier;
+  const tierName = me.tier >= 0 ? TIER_NAMES[me.tier] : 'no tier yet';
+  return (
+    <div className="sp panel rv st-you">
+      <div className="pane-h">
+        <span><b>whoami</b> {first(me.name).toLowerCase()}, {d.label.toLowerCase()}</span>
+        <span className="hide-xs">you and two either side</span>
+      </div>
+      <div className="st-you-g">
+        <div className="st-me">
+          <div className="st-big"><b>#{me.place}</b><span>of {d.members}</span></div>
+          <div className="dline"><span>season points</span><span className="g">{me.points}</span></div>
+          <div className="dline"><span>tier</span><span style={{ color: me.tier >= 0 ? TIER_COL[me.tier] : 'var(--dim)' }}>{tierName}</span></div>
+          <div className="dline"><span>raffle tickets</span><span>{me.tickets || `none yet, ${d.tiers[0]} pts to enter`}</span></div>
+          <div className="dline"><span>rank</span><span style={{ color: r.color }}>{r.name}</span></div>
+          <p className="st-next">
+            {next ? (
+              <><b className="g">{next.gap}</b> points to {TIER_NAMES[next.index]} ({next.min}). One meeting is 10.</>
+            ) : (
+              <>Top tier reached. Every point is another raffle ticket.</>
+            )}
+          </p>
+        </div>
+        <table className="rt" aria-label="Your place and your neighbours">
+          <thead>
+            <tr><th>#</th><th>member</th><th className="hide-xs">rank</th><th style={{ textAlign: 'right' }}>pts</th></tr>
+          </thead>
+          <tbody>
+            {me.window.map((m) => (
+              <tr key={m.id} className={m.you ? 'r sel' : 'r'} aria-current={m.you ? 'true' : undefined}>
+                <td className="n">{String(m.place).padStart(2, '0')}</td>
+                <td className="nm"><Link to={`/student/${m.id}`}>{m.you ? `${m.name} (you)` : m.name}</Link></td>
+                <td className="hide-xs" style={{ color: rankOf(m.rank).color }}>{rankOf(m.rank).name}</td>
+                <td className="pts">{m.points}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+/* --------------------------------- top five --------------------------------- */
+
+function Top5({ top, prize }) {
+  return (
+    <div className="top3 top5 rv">
+      {top.map((m, i) => {
+        const ti = tierIndex(rankOf(m.rank).min);
+        const t = TIERS[ti];
+        return (
+          <article key={m.id}>
+            <Link to={`/student/${m.id}`} className="st-cover" aria-label={`${m.name}, place ${m.place}, ${m.points} points`} />
+            <div className="tr1">
+              <div className="rk">{m.place}</div>
+              <Crest i={ti} cls="cr" />
+            </div>
+            <h3>{m.name}</h3>
+            <div className="pt">
+              <b><CountUp value={m.points} duration={1100} /></b> pts <span style={{ color: t.color }}>{t.name.toLowerCase()}</span>
+            </div>
+            <div className="meta">{i ? `${top[i - 1].points - m.points} behind #${top[i - 1].place}` : top[1] ? `${m.points - top[1].points} clear of #2` : 'only member so far'}</div>
+            {i === 0 && prize && <div className="prize">on track for {prize}</div>}
+          </article>
+        );
+      })}
+    </div>
+  );
+}
+
+/* --------------------------------- tiers --------------------------------- */
+
+function Tiers({ d }) {
+  const most = Math.max(1, d.counts.below, ...d.counts.tiers.map((t) => t.n));
+  const rows = [...d.counts.tiers.map((t, i) => ({ ...t, c: TIER_COL[i], label: `${t.min}+ pts` }))].reverse();
+  return (
+    <div className="sp panel rv">
+      <div className="pane-h">
+        <span><b>tiers.conf</b> {d.label.toLowerCase()}</span>
+        <span className="hide-xs">members per tier</span>
+      </div>
+      <ul className="st-tiers">
+        {rows.map((t) => (
+          <li key={t.name} style={{ '--c': t.c }}>
+            <span className="tn">{t.name}</span>
+            <span className="tm">{t.label}</span>
+            <span className="tb" aria-hidden="true"><i style={{ width: `${(t.n / most) * 100}%` }} /></span>
+            <span className="tc2">{t.n}</span>
+          </li>
+        ))}
+        <li style={{ '--c': 'var(--line2)' }}>
+          <span className="tn">Warming up</span>
+          <span className="tm">under {d.tiers[0]}</span>
+          <span className="tb" aria-hidden="true"><i style={{ width: `${(d.counts.below / most) * 100}%` }} /></span>
+          <span className="tc2">{d.counts.below}</span>
+        </li>
+      </ul>
+      <p className="st-raffle">
+        Raffle: <b>{d.raffle.entrants}</b> member{d.raffle.entrants === 1 ? '' : 's'} at {TIER_NAMES[0]} or above hold <b>{d.raffle.tickets}</b>{' '}
+        tickets, one per season point.{d.raffle.winner ? <> Drawn: <b className="g">{d.raffle.winner}</b>.</> : ' Drawn by an officer at the end of the season.'}
+      </p>
+    </div>
+  );
+}
+
+/* --------------------------------- squads --------------------------------- */
+
+function Squads({ d }) {
+  return (
+    <div className="sp panel rv" style={{ '--d': 1 }}>
+      <div className="pane-h">
+        <span><b>squads</b> {d.squads.length}</span>
+        <span className="hide-xs">score = median member</span>
+      </div>
+      {d.squads.length ? (
+        <table className="rt" aria-label="Squad standings">
+          <thead>
+            <tr><th>#</th><th>squad</th><th style={{ textAlign: 'right' }}>size</th><th style={{ textAlign: 'right' }}>score</th></tr>
+          </thead>
+          <tbody>
+            {d.squads.map((s) => (
+              <tr key={s.id} className={s.mine ? 'r sel' : 'r'}>
+                <td className="n">{s.place}</td>
+                <td className="nm"><i className="st-dot" style={{ background: s.color }} aria-hidden="true" />{s.name}{s.mine ? ' (yours)' : ''}</td>
+                <td style={{ textAlign: 'right' }}>{s.size}</td>
+                <td className="pts">{s.score}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : (
+        <div className="pn-b"><p className="d">{d.season === 'all' ? 'Squads change every season. Pick a season to see them.' : 'No squads yet this season. Officers set them up.'}</p></div>
+      )}
+      <p className="st-raffle">A squad scores its middle member&apos;s season points, so helping your newest member is the winning move.</p>
+    </div>
+  );
+}
+
+/* --------------------------------- countdown --------------------------------- */
 
 function Countdown({ end }) {
   const calc = () => {
@@ -302,119 +327,32 @@ function Countdown({ end }) {
   );
 }
 
-function Top3({ students, per, prize, sel, onGo }) {
-  const top = students.slice(0, 3);
-  return (
-    <div className="top3 rv">
-      {top.map((m, i) => {
-        const ti = tierIndex(m.points);
-        const t = TIERS[ti];
-        const wk = per.get(m.id).wk;
-        const go = () => onGo(i);
-        return (
-          <article
-            key={m.id}
-            className={`sp ${sel === i ? 'sel' : ''}`}
-            tabIndex={0}
-            role="button"
-            aria-label={`${m.name}, rank ${m.rank}`}
-            onClick={go}
-            onKeyDown={(e) => e.key === 'Enter' && go()}
-          >
-            <div className="tr1">
-              <div className="rk">{m.rank}</div>
-              <Crest i={ti} cls="cr" />
-            </div>
-            <h3>{m.name}</h3>
-            <div className="pt">
-              <b>
-                <CountUp value={m.points} duration={1300} />
-              </b>{' '}
-              pts <span style={{ color: t.color }}>{t.name.toLowerCase()}</span>
-            </div>
-            <div className="xp" style={{ '--c': t.color, display: 'block' }}>
-              <i className="fillbar" style={{ '--p': tierProgress(m.points) }} />
-            </div>
-            <div className="meta">
-              {i ? `${top[i - 1].points - m.points} pts behind #${top[i - 1].rank}` : top[1] ? `${m.points - top[1].points} pts clear of #2` : 'only member so far'}
-              {'  ·  '}+{wk} this week
-            </div>
-            {i === 0 && <div className="prize">wins {prize}</div>}
-          </article>
-        );
-      })}
-    </div>
-  );
-}
+/* --------------------------------- rank race --------------------------------- */
 
-function Detail({ m, i, students, evs = [], season }) {
-  const ti = tierIndex(m.points);
-  const t = TIERS[ti];
-  const sorted = [...evs].sort((a, b) => b.t - a.t);
-  return (
-    <>
-      <div className="dh">
-        <Crest i={ti} cls="cr" />
-        <h3>{m.name}</h3>
-      </div>
-      <div className="dline"><span>rank</span><span>#{m.rank} of {students.length}</span></div>
-      <div className="dline"><span>points</span><span className="g">{m.points}</span></div>
-      <div className="dline"><span>tier</span><span style={{ color: t.color }}>{t.name.toUpperCase()}</span></div>
-      <div className="dline"><span>grade</span><span>{m.grade ?? '-'}</span></div>
-      <div className="dline">
-        <span>gap</span>
-        <span>
-          {i ? `${students[i - 1].points - m.points} behind #${students[i - 1].rank}` : students[1] ? `${m.points - students[1].points} ahead of #2` : 'no one else yet'}
-        </span>
-      </div>
-      <div className="prog"><span className="g">{barText(m.points)}</span></div>
-      <div className="tags">
-        {m.badges.length ? m.badges.map((b) => <span key={b.id} className="tag gd">{b.name}</span>) : <span className="tag">no badges yet</span>}
-      </div>
-      <Link className="go" style={{ display: 'inline-block', marginTop: 12, padding: '3px 12px', fontSize: 12, background: 'var(--gold)', color: '#000', fontWeight: 800 }} to={`/student/${m.id}`}>
-        view profile &rarr;
-      </Link>
-      <div className="m" style={{ fontSize: 12, marginTop: 12 }}>git log --points</div>
-      <div className="log">
-        {sorted.map((e, k) => (
-          <div key={k}>
-            <span className={`p ${e.p < 0 ? 'neg' : ''}`}>{e.p > 0 ? '+' : ''}{e.p}</span>
-            <span>
-              {e.l || 'No reason recorded'}
-              <small className="m"> {shortDate(season, e.d)}</small>
-            </span>
-          </div>
-        ))}
-        {!sorted.length && <div className="m">No awards yet.</div>}
-      </div>
-    </>
-  );
-}
-
-/* ------------------------------- rank race ------------------------------- */
-
-function RankRace({ students, info, season }) {
+function RankRace({ top, cum, season }) {
   const today = season.today;
   const W = 760, H = 300, pl = 34, pr = 96, pt = 14, pb = 28;
-  const top5 = students.slice(0, 5);
-  const maxPts = Math.max(10, ...top5.map((m) => m.points));
+  const maxPts = Math.max(10, ...top.map((m) => m.points));
   const step = [10, 20, 25, 50, 100, 200, 250, 500].find((s) => maxPts / s <= 4.4) ?? 500;
   const ymax = step * Math.ceil((maxPts * 1.05) / step);
-  const X = (d) => pl + (Math.min(d, today) / today) * (W - pl - pr);
+  const X = (dd) => pl + (Math.min(dd, today) / today) * (W - pl - pr);
   const Y = (v) => H - pb - (v / ymax) * (H - pt - pb);
   const days = [];
-  for (let d = 0; d < today; d += 7) days.push(d);
+  for (let k = 0; k < today; k += 7) days.push(k);
   days.push(today);
-
   const ticks = [];
   for (let v = 0; v <= ymax; v += step) ticks.push(v);
-
+  // End labels: keep at least 15px apart so close finishers stay readable.
+  const labelY = top.map((m) => Y(cum(m.id, today)));
+  [...labelY.keys()].sort((a, b) => labelY[a] - labelY[b]).forEach((i, k, order) => {
+    if (k && labelY[i] - labelY[order[k - 1]] < 15) labelY[i] = labelY[order[k - 1]] + 15;
+  });
   const months = [];
-  for (let k = 0; k < 14; k++) {
+  for (let k = 0; k < 40; k++) {
     const d0 = new Date(season.start.getFullYear(), season.start.getMonth() + 1 + k, 1);
-    const d = dayOf(season, d0);
-    if (d > today - 2) break;
-    months.push([d, d0.toLocaleDateString('en-US', { month: 'short' })]);
+    const dd = dayOf(season, d0);
+    if (dd > today - 2) break;
+    months.push([dd, d0.toLocaleDateString('en-US', { month: 'short' })]);
   }
 
   const [hl, setHl] = useState(null);
@@ -425,15 +363,12 @@ function RankRace({ students, info, season }) {
 
   useEffect(() => {
     if (drawn) return;
-    const io = new IntersectionObserver(
-      (es) => {
-        if (es[0].isIntersecting) {
-          setDrawn(true);
-          io.disconnect();
-        }
-      },
-      { threshold: 0.3 }
-    );
+    const io = new IntersectionObserver((es) => {
+      if (es[0].isIntersecting) {
+        setDrawn(true);
+        io.disconnect();
+      }
+    }, { threshold: 0.3 });
     io.observe(svgRef.current);
     return () => io.disconnect();
   }, [drawn]);
@@ -441,51 +376,44 @@ function RankRace({ students, info, season }) {
   const move = (e) => {
     const r = svgRef.current.getBoundingClientRect();
     const sx = ((e.clientX - r.left) / r.width) * W;
-    const d = Math.max(0, Math.min(today, Math.round(((sx - pl) / (W - pl - pr)) * today)));
-    setCursor(d);
-    setRead(`${shortDate(season, d)}  ${top5.map((m) => `${first(m.name)} ${info.cum(m.id, d)}`).join('  ')}`);
+    const dd = Math.max(0, Math.min(today, Math.round(((sx - pl) / (W - pl - pr)) * today)));
+    setCursor(dd);
+    setRead(`${shortDate(season, dd)}  ${top.map((m) => `${first(m.name)} ${cum(m.id, dd)}`).join('  ')}`);
   };
 
   return (
     <div className="sp panel rv">
       <div className="pane-h">
-        <span>
-          <b>rank_race.plot</b> top 5, {shortDate(season, 0)} to {shortDate(season, today)}
-        </span>
+        <span><b>rank_race.plot</b> top 5, {shortDate(season, 0)} to {shortDate(season, today)}</span>
         <span className="hide-xs">cumulative points</span>
       </div>
       <div className="chart">
-        <svg ref={svgRef} id="chart" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Line chart of cumulative points for the top five members this season">
+        <svg ref={svgRef} viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Line chart of cumulative points for the top five members">
           {ticks.map((v) => (
             <Fragment key={v}>
               <line x1={pl} x2={W - pr} y1={Y(v)} y2={Y(v)} stroke="rgba(255,255,255,.07)" strokeDasharray="2 4" />
               <text x={pl - 8} y={Y(v) + 4} textAnchor="end" fill="#6b6754" fontSize="11" fontFamily="JetBrains Mono">{v}</text>
             </Fragment>
           ))}
-          {months.map(([d, l]) => (
-            <text key={d} x={X(d)} y={H - 8} fill="#6b6754" fontSize="11" fontFamily="JetBrains Mono" textAnchor="middle">{l}</text>
+          {months.map(([dd, l]) => (
+            <text key={dd} x={X(dd)} y={H - 8} fill="#6b6754" fontSize="11" fontFamily="JetBrains Mono" textAnchor="middle">{l}</text>
           ))}
-          {top5.map((m, i) => {
-            const pts = days.map((d) => [X(d), Y(info.cum(m.id, d))]);
-            const dd = pts.map((p, j) => `${j ? 'L' : 'M'}${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join('');
+          {top.map((m, i) => {
+            const pts = days.map((dd) => [X(dd), Y(cum(m.id, dd))]);
+            const path = pts.map((p, j) => `${j ? 'L' : 'M'}${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join('');
             const end = pts[pts.length - 1];
             return (
               <g key={m.id} onMouseEnter={() => setHl(i)} onMouseLeave={() => setHl(null)}>
                 <path
                   className={`ln ${hl != null && hl !== i ? 'd' : ''} ${hl === i ? 'h' : ''}`}
-                  d={dd}
+                  d={path}
                   stroke={COL[i]}
                   pathLength="1"
                   strokeDasharray="1"
-                  style={{
-                    strokeDashoffset: drawn ? 0 : 1,
-                    transition: `stroke-dashoffset 1.6s cubic-bezier(.65,0,.35,1) ${i * 120}ms,opacity .25s,stroke-width .25s`,
-                  }}
+                  style={{ strokeDashoffset: drawn ? 0 : 1, transition: `stroke-dashoffset 1.6s cubic-bezier(.65,0,.35,1) ${i * 120}ms,opacity .25s,stroke-width .25s` }}
                 />
                 <circle cx={end[0]} cy={end[1]} r="4" fill={COL[i]} />
-                <text x={end[0] + 10} y={end[1] + 4} fill={COL[i]} fontSize="12" fontFamily="JetBrains Mono" fontWeight="700">
-                  {first(m.name)} {m.points}
-                </text>
+                <text x={end[0] + 10} y={labelY[i] + 4} fill={COL[i]} fontSize="12" fontFamily="JetBrains Mono" fontWeight="700">{first(m.name)} {m.points}</text>
               </g>
             );
           })}
@@ -495,18 +423,9 @@ function RankRace({ students, info, season }) {
       </div>
       <div className="read" aria-live="off">{read ?? 'move across the chart to read any week'}</div>
       <div className="legend">
-        {top5.map((m, i) => (
-          <button
-            key={m.id}
-            style={{ '--c': COL[i] }}
-            className={hl === i ? 'h' : ''}
-            onMouseEnter={() => setHl(i)}
-            onFocus={() => setHl(i)}
-            onMouseLeave={() => setHl(null)}
-            onBlur={() => setHl(null)}
-          >
-            <i />
-            {m.name}
+        {top.map((m, i) => (
+          <button key={m.id} style={{ '--c': COL[i] }} className={hl === i ? 'h' : ''} onMouseEnter={() => setHl(i)} onFocus={() => setHl(i)} onMouseLeave={() => setHl(null)} onBlur={() => setHl(null)}>
+            <i />{m.name}
           </button>
         ))}
       </div>
@@ -514,86 +433,3 @@ function RankRace({ students, info, season }) {
   );
 }
 
-function Feed({ students, info }) {
-  const byId = new Map(students.map((s) => [s.id, s]));
-  let list = info.evs.filter((e) => e.p >= 10 && byId.has(e.sid));
-  if (list.length < 5) list = info.evs.filter((e) => e.p > 0 && byId.has(e.sid));
-  list = [...list].sort((a, b) => b.t - a.t || b.p - a.p).slice(0, 9);
-  const when = (t) => {
-    const n = Math.floor((Date.now() - t) / DAY);
-    return n <= 0 ? 'today' : `${n}d ago`;
-  };
-  return (
-    <div className="sp panel rv" style={{ '--d': 1 }}>
-      <div className="pane-h">
-        <span><b>git log --points</b> recent awards</span>
-        <span className="live2"><i />live</span>
-      </div>
-      <ul className="feed">
-        {list.map((e, i) => (
-          <li key={i} className="rv" style={{ '--d': i }}>
-            <span className="h">{((e.d * 7919) % 65535 + 65535).toString(16).slice(-4)}{((e.p * 131) % 4096).toString(16).padStart(3, '0')}</span>
-            <span className="who"><b>{byId.get(e.sid).name}</b> {e.l}</span>
-            <span className="ago">{when(e.t)}</span>
-            <span className="pp">+{e.p}</span>
-          </li>
-        ))}
-        {!list.length && <li><span className="who">No awards yet.</span></li>}
-      </ul>
-    </div>
-  );
-}
-
-/* ------------------------------- tier ladder ------------------------------- */
-
-function TierLadder({ students, lead }) {
-  const lanes = {};
-  return (
-    <section className="sec">
-      <div className="wrap">
-        <h2>Tier ladder <small>cat tiers.conf</small></h2>
-        <p className="sub">
-          Seven ranks. Close together at the bottom so you move fast in your first month, far apart at the top so Legend stays rare.
-          Every member sits on the track at their tier.
-        </p>
-        <div className="track-wrap rv">
-          <div className="track">
-            {TIERS.map((t, i) => (
-              <div key={t.name} className="seg" style={{ '--c': t.color }}>
-                <div className="tn"><Crest i={i} cls="cs" />{t.name}</div>
-                <div className="tm">{t.min}{TIERS[i + 1] ? ` to ${TIERS[i + 1].min}` : '+'}</div>
-              </div>
-            ))}
-            <div className="rail" />
-            {[...students].reverse().map((m) => {
-              const t = tierIndex(m.points);
-              const x = (t + tierProgress(m.points)) / TIERS.length;
-              const l = (lanes[t] = (lanes[t] ?? -1) + 1) % 5;
-              return (
-                <div key={m.id} className={`tok ${m === lead ? 'first' : ''}`} tabIndex={0} style={{ '--c': TIERS[t].color, '--x': x, '--lane': l }}>
-                  <i>{initials(m.name)}</i>
-                  <span>{m.name}, {m.points} pts</span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-        <p className="trackhint">Hover or focus a token to see who it is.</p>
-        <div className="stairs">
-          {TIERS.map((t, i) => {
-            const w = students.filter((m) => tierIndex(m.points) === i);
-            return (
-              <div key={t.name} className={`step sp rv ${i === 5 ? 'gd' : ''}`} style={{ '--c': t.color, '--d': i }}>
-                <Crest i={i} cls="cr" />
-                <h3>{t.name}</h3>
-                <span className="mn">{t.min}+ pts</span>
-                <p>{t.blurb}</p>
-                <span className="who">{w.length ? w.map((m) => first(m.name)).join(', ') : 'nobody yet'}</span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </section>
-  );
-}

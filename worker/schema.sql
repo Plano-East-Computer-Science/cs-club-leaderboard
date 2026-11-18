@@ -435,3 +435,43 @@ CREATE TABLE IF NOT EXISTS repo_stats (
   error       TEXT    NOT NULL DEFAULT '',
   checked_at  INTEGER NOT NULL DEFAULT 0        -- ms
 );
+
+/* ============================ A5: squads ============================ */
+
+-- Mixed-skill groups of 4-6, assigned by officers and reshuffled each season.
+-- A squad's score is the MEDIAN member's season points, computed on read, so
+-- helping the weakest member is the winning move.
+CREATE TABLE IF NOT EXISTS squads (
+  id     INTEGER PRIMARY KEY AUTOINCREMENT,
+  season TEXT    NOT NULL,                     -- "2026-fall", see shared/points.js
+  name   TEXT    NOT NULL,
+  color  TEXT    NOT NULL DEFAULT '#ffc20e'
+);
+CREATE INDEX IF NOT EXISTS idx_squads_season ON squads(season);
+-- One squad per member per season: (student_id, season) is the key.
+CREATE TABLE IF NOT EXISTS squad_members (
+  squad_id   INTEGER NOT NULL REFERENCES squads(id)   ON DELETE CASCADE,
+  student_id INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+  season     TEXT    NOT NULL,
+  PRIMARY KEY (student_id, season)
+);
+CREATE INDEX IF NOT EXISTS idx_squad_members_squad ON squad_members(squad_id);
+
+/* ============================ A6: season raffle ============================ */
+
+-- Every draw is kept, redraws included, so a result can be audited: who won,
+-- with how many of how many tickets, who drew it and why a redraw happened.
+CREATE TABLE IF NOT EXISTS raffle_draws (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  season        TEXT    NOT NULL,
+  student_id    INTEGER NOT NULL,                -- no FK: the record outlives a deleted member
+  student_name  TEXT    NOT NULL,
+  tickets       INTEGER NOT NULL,                -- the winner's tickets
+  total_tickets INTEGER NOT NULL,
+  entrants      INTEGER NOT NULL,
+  reason        TEXT    NOT NULL DEFAULT '',     -- required for a redraw
+  drawn_by      INTEGER,                         -- officer's users.id, NULL for the shared login
+  drawn_name    TEXT    NOT NULL,
+  drawn_at      TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_raffle_season ON raffle_draws(season, id);
