@@ -2,7 +2,9 @@
  * Student accounts: a magic link sent to a personal address, then a signed
  * cookie. No passwords exist, so none can leak or be reused.
  *
- * The cookie (`cslb_user`) carries only the user id. An account with role
+ * The cookie (`cslb_user`) carries the user id, an expiry and the account's
+ * session version. Signing out bumps the version, which ends every session of
+ * that account at once (a copied cookie stops working too). An account with role
  * officer or lead also passes the officer guard (see team.js), which reads the
  * role fresh from this table on every request.
  */
@@ -34,16 +36,17 @@ const cookieOpts = (c) => ({
 export async function currentUser(c) {
   const payload = await verifyValue(c.env, getCookie(c, USER_COOKIE));
   if (!payload) return null;
-  const [id, exp] = payload.split(':').map(Number);
+  const [id, exp, ver = 0] = payload.split(':').map(Number);
   if (!id || !(exp > Date.now())) return null;
   const user = await c.env.DB.prepare(
-    'SELECT id, email, name, student_id, role, created_at, show_full_name, deleted_at FROM users WHERE id = ?'
+    'SELECT id, email, name, student_id, role, created_at, show_full_name, deleted_at, session_ver FROM users WHERE id = ?'
   )
     .bind(id)
     .first();
   // G5: a deleted account is signed out everywhere at once, even though its cookie still verifies.
-  if (!user || user.deleted_at) return null;
+  if (!user || user.deleted_at || user.session_ver !== ver) return null;
   delete user.deleted_at;
+  delete user.session_ver;
   // Accounts from before A1 get their entry lazily, the first time they are seen.
   if (user && !user.student_id) user.student_id = await ensureStudent(c.env.DB, user);
   return user;
@@ -94,9 +97,9 @@ export async function startSession(c, email, name) {
     )
     .bind(email, name)
     .run();
-  const user = await db.prepare('SELECT id, name, student_id FROM users WHERE email = ?').bind(email).first();
+  const user = await db.prepare('SELECT id, name, student_id, session_ver FROM users WHERE email = ?').bind(email).first();
   await ensureStudent(db, user);
-  setCookie(c, USER_COOKIE, await signValue(c.env, `${user.id}:${Date.now() + SESSION_MS}`), cookieOpts(c));
+  setCookie(c, USER_COOKIE, await signValue(c.env, `${user.id}:${Date.now() + SESSION_MS}:${user.session_ver}`), cookieOpts(c));
   return user.id;
 }
 
@@ -201,7 +204,10 @@ usersRouter.get('/auth/verify', async (c) => {
   return c.redirect('/');
 });
 
-usersRouter.post('/auth/logout', (c) => {
+/** Signs this account out on every device: older cookies no longer match the version. */
+usersRouter.post('/auth/logout', async (c) => {
+  const user = await currentUser(c);
+  if (user) await c.env.DB.prepare('UPDATE users SET session_ver = session_ver + 1 WHERE id = ?').bind(user.id).run();
   deleteCookie(c, USER_COOKIE, { path: '/' });
   return c.json({ ok: true });
 });

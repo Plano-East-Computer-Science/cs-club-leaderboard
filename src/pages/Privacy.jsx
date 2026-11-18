@@ -23,7 +23,7 @@ export default function Privacy() {
         <ul>
           <li><b>Your account:</b> an email address, a display name, and the date you joined. If you sign in with Google we receive only your name and email address, nothing else from your Google account.</li>
           <li><b>What you do on the site:</b> lessons and problems you have passed (including the code you wrote), meetings you checked in to, projects and ideas you posted, quests, kudos and votes, claims you made for contests, and your answers to the onboarding questions.</li>
-          <li><b>Your leaderboard entry:</b> a name, an optional grade that an officer may enter, and the points you earned and why.</li>
+          <li><b>Your leaderboard entry:</b> a name, an optional grade that an officer may enter (officers see it; public pages never show it), and the points you earned and why.</li>
           <li><b>If you link them:</b> a Codeforces handle and the problems it has solved.</li>
           <li><b>The weekly email list</b> is separate and needs no account: just an address you confirmed.</li>
           <li><b>Short-lived technical records:</b> counters that slow down password guessing and spam, tied to a network address and deleted within a day, and a log of which approved website a meeting gateway request went to (never the page or what you typed), kept for a week.</li>

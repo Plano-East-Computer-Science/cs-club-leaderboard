@@ -343,4 +343,22 @@ await check('a deleted member\'s code stops working at once', async () => {
   assert.equal((await call(`/verify/${code}`, { ip: '1.1.1.1' })).status, 404);
 });
 
+await check('public leaderboard and member pages never show a grade', async () => {
+  const lb = await call('/leaderboard');
+  assert.ok(lb.body.students.length > 0);
+  assert.ok(lb.body.students.every((s) => s.grade === null));
+  assert.equal((await call(`/student/${maya.sid}`)).body.grade, null);
+});
+
+await check('signing out ends every session of the account, including a copied cookie', async () => {
+  const lee = await addUser('Lee Park', { email: 'lee.signout@example.com' });
+  const other = await signValue(env, `${lee.id}:${Date.now() + 60_000}:0`);
+  assert.equal((await call('/me', { cookie: lee.cookie })).body.user.id, lee.id);
+  assert.equal((await call('/auth/logout', { method: 'POST', cookie: lee.cookie })).status, 200);
+  for (const ck of [lee.cookie, `${USER_COOKIE}=${other}`]) {
+    const r = await call('/me', { cookie: ck });
+    assert.equal(r.body.user, null, 'an old cookie is signed out');
+  }
+});
+
 console.log(`safety: ${passed} checks passed`);

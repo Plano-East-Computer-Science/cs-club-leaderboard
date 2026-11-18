@@ -39,7 +39,7 @@ const leaderboardSql = (publicNames) => `
            SUM(delta) OVER (PARTITION BY student_id ORDER BY created_at, id) AS total
     FROM point_events
   )
-  SELECT s.id, ${publicNames ? PUBLIC_NAME_SQL : 's.name'} AS name, s.grade, s.avatar_seed, s.joined_at,
+  SELECT s.id, ${publicNames ? PUBLIC_NAME_SQL : 's.name'} AS name, ${publicNames ? 'NULL' : 's.grade'} AS grade, s.avatar_seed, s.joined_at,
          COALESCE(SUM(CASE WHEN r.created_at >= (SELECT lo FROM rng) AND r.created_at < (SELECT hi FROM rng) THEN r.delta END), 0) AS points,
          COALESCE(SUM(r.delta), 0) AS lifetime,
          max(COALESCE(MAX(r.total), 0), 0) AS peak,
