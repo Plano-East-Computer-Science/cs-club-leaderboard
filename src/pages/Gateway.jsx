@@ -207,6 +207,11 @@ export default function Gateway() {
           refuse proxies. Write and run code in the{' '}
           <a href="/workspace" style={{ color: 'var(--ink)' }}>workspace</a> on this site instead.
         </p>
+        <p>
+          <strong style={{ color: 'var(--ink)' }}>Just need to read docs?</strong> Sign in and use{' '}
+          <a href="/read" style={{ color: 'var(--ink)' }}>reader mode</a>. It shows documentation as text and
+          code and needs no code from an officer.
+        </p>
       </div>
 
       <form

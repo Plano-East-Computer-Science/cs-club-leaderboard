@@ -21,6 +21,7 @@ import TemplatePicker from './officer/TemplatePicker.jsx';
 import DataAdmin from './officer/Data.jsx';
 import Planner from './officer/Planner.jsx';
 import EditorialsAdmin from './officer/Editorials.jsx';
+import ReaderAdmin from './officer/Reader.jsx';
 
 const HOURS = [1, 2, 3, 6, 12];
 
@@ -34,7 +35,7 @@ const TABS = [
     label: 'Content',
     screens: [Problems, DailyAdmin, Board, DataAdmin, CtfAdmin, Cycles, CompetitionAdmin, IdeasAdmin],
   },
-  { id: 'club', label: 'Club', screens: [Announce, Gateway] },
+  { id: 'club', label: 'Club', screens: [Announce, Gateway, ReaderAdmin] },
 ];
 
 /** Pending work across the review queues, from the same endpoints the screens use. */

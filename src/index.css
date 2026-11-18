@@ -1675,3 +1675,13 @@ textarea.fi{resize:vertical;line-height:1.5}
 .otab[aria-selected="true"]{color:var(--gold);border-bottom-color:var(--gold)}
 .otab:focus-visible{outline:2px solid var(--gold);outline-offset:-2px}
 .otab-n{font-size:12px;padding:0 6px;border:1px solid var(--gold);color:var(--gold)}
+/* H3 reader mode */
+.rd{display:grid;gap:16px;padding-bottom:40px}
+.rd-form{display:grid;gap:8px;max-width:46rem}
+.rd-hosts{padding:0 16px 12px;font-size:12px;overflow-wrap:anywhere}
+.rd-body{max-width:46rem;overflow-wrap:anywhere}
+.rd-body p{margin:0 0 10px;line-height:1.6}
+.rd-title{font-size:22px;margin:0 0 12px;color:var(--gold)}
+.rd-h{margin:18px 0 8px;color:var(--text)}
+.rd-li{padding-left:14px;text-indent:-14px}
+.rd-code{white-space:pre;overflow-x:auto;background:var(--panel2);border:1px solid var(--line);padding:10px 12px;font-size:13px;margin:6px 0 12px;max-width:100%}
