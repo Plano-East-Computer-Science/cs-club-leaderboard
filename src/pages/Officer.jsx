@@ -27,25 +27,108 @@ import Handoff from './officer/Handoff.jsx';
 import AlumniAdmin from './officer/Alumni.jsx';
 import ResearchAdmin from './officer/Research.jsx';
 import QuantAdmin from './officer/Quant.jsx';
+import {
+  PointsTab,
+  MembersTab,
+  BadgesTab,
+  OpportunitiesTab,
+  QueueTab,
+  OfficersTab,
+  CurriculumTab,
+  CompetitionsTab,
+  PuzzlesTab,
+  EmailTab,
+  TextTab,
+  BackupTab,
+} from './officer/AdminScreens.jsx';
 
 const HOURS = [1, 2, 3, 6, 12];
 
-/** The whole console: one entry per tab, each listing the screens it mounts. Add a screen here. */
-const TABS = [
-  { id: 'meeting', label: 'Meeting', screens: [Rooms, Planner] },
-  { id: 'review', label: 'Review', screens: [Claims, EditorialsAdmin, Reports, LinkRequests, Merge] },
-  { id: 'members', label: 'Members', screens: [Records, Signoffs, Squads, Team, Raffle, Analytics, Handoff, AlumniAdmin] },
+/**
+ * Every officer tool, grouped by job. One screen shows at a time and the URL
+ * holds it (?s=<id>), so a link to any tool is shareable. `titled` screens
+ * draw no heading of their own (they came from the old /admin panel), so the
+ * shell draws one. Add a screen here.
+ */
+const GROUPS = [
   {
-    id: 'content',
-    label: 'Content',
-    screens: [Problems, DailyAdmin, Board, DataAdmin, QuantAdmin, CtfAdmin, Cycles, CompetitionAdmin, IdeasAdmin, ResearchAdmin],
+    label: 'Meeting',
+    screens: [
+      { id: 'rooms', label: 'Run a meeting', C: Rooms },
+      { id: 'planner', label: 'Plan sessions', C: Planner },
+      { id: 'points', label: 'Award points', C: PointsTab, titled: true },
+    ],
   },
-  { id: 'club', label: 'Club', screens: [Announce, Gateway, ReaderAdmin] },
+  {
+    label: 'Review',
+    screens: [
+      { id: 'claims', label: 'Claims', C: Claims },
+      { id: 'editorials', label: 'Editorials', C: EditorialsAdmin },
+      { id: 'reports', label: 'Reports', C: Reports },
+      { id: 'links', label: 'Link requests', C: LinkRequests },
+      { id: 'queue', label: 'Opportunity queue', C: QueueTab, titled: true },
+      { id: 'merge', label: 'Merge entries', C: Merge },
+    ],
+  },
+  {
+    label: 'Members',
+    screens: [
+      { id: 'members', label: 'Member list', C: MembersTab, titled: true },
+      { id: 'team', label: 'Officer roles', C: Team },
+      { id: 'badges', label: 'Badges', C: BadgesTab, titled: true },
+      { id: 'records', label: 'Verified records', C: Records },
+      { id: 'signoffs', label: 'Signed lines', C: Signoffs },
+      { id: 'squads', label: 'Squads', C: Squads },
+      { id: 'raffle', label: 'Raffle', C: Raffle },
+      { id: 'analytics', label: 'Season stats', C: Analytics },
+      { id: 'handoff', label: 'Handoff', C: Handoff },
+      { id: 'alumni', label: 'Alumni', C: AlumniAdmin },
+    ],
+  },
+  {
+    label: 'Content',
+    screens: [
+      { id: 'problems', label: 'Problem bank', C: Problems },
+      { id: 'daily', label: 'Daily problem', C: DailyAdmin },
+      { id: 'board', label: 'The Board', C: Board },
+      { id: 'puzzles', label: 'Puzzles', C: PuzzlesTab, titled: true },
+      { id: 'competitions', label: 'Competitions', C: CompetitionsTab, titled: true },
+      { id: 'prep', label: 'Prep plans and results', C: CompetitionAdmin },
+      { id: 'ctf', label: 'CTF', C: CtfAdmin },
+      { id: 'data', label: 'Data challenges', C: DataAdmin },
+      { id: 'quant', label: 'Quant rounds', C: QuantAdmin },
+      { id: 'cycles', label: 'Build cycles', C: Cycles },
+      { id: 'research', label: 'Research', C: ResearchAdmin },
+      { id: 'opportunities', label: 'Opportunities', C: OpportunitiesTab, titled: true },
+      { id: 'curriculum', label: 'Curriculum', C: CurriculumTab, titled: true },
+    ],
+  },
+  {
+    label: 'Club',
+    screens: [
+      { id: 'announce', label: 'Announcements', C: Announce },
+      { id: 'email', label: 'Weekly digest', C: EmailTab, titled: true },
+      { id: 'ideas', label: 'Ideas board', C: IdeasAdmin },
+      { id: 'gateway', label: 'Gateway', C: Gateway },
+      { id: 'reader', label: 'Reader sites', C: ReaderAdmin },
+    ],
+  },
+  {
+    label: 'Site',
+    screens: [
+      { id: 'officers', label: 'Officers on About', C: OfficersTab, titled: true },
+      { id: 'text', label: 'Page text', C: TextTab, titled: true },
+      { id: 'backup', label: 'Backup', C: BackupTab, titled: true },
+    ],
+  },
 ];
+const SCREENS = GROUPS.flatMap((g) => g.screens);
+// Links from before the merge: the old tab names land on the first screen of their group.
+const OLD_TABS = { meeting: 'rooms', review: 'claims', members: 'members', content: 'problems', club: 'announce' };
 
-/** Pending work across the review queues, from the same endpoints the screens use. */
-function useReviewCount(refreshKey) {
-  const [n, setN] = useState(null);
+/** Pending work per review queue, from the same endpoints the screens use. */
+function useReviewCounts(refreshKey) {
+  const [n, setN] = useState({});
   useEffect(() => {
     if (refreshKey == null) return;
     const len = (path, key) => api.get(path).then((d) => d[key].length).catch(() => 0);
@@ -54,41 +137,9 @@ function useReviewCount(refreshKey) {
       len('/admin/hub/editorials?status=pending', 'editorials'),
       len('/admin/hub/reports?status=open', 'reports'),
       len('/admin/hub/links', 'requests'),
-    ]).then((c) => setN(c.reduce((a, b) => a + b, 0)));
+    ]).then(([claims, editorials, reports, links]) => setN({ claims, editorials, reports, links }));
   }, [refreshKey]);
   return n;
-}
-
-function Tabs({ active, onSelect, counts }) {
-  const onKey = (e) => {
-    const i = TABS.findIndex((t) => t.id === active);
-    const next = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: TABS.length - 1 }[e.key];
-    if (next === undefined) return;
-    e.preventDefault();
-    const t = TABS[(next + TABS.length) % TABS.length];
-    onSelect(t.id);
-    document.getElementById(`otab-${t.id}`)?.focus();
-  };
-  return (
-    <div role="tablist" aria-label="Officer console sections" className="otabs" onKeyDown={onKey}>
-      {TABS.map((t) => (
-        <button
-          key={t.id}
-          id={`otab-${t.id}`}
-          type="button"
-          role="tab"
-          aria-selected={t.id === active}
-          aria-controls={`opanel-${t.id}`}
-          tabIndex={t.id === active ? 0 : -1}
-          className="otab"
-          onClick={() => onSelect(t.id)}
-        >
-          {t.label}
-          {counts[t.id] > 0 && <span className="otab-n">{counts[t.id]}</span>}
-        </button>
-      ))}
-    </div>
-  );
 }
 
 /** Timestamps may arrive as ms numbers or SQLite "YYYY-MM-DD HH:MM:SS" (UTC). */
@@ -121,13 +172,22 @@ function CopyButton({ text, label = 'Copy' }) {
 export default function Officer() {
   const [session, setSession] = useState(null);
   const [params, setParams] = useSearchParams();
-  const tab = TABS.find((t) => t.id === params.get('tab')) || TABS[0];
-  const reviewCount = useReviewCount(session?.authed ? tab.id : null);
+  const [flash, setFlash] = useState(null);
+  const id = params.get('s') || OLD_TABS[params.get('tab')] || 'rooms';
+  const screen = SCREENS.find((s) => s.id === id) || SCREENS[0];
+  const counts = useReviewCounts(session?.authed ? screen.id : null);
 
   const check = useCallback(() => {
     api.get('/admin/session').then(setSession).catch(() => setSession({ authed: false }));
   }, []);
   useEffect(check, [check]);
+
+  // The old admin screens report through one status line.
+  const say = useCallback((message, tone = 'ok') => {
+    setFlash({ message, tone });
+    setTimeout(() => setFlash(null), 4000);
+  }, []);
+  useEffect(() => setFlash(null), [screen.id]);
 
   if (session === null) return <Spinner label="Checking session" />;
   if (!session.authed) return <Login user={session.user} onIn={check} />;
@@ -138,31 +198,69 @@ export default function Officer() {
     if (officer.userId) await api.post('/auth/logout');
     check();
   };
+  const go = (next) => setParams({ s: next });
+  const pending = (s) => counts[s.id] || 0;
+  const groupPending = (g) => g.screens.reduce((n, s) => n + pending(s), 0);
+  const Screen = screen.C;
 
   return (
-    <div className="grid gap-12">
-      <header className="flex flex-wrap items-end justify-between gap-4">
+    <div className="ofc">
+      <header className="ofc-head">
         <div>
           <p className="eyebrow">Officers</p>
-          <h1 className="display mt-1 text-3xl font-extrabold">Meeting console</h1>
-          <p className="mono mt-1 text-xs" style={{ color: 'var(--ink-soft)' }}>
-            Signed in as {officer.name} ({officer.role})
-          </p>
+          <h1 className="ofc-title">Officer tools</h1>
         </div>
-        <div className="flex gap-2">
-          <Link to="/admin" className="btn btn-ghost" style={{ textDecoration: 'none' }}>
-            Full admin panel
-          </Link>
-          <button className="btn btn-ghost" onClick={signOut}>
+        <div className="ofc-who">
+          <span>
+            {officer.name} <i>{officer.role}</i>
+          </span>
+          <button type="button" className="si-link" onClick={signOut}>
             Sign out
           </button>
         </div>
       </header>
-      <Tabs active={tab.id} onSelect={(id) => setParams({ tab: id }, { replace: true })} counts={{ review: reviewCount }} />
-      <div role="tabpanel" id={`opanel-${tab.id}`} aria-labelledby={`otab-${tab.id}`} className="grid gap-12">
-        {tab.screens.map((Screen, i) => (
-          <Screen key={i} />
-        ))}
+
+      <div className="ofc-shell">
+        <nav className="ofc-side" aria-label="Officer tools">
+          {GROUPS.map((g) => (
+            <section key={g.label}>
+              <p className="ofc-g">
+                {g.label}
+                {groupPending(g) > 0 && <span className="ofc-n">{groupPending(g)}</span>}
+              </p>
+              {g.screens.map((s) => (
+                <Link key={s.id} to={`?s=${s.id}`} aria-current={s.id === screen.id ? 'page' : undefined}>
+                  {s.label}
+                  {pending(s) > 0 && <span className="ofc-n">{pending(s)}</span>}
+                </Link>
+              ))}
+            </section>
+          ))}
+        </nav>
+
+        <label className="ofc-pick">
+          <span>Tool</span>
+          <select className="field" value={screen.id} onChange={(e) => go(e.target.value)}>
+            {GROUPS.map((g) => (
+              <optgroup key={g.label} label={g.label}>
+                {g.screens.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.label}
+                    {pending(s) > 0 ? ` (${pending(s)})` : ''}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
+        </label>
+
+        <div className="ofc-main" id="officer-screen">
+          <div className={`ofc-flash${flash ? ` ${flash.tone === 'ok' ? 'ok' : 'bad'}` : ''}`} role="status">
+            {flash?.message}
+          </div>
+          {screen.titled && <h2 className="ofc-h">{screen.label}</h2>}
+          <Screen key={screen.id} say={say} actionsUrl={session.actions_url} />
+        </div>
       </div>
     </div>
   );
@@ -189,57 +287,57 @@ function Login({ user, onIn }) {
   };
 
   return (
-    <div className="mx-auto max-w-sm py-16">
-      <p className="eyebrow">Officers</p>
-      <h1 className="display mt-2 mb-1 text-3xl font-extrabold">Meeting console</h1>
-      <div className="card mt-6 grid gap-3 p-5">
+    <div className="si">
+      <div className="si-card">
+        <header className="si-head">
+          <p className="eyebrow">Officers</p>
+          <h1 className="si-title">Officer tools</h1>
+        </header>
         {user ? (
-          <p className="text-sm">
-            You are signed in as <b>{user.name}</b>, which is not an officer account. Ask a club lead to give
-            you the officer role.
+          <p className="si-lede">
+            You are signed in as <b>{user.name}</b>, which is not an officer account. Ask a club lead to give you the
+            officer role.
           </p>
         ) : (
-          <>
-            <p className="text-sm" style={{ color: 'var(--ink-soft)' }}>
-              Officers use their own club account. Sign in, then come back to this page.
+          <div className="si-form">
+            <p className="si-lede" style={{ marginTop: 0 }}>
+              Officers use their own club account. Sign in, then come back here.
             </p>
-            <Link to="/signin" className="btn btn-primary" style={{ textDecoration: 'none' }}>
-              Sign in with your account
+            <Link to="/signin" className="btn btn-primary si-go" style={{ textDecoration: 'none' }}>
+              Sign in
             </Link>
-          </>
+          </div>
         )}
-      </div>
 
-      {!glass ? (
-        <button type="button" className="btn btn-ghost mt-4" onClick={() => setGlass(true)}>
-          Use the shared password (break-glass)
-        </button>
-      ) : (
-        <form onSubmit={submit} className="card mt-4 grid gap-3 p-5">
-          <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>
-            For when no officer account works, or to make the first lead. Everything you do is logged as shared login.
-          </p>
-          <label className="grid gap-1.5">
-            <span className="eyebrow">Shared password</span>
-            <input
-              className="field"
-              type="password"
-              value={password}
-              autoFocus
-              autoComplete="current-password"
-              onChange={(e) => setPassword(e.target.value)}
-            />
-          </label>
-          {error && (
-            <p className="mono text-xs" style={{ color: '#c42e2e' }}>
-              {error}
-            </p>
+        <div className="si-foot">
+          {!glass ? (
+            <button type="button" className="si-link" onClick={() => setGlass(true)}>
+              Use the shared password (break-glass)
+            </button>
+          ) : (
+            <form onSubmit={submit} className="si-form" style={{ width: '100%' }}>
+              <p className="si-field">
+                <small>For when no officer account works, or to make the first lead. Everything you do is logged as shared login.</small>
+              </p>
+              <label className="si-field">
+                <span>Shared password</span>
+                <input
+                  className="field"
+                  type="password"
+                  value={password}
+                  autoFocus
+                  autoComplete="current-password"
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+              </label>
+              {error && <p role="alert" className="si-err">{error}</p>}
+              <button className="btn btn-ghost si-go" disabled={busy || !password}>
+                {busy ? 'Checking' : 'Sign in with the shared password'}
+              </button>
+            </form>
           )}
-          <button className="btn btn-primary" disabled={busy || !password}>
-            {busy ? 'Signing in' : 'Sign in'}
-          </button>
-        </form>
-      )}
+        </div>
+      </div>
     </div>
   );
 }

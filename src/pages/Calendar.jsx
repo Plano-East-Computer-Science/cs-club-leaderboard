@@ -238,7 +238,7 @@ export default function CalendarPage() {
                       <li><i>1</i>Create a Google Calendar for the club (or use an existing one).</li>
                       <li><i>2</i>Settings, that calendar, Access permissions, make it public.</li>
                       <li><i>3</i>Settings, Integrate calendar, copy the embed URL and the public URL.</li>
-                      <li><i>4</i>Paste both into Admin, Page text.</li>
+                      <li><i>4</i>Paste both into Officer tools, Page text.</li>
                     </ol>
                   </div>
                 )}

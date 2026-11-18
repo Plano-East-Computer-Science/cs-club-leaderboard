@@ -136,7 +136,7 @@ export default function Leaderboard() {
         <section className="sec">
           <div className="wrap">
             <p className="sub">
-              Officers: the full ranked list and the raffle draw are in the <Link className="g uline" to="/officer#raffle">meeting console</Link>.
+              Officers: the full ranked list and the raffle draw are in the <Link className="g uline" to="/officer?s=raffle">officer tools</Link>.
             </p>
           </div>
         </section>

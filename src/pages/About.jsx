@@ -40,7 +40,7 @@ export default function About() {
         <div className="wrap">
           <div className="ab">
             <Pane file="about.md" meta="plano east shs" cls="a">
-              {intro ? <Paras section={intro} /> : <div className="pn-b"><p className="d">No about text yet. An officer can add it in Admin, Page text.</p></div>}
+              {intro ? <Paras section={intro} /> : <div className="pn-b"><p className="d">No about text yet. An officer can add it under Officer tools, Page text.</p></div>}
             </Pane>
 
             {pointsSec && (
