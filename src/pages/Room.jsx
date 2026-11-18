@@ -12,6 +12,7 @@ import { useUser } from '../lib/useUser.js';
 import { useRoomSocket } from '../lib/useRoomSocket.js';
 import { Spinner } from '../components/bits.jsx';
 import { DuelPlay, Notice, PartnerCard } from './Duel.jsx';
+import { ContestPlay } from './Contest.jsx';
 import { BlockTimer, ExitCard, HelpQueue, LabPlay, NoteBox, ShowPlay, SpeakerPlay, blockOf } from './Session.jsx';
 
 const GOOD = '#2f8f5b';
@@ -260,6 +261,9 @@ function BlockView({ state, send, skew }) {
     case 'duel':
       main = state.duel ? <DuelPlay duel={state.duel} send={send} skew={skew} /> : <Waiting title={block.title}>The duel opens in a moment.</Waiting>;
       break;
+    case 'contest':
+      main = state.contest ? <ContestPlay c={state.contest} send={send} skew={skew} /> : <Waiting title={block.title}>The contest opens in a moment.</Waiting>;
+      break;
     case 'show':
       main = <ShowPlay show={state.show} earned={state.earned} send={send} />;
       break;
@@ -301,7 +305,7 @@ function InRoom({ code }) {
 
   const block = state && blockOf(state);
   // A lab or a live duel needs room for the statement beside the editor.
-  const wide = (block?.type === 'lab' && state.lab?.tier != null) || (state?.duel?.phase === 'live' && state.duel.match);
+  const wide = (block?.type === 'lab' && state.lab?.tier != null) || (state?.duel?.phase === 'live' && state.duel.match) || (block?.type === 'contest' && state?.contest?.team && state.contest.phase !== 'setup');
 
   return (
     <div className={`mx-auto ${wide ? 'max-w-6xl' : 'max-w-xl'}`}>
@@ -317,7 +321,7 @@ function InRoom({ code }) {
             {status === 'open' ? `${state?.here ?? 0} here` : status === 'connecting' ? 'Connecting...' : 'Reconnecting...'}
           </p>
         </div>
-        {state && <BlockTimer session={state.session} skew={skew} />}
+        {state && !(block?.type === 'contest' && state.contest) && <BlockTimer session={state.session} skew={skew} />}
       </header>
 
       {!state ? (

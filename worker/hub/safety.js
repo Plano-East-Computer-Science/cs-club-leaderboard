@@ -138,6 +138,7 @@ export async function exportFor(db, user) {
     arena_placement: (await db.prepare('SELECT answers, start, focus FROM board_placement WHERE user_id = ?').bind(id).first()) ?? null,
     daily_results: await rows(db, 'SELECT date, attempts, solved_at, ms FROM daily_results WHERE user_id = ?', id),
     duel_results: await rows(db, 'SELECT room_code, round, division, slug, attempts, solved_ms, won, code FROM duel_results WHERE user_id = ?', id),
+    contest_attempts: await rows(db, 'SELECT room_code, team_id, slug, ok, ms, code, created_at FROM contest_attempts WHERE user_id = ?', id),
     codeforces_solves: await rows(db, 'SELECT contest_id, idx, rating, solved_at FROM cf_solves WHERE user_id = ?', id),
     link_request: (await db.prepare('SELECT student_id, created_at FROM link_requests WHERE user_id = ?').bind(id).first()) ?? null,
     reports_filed: await rows(db, 'SELECT kind, target_id, reason, status, created_at FROM reports WHERE reporter_user_id = ?', id),
@@ -194,7 +195,7 @@ export async function purgeUser(db, id) {
 
   for (const t of [
     'step_progress', 'room_checkins', 'projects', 'link_requests', 'ideas', 'idea_votes', 'kudos', 'opportunity_interest',
-    'daily_results', 'rung_progress', 'board_placement', 'duel_results', 'cf_solves', 'cf_challenges', 'record_codes', 'artifacts',
+    'daily_results', 'rung_progress', 'board_placement', 'duel_results', 'cf_solves', 'cf_challenges', 'record_codes', 'artifacts', 'contest_attempts',
   ]) {
     mine(`DELETE FROM ${t} WHERE user_id = ?`, id); // t is from the fixed list above, never input
   }

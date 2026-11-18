@@ -36,7 +36,7 @@ for (const [id, t] of Object.entries(TEMPLATES)) {
     assert.ok(labCheckpoints(b).every((c) => c.length > 0), `${id}: every tier has checkpoints from a real course`);
   }
 }
-assert.ok(templateBlocks('mock').some((b) => b.type === 'duel'), 'mock contest stands in as a duel block until B5');
+assert.ok(templateBlocks('mock').some((b) => b.type === 'contest'), 'mock contest runs the B5 team contest block');
 assert.deepEqual(templateBlocks('nope'), []);
 // Validation: bad types dropped, text trimmed, minutes bounded, bad lab sources fall back.
 {
