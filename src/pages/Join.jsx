@@ -13,7 +13,7 @@ export default function Join() {
 
   const code = settings.join_classroom_code?.trim();
   const club = useClub();
-  const meets = meetingLine(club?.meeting); // V3-A: the structured meeting settings win over the old free text
+  const meets = meetingLine(club?.meeting); // V3-A: day, time and place from /api/club; the free text adds detail
   const meeting = settings.join_meeting_info?.trim();
   const toggle = (n) =>
     setDone((s) => {
@@ -82,19 +82,14 @@ export default function Join() {
               <div className="pane-h"><span><b>step_3</b></span><span /></div>
               <div className="pn-b">
                 <div className="hd"><span className="no">--</span><h2>Meeting</h2></div>
-                {meets ? (
-                  <>
-                    <p className="g">{meets}</p>
-                    {club.meeting.note && <p className="d">{club.meeting.note}</p>}
-                  </>
-                ) : meeting ? (
+                {meets && <p className="g">{meets}</p>}
+                {club?.meeting.note && <p className="d">{club.meeting.note}</p>}
+                {meeting &&
                   parseSections(meeting).flatMap((s, i) => [
                     s.h && <p key={`h${i}`} className="g">{s.h}</p>,
                     ...s.blocks.map((b, k) => (b.p ? <p key={`${i}p${k}`} className="d">{b.p}</p> : <ul key={`${i}u${k}`} className="ul">{b.ul.map((t, j) => <li key={j}>{t}</li>)}</ul>)),
-                  ])
-                ) : (
-                  <p className="d">Day, time, and room have not been posted here yet. Ask an officer or check the school announcements.</p>
-                )}
+                  ])}
+                {!meets && !meeting && <p className="d">Day, time, and room have not been posted here yet. Ask an officer.</p>}
               </div>
             </article>
           </div>

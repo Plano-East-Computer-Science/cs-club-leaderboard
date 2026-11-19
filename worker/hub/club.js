@@ -16,6 +16,13 @@ export const clubRouter = new Hono();
 
 export const MEETING_KEYS = ['meeting_day', 'meeting_time', 'meeting_place', 'meeting_note'];
 
+/**
+ * When an officer has set nothing: the club meets Wednesdays at 4:30 PM
+ * (Central, the school's time). No default place: the room changes, and the
+ * pages leave the place out rather than guess.
+ */
+export const MEETING_DEFAULTS = { meeting_day: 'Wednesday', meeting_time: '4:30 PM', meeting_place: '', meeting_note: '' };
+
 /** The next not-yet-held planned session in public form, or null. */
 async function nextSession(db, today) {
   const r = await db
@@ -36,7 +43,7 @@ async function nextSession(db, today) {
 
 export async function clubInfo(db, today = chicagoDate()) {
   const settings = await getAllSettings(db);
-  const [day, time, place, note] = MEETING_KEYS.map((k) => String(settings[k] ?? '').trim());
+  const [day, time, place, note] = MEETING_KEYS.map((k) => String(settings[k] ?? '').trim() || MEETING_DEFAULTS[k]);
   return {
     meeting: { day, time, place, note },
     next: await nextSession(db, today),

@@ -20,7 +20,9 @@ export default function About() {
   const intro = secs.find((s) => !s.h);
   const named = secs.filter((s) => s.h);
   const pointsSec = named.find((s) => /point/i.test(s.h));
-  const rest = named.filter((s) => s !== pointsSec);
+  // The page text's own "Meetings" section joins the day and time from /api/club in one pane.
+  const meetSec = named.find((s) => s !== pointsSec && /meeting/i.test(s.h));
+  const rest = named.filter((s) => s !== pointsSec && s !== meetSec);
 
   const heading = (settings.about_heading || 'About the club').replace(/\.$/, '');
   const words = heading.split(' ');
@@ -61,16 +63,19 @@ export default function About() {
             </Pane>
 
             <div className="m" style={{ display: 'grid', gap: 16, alignContent: 'start' }}>
-              {(meets || club?.meeting.note) && (
-                <Pane file="meetings" meta="when and where">
-                  <div className="pn-b">
-                    {meets && <p className="g">{meets}</p>}
-                    {club.meeting.note && <p className="d">{club.meeting.note}</p>}
-                  </div>
+              {(meets || club?.meeting.note || meetSec) && (
+                <Pane file={meetSec ? slug(meetSec.h) : 'meetings'} meta="when and where">
+                  {(meets || club?.meeting.note) && (
+                    <div className="pn-b" style={meetSec ? { paddingBottom: 0 } : undefined}>
+                      {meets && <p className="g">{meets}</p>}
+                      {club.meeting.note && <p className="d">{club.meeting.note}</p>}
+                    </div>
+                  )}
+                  {meetSec && <Paras section={meetSec} />}
                 </Pane>
               )}
               {rest.map((s) => (
-                <Pane key={s.h} file={slug(s.h)} meta={/meeting/i.test(s.h) ? 'when and where' : 'read me'}>
+                <Pane key={s.h} file={slug(s.h)} meta="read me">
                   <Paras section={s} />
                 </Pane>
               ))}
