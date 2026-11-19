@@ -715,6 +715,8 @@ export class Room {
       session: { kind: sess.kind, template: sess.template, blocks: host ? sess.blocks : studentBlocks(sess.blocks), cur: sess.cur, startedAt: sess.startedAt, endsAt: sess.endsAt },
       // B4: what counts so far. The host sees how many have one; a student sees their own.
       exits: host ? Object.keys(s.exits).length : undefined,
+      // V3-A: everyone who checked in and connected, for the end-room warning.
+      joined: host ? Object.keys(s.names).length : undefined,
       exit: host ? undefined : (s.exits[uid] ?? null),
       // B7: the projector shows the length only; names are for the officer console and members who can help.
       helpOpen: openHelp.length,

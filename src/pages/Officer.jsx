@@ -19,6 +19,7 @@ import CtfAdmin from './officer/Ctf.jsx';
 import CompetitionAdmin from './officer/Competition.jsx';
 import Analytics from './officer/Analytics.jsx';
 import TemplatePicker from './officer/TemplatePicker.jsx';
+import { endWarning } from '../../shared/session-templates.js';
 import DataAdmin from './officer/Data.jsx';
 import Planner from './officer/Planner.jsx';
 import EditorialsAdmin from './officer/Editorials.jsx';
@@ -469,6 +470,7 @@ function Rooms() {
   const [open, setOpen] = useState(null);
   const [attendees, setAttendees] = useState({});
   const [awardMsg, setAwardMsg] = useState({});
+  const [closing, setClosing] = useState(null); // V3-A: the room whose in-page close confirm is showing
 
   const load = useCallback(() => {
     api.get('/admin/hub/rooms').then((d) => setRooms(d.rooms)).catch((e) => setError(e.message));
@@ -586,11 +588,22 @@ function Rooms() {
                     Host
                   </Link>
                   {isOpen && (
-                    <button className="btn btn-danger" onClick={() => close(r.code)}>
+                    <button className="btn btn-danger" onClick={() => setClosing(r.code)} aria-expanded={closing === r.code}>
                       Close
                     </button>
                   )}
                 </div>
+                {isOpen && closing === r.code && (
+                  <div className="ses-end mt-3 border p-3" role="alertdialog" aria-label={`Close room ${r.code}?`}>
+                    {endWarning({ joined: r.attendees, exits: r.eligible ?? 0, dropin: r.kind === 'dropin' }).map((l) => (
+                      <p key={l} className="text-sm">{l}</p>
+                    ))}
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <button className="btn btn-danger" autoFocus onClick={() => { setClosing(null); close(r.code); }}>Close and pay</button>
+                      <button className="btn btn-ghost" onClick={() => setClosing(null)}>Keep it open</button>
+                    </div>
+                  </div>
+                )}
                 {awardMsg[r.code] && (
                   <p className="mono mt-2 text-xs" role="status" style={{ color: 'var(--up)' }}>{awardMsg[r.code]}</p>
                 )}
@@ -606,7 +619,7 @@ function Rooms() {
                           <li key={i} className="flex flex-wrap gap-x-3 text-sm">
                             <span className="font-medium">{a.name}</span>
                             <span className="mono text-xs" style={{ color: 'var(--ink-faint)' }}>
-                              {a.email} · {when(a.joined_at)} · {a.exit_kind ? `counts (${a.exit_kind})` : 'no exit artifact yet'}
+                              {a.email} · {when(a.joined_at)} · {a.exit_kind ? `bonus (${a.exit_kind})` : 'checked in only'}
                             </span>
                             {a.exit_note && <span className="w-full text-xs" style={{ color: 'var(--ink-soft)' }}>{a.exit_note}</span>}
                           </li>

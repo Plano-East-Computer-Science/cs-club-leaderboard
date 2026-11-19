@@ -8,7 +8,7 @@ import fs from 'node:fs';
 import { makeTestDb } from './d1-shim.js';
 import { Room } from '../worker/hub/room-do.js';
 import * as S from '../worker/hub/session.js';
-import { cleanBlocks } from '../shared/session-templates.js';
+import { cleanBlocks, endWarning } from '../shared/session-templates.js';
 import { awardAttendance } from '../worker/hub/rooms.js';
 import { POINT_RULES, pointsFor } from '../shared/points.js';
 
@@ -108,6 +108,29 @@ await check('ending mid-lab pays all three who checked in; doing something adds 
   const cy = await db.prepare(`${MEET} AND student_id = 12`).first();
   assert.equal(cy.p, attend + POINT_RULES.active.points, 'caps hold across rooms on one day');
   assert.equal(pointsFor('active', {}, [{ kind: 'active', at: '2026-11-18 15:00:00', points: 3 }], undefined, '2026-11-18 18:00:00'), 0);
+});
+
+/* ----------------------------- 3. end-room warning ----------------------------- */
+
+await check('the end-room warning says who is paid and what is unusual', async () => {
+  assert.deepEqual(endWarning({ joined: 12, exits: 9 }), ['12 checked in will be paid attendance.', '3 have not done anything else yet, so no bonus.']);
+  assert.deepEqual(endWarning({ joined: 2, exits: 1, dropin: true }), ['2 checked in will be paid the drop-in amount.', '1 has not done anything else yet, so no bonus.']);
+  assert.deepEqual(endWarning({ joined: 4, exits: 4 }), ['4 checked in will be paid attendance.']);
+  assert.equal(endWarning({ joined: 0 })[0], 'Nobody has checked in, so nobody is paid.');
+  const w = endWarning({ joined: 3, exits: 3, duelLive: true, contestLive: true, helpOpen: 1 });
+  assert.ok(w.some((l) => l.startsWith('A duel round')) && w.some((l) => l.startsWith('The contest')) && w.includes('1 help request is still open.'));
+});
+
+await check('the host view counts who joined; a student view does not', async () => {
+  const db = makeTestDb(SCHEMA);
+  const host = new Ws({ role: 'host', uid: 'host' });
+  const ana = new Ws({ role: 'student', uid: '1', name: 'Ana' });
+  const room = makeRoom(db, [host, ana], 'JOIN');
+  await new Promise((r) => setTimeout(r, 0));
+  Object.assign(room.s, { names: { 1: 'Ana', 2: 'Ben' }, exits: { 1: 'poll' } });
+  assert.equal(room.view('host', 'host').joined, 2);
+  assert.equal(room.view('host', 'host').exits, 1);
+  assert.equal(room.view('student', '1').joined, undefined);
 });
 
 console.log(`trust: ${passed} checks passed`);

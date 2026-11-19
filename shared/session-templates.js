@@ -144,6 +144,27 @@ export function cleanBlocks(blocks) {
   });
 }
 
+const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+
+/**
+ * V3-A: what ending a room will do, for the in-page confirm on the host
+ * console. `joined` is everyone who checked in and connected, `exits` those
+ * who did something that earns the bonus. Returns sentences, plainest first.
+ */
+export function endWarning({ joined = 0, exits = 0, dropin = false, duelLive = false, contestLive = false, helpOpen = 0 }) {
+  const out = [];
+  if (!joined) out.push('Nobody has checked in, so nobody is paid.');
+  else {
+    out.push(`${joined} checked in will be paid ${dropin ? 'the drop-in amount' : 'attendance'}.`);
+    const quiet = Math.max(0, joined - exits);
+    if (quiet) out.push(`${plural(quiet, 'has', 'have')} not done anything else yet, so no bonus.`);
+  }
+  if (duelLive) out.push('A duel round is still running. Ending scores it as it stands.');
+  if (contestLive) out.push('The contest is still running. Ending closes submissions now.');
+  if (helpOpen) out.push(`${plural(helpOpen, 'help request is', 'help requests are')} still open.`);
+  return out;
+}
+
 /** Blocks as a member's laptop may see them: officer notes removed. */
 export const studentBlocks = (blocks) => (blocks ?? []).map(({ notes, ...rest }) => rest);
 
