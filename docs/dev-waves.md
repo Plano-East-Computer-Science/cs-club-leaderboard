@@ -96,3 +96,18 @@ Test on dev:
 3. Officer tools > Content > Duel packs shows both packs with their problems.
 
 Roll back: Revert the PR. The problem_sets table and the pack problems stay in the database, unused.
+
+## Wave 4: new look, shell, front door, Today (2026-11-19)
+
+| PR | What |
+| --- | --- |
+| this PR | Self-hosted fonts (readable sans for text), new colour and type tokens applied to every page, a component kit in src/ui, the new app shell (Today, Practice, Build, Compete, Me, a green Live pill when a room is open, Ctrl+K search, HQ for officers, phone bottom tabs), the public front door, and a new Today |
+
+Test on dev:
+1. Signed out: the front door says Wednesdays 4:30 PM, shows tracks with real problems and opportunities, one "Create your account" button.
+2. Signed in: Today shows one next step, this week, the club feed and your standing. A new account sees "Your first meeting earns 10 points" instead of a rank.
+3. Open a room as an officer: every page shows a green Live pill; Today puts the room at the top.
+4. Phone: five tabs along the bottom. Ctrl+K (or /) opens search on a laptop.
+5. Practice, Build, Compete and Me still show the old pages inside the new shell; those are rebuilt in Wave 7.
+
+Roll back: Revert this PR. No database changes (one new members-only route, /api/me/live).
