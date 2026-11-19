@@ -1,6 +1,6 @@
 /**
  * One club competition (E4): what it is, who is signed up, and what to
- * practise first. Officers set the prep plan and enter results from the
+ * practice first. Officers set the prep plan and enter results from the
  * officer console, not here.
  */
 import { useCallback, useEffect, useState } from 'react';
@@ -86,7 +86,7 @@ export default function Competition() {
             </div>
           </Pane>
 
-          <Pane file="prep-plan" meta="what to practise">
+          <Pane file="prep-plan" meta="what to practice">
             <div className="pn-b">
               {!prep.rungs.length && !prep.problems.length ? (
                 <p className="d">The officers have not posted a plan yet.</p>

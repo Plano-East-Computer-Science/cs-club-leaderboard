@@ -92,7 +92,7 @@ export default function CompetitionAdmin() {
         <p className="eyebrow">Competitions</p>
         <h2 className="display mt-1 text-2xl font-bold">Prep plan and results</h2>
         <p className="mt-2 max-w-2xl text-sm" style={{ color: 'var(--ink-soft)' }}>
-          Pick what the team should practise, then after the event record who took part and who placed. Points are paid once
+          Pick what the team should practice, then after the event record who took part and who placed. Points are paid once
           per person and approved as you. Saving again only adds what is new.
         </p>
       </div>
