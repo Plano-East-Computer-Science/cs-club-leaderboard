@@ -59,7 +59,7 @@ function useAction(say, reload) {
 
 // Attendance is paid by closing the room, not from here. Amounts for things the
 // ledger also pays come from shared/points.js so the two never disagree (V3-A).
-const PRESETS = [
+export const PRESETS = [
   { amount: 10, reason: 'Helped run a club event' },
   { amount: 20, reason: 'Taught a workshop' },
   { amount: POINT_RULES.ship.points, reason: 'Finished and demoed a project' },
@@ -1299,7 +1299,11 @@ const TEXT_FIELDS = [
   ['discord_webhook_url', 'Discord webhook URL', 'input'],
 ];
 
-export function TextTab({ say }) {
+/**
+ * `show` picks which fields appear (Wave 5: HQ Settings splits meeting time and
+ * place from the rest of the page text). Saving writes every setting it loaded.
+ */
+export function TextTab({ say, show = () => true, title = 'Page text', hint = 'Everything the site says, in one place. The About page understands ## for headings and - for bullet points.', submitLabel = 'Save page text' }) {
   const [settings, setSettings] = useState(null);
 
   const load = useCallback(() => {
@@ -1311,7 +1315,7 @@ export function TextTab({ say }) {
   if (!settings) return <Spinner />;
 
   return (
-    <Section title="Page text" hint="Everything the site says, in one place. The About page understands ## for headings and - for bullet points.">
+    <Section title={title} hint={hint}>
       <form
         className="grid gap-4"
         onSubmit={(e) => {
@@ -1319,7 +1323,7 @@ export function TextTab({ say }) {
           act(() => api.put('/admin/settings', { settings }), 'Saved.');
         }}
       >
-        {TEXT_FIELDS.map(([key, label, kind]) => (
+        {TEXT_FIELDS.filter(([key]) => show(key)).map(([key, label, kind]) => (
           <Field
             key={key}
             label={label}
@@ -1351,7 +1355,7 @@ export function TextTab({ say }) {
             )}
           </Field>
         ))}
-        <button className="btn btn-primary justify-self-start">Save page text</button>
+        <button className="btn btn-primary justify-self-start">{submitLabel}</button>
       </form>
     </Section>
   );

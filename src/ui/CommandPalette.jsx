@@ -96,7 +96,7 @@ export default function CommandPalette({ open, onOpenChange, isOfficer }) {
 
   const pagePath = (name) => {
     const n = ALIAS[name] || name;
-    if (n === 'officer' || n === 'admin') return isOfficer ? '/officer' : null;
+    if (n === 'officer' || n === 'admin') return isOfficer ? '/hq' : null;
     return PAGES.find((p) => p[0] === n)?.[1] ?? null;
   };
 

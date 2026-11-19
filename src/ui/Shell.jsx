@@ -133,7 +133,7 @@ export function TopBar({ onSearch }) {
             <kbd className="ui-kbd ui-search__k">Ctrl K</kbd>
           </button>
           {isOfficerRole(user) && (
-            <NavLink to="/officer" className="ui-hq" aria-label="HQ, officer tools">
+            <NavLink to="/hq" className="ui-hq" aria-label="HQ, officer tools">
               <Gauge size={20} aria-hidden="true" />
               <span>HQ</span>
             </NavLink>
