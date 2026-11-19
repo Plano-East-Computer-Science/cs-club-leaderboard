@@ -9,6 +9,8 @@ import { makeTestDb } from './d1-shim.js';
 import { Room } from '../worker/hub/room-do.js';
 import * as S from '../worker/hub/session.js';
 import { cleanBlocks } from '../shared/session-templates.js';
+import { awardAttendance } from '../worker/hub/rooms.js';
+import { POINT_RULES, pointsFor } from '../shared/points.js';
 
 const SCHEMA = fs.readFileSync(new URL('../worker/schema.sql', import.meta.url), 'utf8');
 let passed = 0;
@@ -84,6 +86,28 @@ await check('cleanBlocks keeps notes and screen apart and bounds both', async ()
   assert.equal(x.screen, 'Look up');
   const [legacy] = cleanBlocks([{ type: 'hook', title: 'Old', minutes: 3, notes: 'old text' }]);
   assert.deepEqual([legacy.notes, legacy.screen], ['old text', ''], 'legacy notes stay officer-only');
+});
+
+/* --------------------------- 2. attendance on check-in --------------------------- */
+
+await check('ending mid-lab pays all three who checked in; doing something adds the capped bonus', async () => {
+  const db = makeTestDb(SCHEMA);
+  db.exec(`INSERT INTO students (id, name) VALUES (10, 'Ana'), (11, 'Ben'), (12, 'Cy');
+    INSERT INTO users (id, email, name, student_id) VALUES (1, 'a@x.org', 'Ana', 10), (2, 'b@x.org', 'Ben', 11), (3, 'c@x.org', 'Cy', 12);
+    INSERT INTO rooms (code, title, kind, template) VALUES ('LAB1', 'Lab night', 'meeting', 'build'), ('LAB2', 'Second room', 'meeting', 'build');
+    INSERT INTO room_checkins (code, user_id, exit_kind) VALUES ('LAB1', 1, NULL), ('LAB1', 2, NULL), ('LAB1', 3, 'lab'), ('LAB2', 3, 'poll')`);
+  const r = await awardAttendance(db, 'LAB1');
+  assert.deepEqual(r, { awarded: 3, alreadyHad: 0, unlinked: 0, noExit: 2, bonus: 1 }, 'was 0 of 3 before V3-A');
+  // Only attendance and its bonus here: a first meeting also finishes a quest, which pays on its own.
+  const MEET = `SELECT student_id, SUM(points) AS p FROM activity WHERE kind IN ('attend', 'active')`;
+  const pts = (await db.prepare(`${MEET} GROUP BY student_id ORDER BY student_id`).all()).results;
+  const attend = POINT_RULES.attend.points * 2; // first three meetings double
+  assert.deepEqual(pts.map((x) => x.p), [attend, attend, attend + POINT_RULES.active.points]);
+  // Same day, second room: attendance is once a day, and so is the bonus.
+  await awardAttendance(db, 'LAB2');
+  const cy = await db.prepare(`${MEET} AND student_id = 12`).first();
+  assert.equal(cy.p, attend + POINT_RULES.active.points, 'caps hold across rooms on one day');
+  assert.equal(pointsFor('active', {}, [{ kind: 'active', at: '2026-11-18 15:00:00', points: 3 }], undefined, '2026-11-18 18:00:00'), 0);
 });
 
 console.log(`trust: ${passed} checks passed`);

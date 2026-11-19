@@ -478,7 +478,7 @@ export function Projector({ state, code, skew, tok }) {
         <p className="eyebrow">{BLOCK_LABEL[block.type]}</p>
         <h1>{block.title}</h1>
         {block.screen && <p className="ses-sub">{block.screen}</p>}
-        {block.type === 'close' && <p className="ses-sub g">Before you go: write one line about what you did today. That is what makes your attendance count.</p>}
+        {block.type === 'close' && <p className="ses-sub g">Before you go: write one line about what you did today.</p>}
       </div>
     );
   }
@@ -516,18 +516,18 @@ const EXIT_LABEL = {
   note: 'wrote what you did',
 };
 
-/** B4: the attendance rule, stated plainly, with where this member stands. */
+/** B4, V3-A: the attendance rule, stated plainly, with where this member stands. */
 export function ExitCard({ exit, dropin }) {
   return (
     <section className={`ses-exit ${exit ? 'ok' : ''}`} aria-label="Attendance" role="status">
       {exit ? (
-        <p><b>Attendance: counts.</b> You checked in and {EXIT_LABEL[exit] ?? 'did something'}. It is paid when the room closes.</p>
+        <p><b>Attendance: counts, plus a bonus.</b> You checked in and {EXIT_LABEL[exit] ?? 'did something'}. Both are paid when the room closes.</p>
       ) : (
         <p>
-          <b>Attendance: checked in, one thing to go.</b>{' '}
+          <b>Attendance: counts.</b> You are checked in, so it is paid when the room closes.{' '}
           {dropin
-            ? 'It counts once you write one line about what you did, or help someone.'
-            : 'It counts once you do one thing here: answer a poll, pass a lab checkpoint, try a duel or contest problem, share in show, help someone, or write one line at the close.'}
+            ? 'Write one line about what you did, or help someone, for a small bonus.'
+            : 'Do one thing here for a small bonus: answer a poll, pass a lab checkpoint, try a duel or contest problem, share in show, help someone, or write one line at the close.'}
         </p>
       )}
     </section>

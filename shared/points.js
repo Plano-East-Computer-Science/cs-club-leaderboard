@@ -15,13 +15,16 @@
  * the same UTC day, so this only matters for activity logged near midnight.
  */
 
-export const KINDS = ['attend', 'compete', 'place', 'ship', 'mentor', 'solve', 'idea', 'daily', 'duel', 'dropin', 'manual', 'quest'];
+export const KINDS = ['attend', 'active', 'compete', 'place', 'ship', 'mentor', 'solve', 'idea', 'daily', 'duel', 'dropin', 'manual', 'quest'];
 
 /** Kinds a member can claim for themselves, pending officer approval. */
 export const CLAIM_KINDS = ['compete', 'place', 'ship'];
 
 export const POINT_RULES = {
   attend: { points: 10, perDay: 1, firstDoubled: 3 },
+  // V3-A: checking in pays `attend` (or `dropin`); doing something in the room
+  // (a poll answer, a checkpoint, a duel attempt, a show, the close note) adds this.
+  active: { points: 3, perDay: 1 },
   compete: { points: 15, perSeason: 4, approval: true },
   place: { points: 25, seasonPoints: 50, approval: true },
   ship: { points: 30, perSeason: 2, approval: true },

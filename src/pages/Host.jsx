@@ -335,7 +335,7 @@ function AskForm({ send, disabled }) {
         </label>
       </div>
       <p className="mono text-xs" style={{ color: 'var(--ink-faint)' }}>
-        Tick the correct option to score it, or leave none ticked for a poll. Answering counts as a member's exit artifact.
+        Tick the correct option to score it, or leave none ticked for a poll. Answering earns a member the attendance bonus.
       </p>
       <button className="btn btn-primary" style={{ padding: '0.8rem', justifyContent: 'center' }} disabled={!canAsk}>Ask</button>
     </form>
@@ -446,7 +446,7 @@ function CurrentBlock({ state, send, skew }) {
   } else if (block.type === 'close') {
     body = (
       <section className="card p-5">
-        <p>Members write one line about what they did. Anyone who has not done anything yet needs it for attendance.</p>
+        <p>Members write one line about what they did. Everyone checked in is paid attendance; doing one thing adds a small bonus.</p>
         <p className="mono g mt-2">{state.exits} of {state.here} here have done one thing.</p>
       </section>
     );
@@ -527,8 +527,8 @@ function Console({ code }) {
             <section className="card p-5">
               <p className="eyebrow">drop-in</p>
               <p className="mt-2">
-                No agenda. Members check in, post what they are stuck on and help each other. Attendance counts when they also
-                write one line about what they did or help someone. It pays a smaller drop-in amount, at most twice a week.
+                No agenda. Members check in, post what they are stuck on and help each other. Checking in pays a smaller drop-in
+                amount, at most twice a week. Writing one line about what they did, or helping someone, adds a small bonus.
               </p>
               <p className="mono g mt-2">{state.exits} of {state.here} here have done one thing.</p>
             </section>

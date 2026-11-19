@@ -456,7 +456,7 @@ function IdeasAdmin() {
 const paid = (d) =>
   `Paid attendance to ${d.awarded} member${d.awarded === 1 ? '' : 's'}` +
   (d.alreadyHad ? `, ${d.alreadyHad} already paid` : '') +
-  (d.noExit ? `, ${d.noExit} checked in but did nothing that counts` : '') +
+  (d.noExit ? `, ${d.noExit} did nothing else, so no bonus` : '') +
   (d.unlinked ? `. ${d.unlinked} still waiting on a link request.` : '.');
 
 function Rooms() {
@@ -580,7 +580,7 @@ function Rooms() {
                     {when(r.created_at)}
                   </span>
                   <button className="btn btn-ghost" onClick={() => toggle(r.code)} aria-expanded={open === r.code}>
-                    {r.attendees} checked in, {r.eligible ?? 0} count
+                    {r.attendees} checked in, {r.eligible ?? 0} did something
                   </button>
                   <Link to={`/host/${r.code}`} className="btn btn-ghost" style={{ textDecoration: 'none' }}>
                     Host

@@ -74,7 +74,7 @@ export async function myDeadlines(db, email) {
 /* -------------------------------- personal (F3) ------------------------------- */
 
 const KIND_LABEL = {
-  attend: 'Came to a meeting', compete: 'Competed in', place: 'Placed in', ship: 'Shipped', mentor: 'Helped someone',
+  attend: 'Came to a meeting', active: 'Took part in', compete: 'Competed in', place: 'Placed in', ship: 'Shipped', mentor: 'Helped someone',
   solve: 'Solved', idea: 'Shared an idea', daily: 'Solved the daily problem', duel: 'Played a duel',
   dropin: 'Dropped in', quest: 'Finished a quest', manual: 'Awarded by an officer',
 };

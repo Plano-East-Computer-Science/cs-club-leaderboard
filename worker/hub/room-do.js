@@ -16,7 +16,8 @@
  * Exit artifacts (B4): the first thing a student does that counts (a poll
  * answer, a passed lab checkpoint, a duel attempt, a show artifact, helping
  * someone, a "what I did" line) is written to their room_checkins row.
- * Closing the room pays attendance only to rows that have one.
+ * Closing the room pays attendance to every check-in and the `active` bonus
+ * to rows that have one (V3-A, rooms.js awardAttendance).
  */
 import { newDuel, setDivision, startRound, submit, everyoneSolved, endRound, pickSpotlight, finish, duelView, findSide, DIVISIONS } from './duel.js';
 import { makePairs, groupKeys } from './pairs.js';

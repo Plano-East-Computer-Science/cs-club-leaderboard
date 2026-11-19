@@ -364,14 +364,18 @@ function makeRoom(db, sockets, code = 'ROOM') {
   await msg(host, { t: 'takeaways', text: 'Ship small things.' });
   assert.equal((await db.prepare(`SELECT takeaways FROM rooms WHERE code = 'ROOM'`).first()).takeaways, 'Ship small things.');
 
-  // Closing pays exactly the members with an exit artifact: Ana poll, Ben and Cy lab,
-  // Dee and Eli duel, Fay note. Add a seventh who only checked in.
+  // V3-A: closing pays attendance to everyone who checked in, and the `active` bonus to the
+  // members with an exit artifact: Ana poll, Ben and Cy lab, Dee and Eli duel, Fay note.
+  // Add a seventh who only checked in: paid attendance, no bonus.
   db.exec(`INSERT INTO users (id, email, name, student_id) VALUES (7, 'g@x.org', 'Gus', NULL); INSERT INTO room_checkins (code, user_id) VALUES ('ROOM', 7)`);
   const paid = await awardAttendance(db, 'ROOM');
-  assert.deepEqual(paid, { awarded: 6, alreadyHad: 0, unlinked: 0, noExit: 1 });
+  assert.deepEqual(paid, { awarded: 7, alreadyHad: 0, unlinked: 0, noExit: 1, bonus: 6 });
   const att = (await db.prepare(`SELECT student_id, json_extract(meta, '$.exit') AS exit FROM activity WHERE kind = 'attend' ORDER BY student_id`).all()).results;
-  assert.deepEqual(att.map((a) => a.exit), ['poll', 'lab', 'lab', 'duel', 'duel', 'note']);
-  assert.equal(await (await db.prepare(`SELECT COUNT(*) AS n FROM students WHERE name = 'Gus'`).first()).n, 0, 'no exit, no entry made, no points');
+  assert.deepEqual(att.map((a) => a.exit), ['poll', 'lab', 'lab', 'duel', 'duel', 'note', null]);
+  const bonus = (await db.prepare(`SELECT COUNT(*) AS n, SUM(points) AS pts FROM activity WHERE kind = 'active'`).first());
+  assert.deepEqual({ ...bonus }, { n: 6, pts: 6 * POINT_RULES.active.points });
+  assert.equal(await (await db.prepare(`SELECT COUNT(*) AS n FROM students WHERE name = 'Gus'`).first()).n, 1, 'checking in alone puts Gus on the board');
+  assert.deepEqual(await awardAttendance(db, 'ROOM'), { awarded: 0, alreadyHad: 7, unlinked: 0, noExit: 1, bonus: 0 }, 'a second close pays nobody twice');
 }
 
 /* ------------------------------ B10 drop-in ------------------------------- */

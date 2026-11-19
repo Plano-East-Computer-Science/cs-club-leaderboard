@@ -185,7 +185,7 @@ ledgerRouter.get('/feed', async (c) => {
                 EXISTS (SELECT 1 FROM kudos k WHERE k.activity_id = a.id AND k.user_id = ?) AS mine,
                 a.student_id = ? AS own
          FROM activity a JOIN students s ON s.id = a.student_id AND s.active = 1
-         WHERE a.status = 'approved' AND a.hidden = 0
+         WHERE a.status = 'approved' AND a.hidden = 0 AND a.kind != 'active' -- the meeting bonus rides on the attend row
          ORDER BY a.decided_at DESC, a.id DESC LIMIT 30`
       )
       .bind(user?.id ?? 0, user?.student_id ?? 0)

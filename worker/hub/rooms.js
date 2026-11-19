@@ -153,12 +153,13 @@ roomsAdminRouter.get('/rooms/:code/duel', async (c) => {
 });
 
 /**
- * Closing a room pays attendance (A2). Only members who checked in with a
- * current token (every room_checkins row) AND left an exit artifact (B4) are
- * paid; the ledger applies the rules, including one attendance a day. A
- * drop-in (B10) pays the smaller `dropin` kind instead. The ref is the room
- * code, so running this again (the Award button) only pays anyone not yet
- * paid, such as someone who added their exit line late.
+ * Closing a room pays attendance (A2, V3-A). Every member who checked in with
+ * a current token (every room_checkins row) is paid `attend`, or the smaller
+ * `dropin` for a drop-in (B10). A member who also did something in the room
+ * (an exit artifact, B4) gets the small `active` bonus on top. The ledger
+ * applies the rules and caps. The ref is the room code, so running this again
+ * (the Award button, the auto-close cron) only pays anyone not yet paid, such
+ * as someone whose close note landed late.
  */
 export async function awardAttendance(db, code) {
   const room = await db.prepare('SELECT title, kind FROM rooms WHERE code = ?').bind(code).first();
@@ -175,19 +176,27 @@ export async function awardAttendance(db, code) {
     (await db.prepare('SELECT student_id FROM point_events WHERE reason = ?').bind(`Meeting: ${room.title} (${code})`).all())
       .results.map((r) => r.student_id)
   );
-  const out = { awarded: 0, alreadyHad: 0, unlinked: 0, noExit: 0 };
+  // noExit: paid attendance but did nothing else in the room, so no bonus.
+  const out = { awarded: 0, alreadyHad: 0, unlinked: 0, noExit: 0, bonus: 0 };
   const seen = new Set();
   for (const u of rows) {
-    if (!u.exit_kind) { out.noExit++; continue; }
     const sid = u.student_id ?? (await ensureStudent(db, u));
     if (!sid) { out.unlinked++; continue; }
     if (seen.has(sid)) continue;
     seen.add(sid);
-    if (legacy.has(sid)) { out.alreadyHad++; continue; }
-    const meta = { title: room.title, exit: u.exit_kind, ...(dropin && { dropin: true }) };
-    const r = await recordActivity(db, { studentId: sid, kind: dropin ? 'dropin' : 'attend', ref: `room:${code}`, meta }, u.joined_at);
-    if (r.duplicate) out.alreadyHad++;
-    else out.awarded++;
+    if (!u.exit_kind) out.noExit++;
+    const ref = `room:${code}`;
+    if (legacy.has(sid)) out.alreadyHad++;
+    else {
+      const meta = { title: room.title, ...(u.exit_kind && { exit: u.exit_kind }), ...(dropin && { dropin: true }) };
+      const r = await recordActivity(db, { studentId: sid, kind: dropin ? 'dropin' : 'attend', ref, meta }, u.joined_at);
+      if (r.duplicate) out.alreadyHad++;
+      else out.awarded++;
+    }
+    if (u.exit_kind) {
+      const b = await recordActivity(db, { studentId: sid, kind: 'active', ref, meta: { title: room.title, exit: u.exit_kind } }, u.joined_at);
+      if (!b.duplicate) out.bonus++;
+    }
     await syncQuests(db, u.id); // A4: meetings finish quests
   }
   return out;
