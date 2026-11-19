@@ -179,11 +179,12 @@ await check('closing a room pays a brand-new account with no officer action, and
   db.exec(`INSERT INTO users (id, email, name) VALUES (12, 'a@x.com', 'Fresh Face');
            INSERT INTO rooms (code, title) VALUES ('WXYZ', 'Week 3');
            INSERT INTO room_checkins (code, user_id, joined_at, exit_kind) VALUES ('WXYZ', 12, '2026-11-12 21:00:00', 'poll')`);
-  assert.deepEqual(await awardAttendance(db, 'WXYZ'), { awarded: 1, alreadyHad: 0, unlinked: 0, noExit: 0 });
-  assert.deepEqual(await awardAttendance(db, 'WXYZ'), { awarded: 0, alreadyHad: 1, unlinked: 0, noExit: 0 });
+  assert.deepEqual(await awardAttendance(db, 'WXYZ'), { awarded: 1, alreadyHad: 0, unlinked: 0, noExit: 0, bonus: 1 });
+  assert.deepEqual(await awardAttendance(db, 'WXYZ'), { awarded: 0, alreadyHad: 1, unlinked: 0, noExit: 0, bonus: 0 });
   const sid = (await db.prepare('SELECT student_id FROM users WHERE id = 12').first()).student_id;
-  // 20 for attending (doubled, first meeting) + 3 for the "In the room" quest bonus (A4).
-  assert.equal(await count(db, 'SELECT SUM(delta) AS n FROM point_events WHERE student_id = ?', sid), 23);
+  // 20 for attending (doubled, first meeting) + 3 for answering a poll (V3-A active bonus)
+  // + 3 for the "In the room" quest bonus (A4).
+  assert.equal(await count(db, 'SELECT SUM(delta) AS n FROM point_events WHERE student_id = ?', sid), 26);
 });
 
 await check('merge moves points, activity, badges and accounts, drops shared activity, deactivates', async () => {

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../../lib/api.js';
 import { formatDate, relativeDate, TYPE_LABELS, FORMAT_LABELS } from '../../lib/format.js';
 import { Avatar, TierMark, Spinner } from '../../components/bits.jsx';
+import { POINT_RULES, pointLabel } from '../../../shared/points.js';
 
 /*
  * The screens of the original admin panel. They now live inside the officer
@@ -56,13 +57,14 @@ function useAction(say, reload) {
 
 /* ------------------------------ award points ------------------------------ */
 
+// Attendance is paid by closing the room, not from here. Amounts for things the
+// ledger also pays come from shared/points.js so the two never disagree (V3-A).
 const PRESETS = [
-  { amount: 3, reason: 'Meeting attendance' },
   { amount: 10, reason: 'Helped run a club event' },
   { amount: 20, reason: 'Taught a workshop' },
-  { amount: 25, reason: 'Finished and demoed a project' },
-  { amount: 30, reason: 'Entered a competition' },
-  { amount: 50, reason: 'Placed in a competition' },
+  { amount: POINT_RULES.ship.points, reason: 'Finished and demoed a project' },
+  { amount: POINT_RULES.compete.points, reason: 'Entered a competition' },
+  { amount: POINT_RULES.place.points, reason: 'Placed in a competition' },
 ];
 
 export function PointsTab({ say }) {
@@ -362,7 +364,7 @@ export function MembersTab({ say }) {
                           {e.delta > 0 ? '+' : ''}
                           {e.delta}
                         </span>
-                        <span className="min-w-0 flex-1 truncate">{e.reason}</span>
+                        <span className="min-w-0 flex-1 truncate" title={e.reason}>{pointLabel(e.reason)}</span>
                         <span className="mono text-[0.65rem]" style={{ color: 'var(--ink-faint)' }}>
                           {relativeDate(e.created_at)}
                         </span>
@@ -1285,7 +1287,12 @@ const TEXT_FIELDS = [
   ['join_intro', 'Join page intro', 'textarea'],
   ['join_consent_url', 'Parent consent form link', 'input'],
   ['join_classroom_code', 'Google Classroom code', 'input'],
-  ['join_meeting_info', 'Meeting day, time, and room', 'textarea'],
+  // V3-A: shown on the front door, /join and /about through GET /api/club.
+  ['meeting_day', 'Meeting day (blank means Wednesday)', 'input'],
+  ['meeting_time', 'Meeting time (blank means 4:30 PM)', 'input'],
+  ['meeting_place', 'Meeting place (blank leaves it off the pages)', 'input'],
+  ['meeting_note', 'Meeting note (optional, one line)', 'input'],
+  ['join_meeting_info', 'Join page: more about meetings (optional)', 'textarea'],
   ['meetings_calendar_embed_url', 'Meetings calendar embed URL', 'input'],
   ['meetings_calendar_subscribe_url', 'Meetings calendar subscribe (ICS) URL', 'input'],
   ['firecrawl_urls', 'Firecrawl pages to scrape', 'textarea'],

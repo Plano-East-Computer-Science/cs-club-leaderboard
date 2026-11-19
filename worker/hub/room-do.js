@@ -16,7 +16,8 @@
  * Exit artifacts (B4): the first thing a student does that counts (a poll
  * answer, a passed lab checkpoint, a duel attempt, a show artifact, helping
  * someone, a "what I did" line) is written to their room_checkins row.
- * Closing the room pays attendance only to rows that have one.
+ * Closing the room pays attendance to every check-in and the `active` bonus
+ * to rows that have one (V3-A, rooms.js awardAttendance).
  */
 import { newDuel, setDivision, startRound, submit, everyoneSolved, endRound, pickSpotlight, finish, duelView, findSide, DIVISIONS } from './duel.js';
 import { makePairs, groupKeys } from './pairs.js';
@@ -25,6 +26,7 @@ import { awardFromUser } from './award.js';
 import { findCourse } from '../../shared/courses.js';
 import * as S from './session.js';
 import * as C from '../../shared/contest.js';
+import { studentBlocks } from '../../shared/session-templates.js';
 
 const PULSE = ['fast', 'slow', 'lost', 'great'];
 const MAX_CODE = 20_000;
@@ -97,7 +99,12 @@ export class Room {
     // The run-of-show comes from the template the officer picked when opening the room.
     let planned = null; // G1: blocks from a planned session, if this room was opened for one
     try { planned = JSON.parse(decodeURIComponent(request.headers.get('x-blocks') || 'null')); } catch { /* fall back to the template */ }
-    this.s.session ??= S.newSession({ kind: request.headers.get('x-kind') || 'meeting', template: request.headers.get('x-template') || 'build', blocks: planned });
+    this.s.session ??= S.newSession({
+      kind: request.headers.get('x-kind') || 'meeting',
+      template: request.headers.get('x-template') || 'build',
+      blocks: planned,
+      minutes: request.headers.get('x-minutes'),
+    });
 
     const pair = new WebSocketPair();
     const [client, server] = Object.values(pair);
@@ -709,9 +716,12 @@ export class Room {
       pulse,
       board,
       stage: s.stage ?? [],
-      session: { kind: sess.kind, template: sess.template, blocks: sess.blocks, cur: sess.cur, startedAt: sess.startedAt, endsAt: sess.endsAt },
+      // Block notes are officer prep: only host sockets (console and projector) get them.
+      session: { kind: sess.kind, template: sess.template, blocks: host ? sess.blocks : studentBlocks(sess.blocks), cur: sess.cur, startedAt: sess.startedAt, endsAt: sess.endsAt },
       // B4: what counts so far. The host sees how many have one; a student sees their own.
       exits: host ? Object.keys(s.exits).length : undefined,
+      // V3-A: everyone who checked in and connected, for the end-room warning.
+      joined: host ? Object.keys(s.names).length : undefined,
       exit: host ? undefined : (s.exits[uid] ?? null),
       // B7: the projector shows the length only; names are for the officer console and members who can help.
       helpOpen: openHelp.length,

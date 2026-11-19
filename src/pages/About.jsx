@@ -2,28 +2,27 @@ import { Link } from 'react-router-dom';
 import { TIERS } from '../lib/tiers.js';
 import { useData } from '../lib/data.jsx';
 import { useApi, useReveal } from '../lib/ui.js';
-import { parseSections, slug, paras, bullets } from '../lib/md.js';
+import { parseSections, slug, paras } from '../lib/md.js';
 import { Pane, Paras, PageHead } from '../components/Pane.jsx';
+import { useClub, meetingLine } from '../lib/club.js';
 
 const COMMITTEE = { main: 'Main CS Club', cyber: 'Cybersecurity Committee' };
-
-/** "Showing up to a meeting: 2-5 points" -> label and value. */
-const rate = (t) => {
-  const i = t.lastIndexOf(': ');
-  return i < 0 ? [t, ''] : [t.slice(0, i), t.slice(i + 2)];
-};
 
 export default function About() {
   const { settings } = useData();
   const { data } = useApi('/officers');
+  const club = useClub();
   useReveal();
+  const meets = meetingLine(club?.meeting);
 
   const officers = data?.officers ?? [];
   const secs = parseSections(settings.about_body || '');
   const intro = secs.find((s) => !s.h);
   const named = secs.filter((s) => s.h);
   const pointsSec = named.find((s) => /point/i.test(s.h));
-  const rest = named.filter((s) => s !== pointsSec);
+  // The page text's own "Meetings" section joins the day and time from /api/club in one pane.
+  const meetSec = named.find((s) => s !== pointsSec && /meeting/i.test(s.h));
+  const rest = named.filter((s) => s !== pointsSec && s !== meetSec);
 
   const heading = (settings.about_heading || 'About the club').replace(/\.$/, '');
   const words = heading.split(' ');
@@ -43,28 +42,40 @@ export default function About() {
               {intro ? <Paras section={intro} /> : <div className="pn-b"><p className="d">No about text yet. An officer can add it under Officer tools, Page text.</p></div>}
             </Pane>
 
-            {pointsSec && (
-              <Pane file="points.conf" meta={`${bullets(pointsSec).length} rules`} cls="p">
-                <div className="pn-b">
-                  {paras(pointsSec)[0] && <p className="d">{paras(pointsSec)[0]}</p>}
-                  {bullets(pointsSec).length > 0 && <h4 className="k">cat rates</h4>}
-                  {bullets(pointsSec).map((t, i) => {
-                    const [a, b] = rate(t);
-                    return <div key={i} className="prow"><span>{a}</span><span>{b}</span></div>;
-                  })}
-                  {paras(pointsSec).length > 1 && (
-                    <>
-                      <h4 className="k">prize</h4>
-                      {paras(pointsSec).slice(1).map((p, i) => <p key={i}>{p}</p>)}
-                    </>
-                  )}
-                </div>
-              </Pane>
-            )}
+            {/* V3-A: point values come from /api/club (shared/points.js), never from page text. */}
+            <Pane file="points.conf" meta={club ? `${club.points.length} rules` : 'loading'} cls="p">
+              <div className="pn-b">
+                {pointsSec && paras(pointsSec)[0] && <p className="d">{paras(pointsSec)[0]}</p>}
+                <h4 className="k">cat rates</h4>
+                {club?.points.map((p) => (
+                  <div key={p.kind} className="prow">
+                    <span>{p.label}{p.cap && <small className="m"> ({p.cap})</small>}</span>
+                    <span className="g">{p.points}</span>
+                  </div>
+                ))}
+                {pointsSec && paras(pointsSec).length > 1 && (
+                  <>
+                    <h4 className="k">prize</h4>
+                    {paras(pointsSec).slice(1).map((p, i) => <p key={i}>{p}</p>)}
+                  </>
+                )}
+              </div>
+            </Pane>
 
             <div className="m" style={{ display: 'grid', gap: 16, alignContent: 'start' }}>
+              {(meets || club?.meeting.note || meetSec) && (
+                <Pane file={meetSec ? slug(meetSec.h) : 'meetings'} meta="when and where">
+                  {(meets || club?.meeting.note) && (
+                    <div className="pn-b" style={meetSec ? { paddingBottom: 0 } : undefined}>
+                      {meets && <p className="g">{meets}</p>}
+                      {club.meeting.note && <p className="d">{club.meeting.note}</p>}
+                    </div>
+                  )}
+                  {meetSec && <Paras section={meetSec} />}
+                </Pane>
+              )}
               {rest.map((s) => (
-                <Pane key={s.h} file={slug(s.h)} meta={/meeting/i.test(s.h) ? 'when and where' : 'read me'}>
+                <Pane key={s.h} file={slug(s.h)} meta="read me">
                   <Paras section={s} />
                 </Pane>
               ))}

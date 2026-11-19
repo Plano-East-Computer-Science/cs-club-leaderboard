@@ -14,6 +14,7 @@ import { Crest } from '../components/Crest.jsx';
 import { Panther } from '../components/Panther.jsx';
 import { CountUp } from '../components/bits.jsx';
 import { TIER_NAMES } from '../../shared/standings.js';
+import { useClub, pointsOf } from '../lib/club.js';
 
 /** Keeps hyphenated words like "Ray-Ban" on one line in the big headline. */
 const noBreakHyphens = (text) =>
@@ -29,6 +30,7 @@ export default function Leaderboard() {
   const [key, setKey] = useState(() => new URLSearchParams(location.search).get('season') || '');
   const [d, setD] = useState(null);
   const [error, setError] = useState(null);
+  const club = useClub();
   useReveal();
 
   const load = () => {
@@ -109,9 +111,25 @@ export default function Leaderboard() {
 
       <section className="sec">
         <div className="wrap">
-          <You d={d} />
+          <You d={d} club={club} />
         </div>
       </section>
+
+      {club && (
+        <section className="sec">
+          <div className="wrap">
+            <h2>How points work <small>cat points.conf</small></h2>
+            <div className="st-points">
+              {club.points.map((p) => (
+                <div key={p.kind} className="prow">
+                  <span>{p.label}{p.cap && <small className="m"> ({p.cap})</small>}</span>
+                  <span className="g">{p.points}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       {d.top.length > 0 && (
         <section className="sec">
@@ -153,7 +171,8 @@ export default function Leaderboard() {
 
 /* --------------------------------- you --------------------------------- */
 
-function You({ d }) {
+function You({ d, club }) {
+  const meeting = pointsOf(club, 'attend');
   const me = d.me;
   if (!me)
     return (
@@ -185,7 +204,7 @@ function You({ d }) {
           <div className="dline"><span>rank</span><span style={{ color: r.color }}>{r.name}</span></div>
           <p className="st-next">
             {next ? (
-              <><b className="g">{next.gap}</b> points to {TIER_NAMES[next.index]} ({next.min}). One meeting is 10.</>
+              <><b className="g">{next.gap}</b> points to {TIER_NAMES[next.index]} ({next.min}).{meeting != null && ` One meeting is ${meeting}.`}</>
             ) : (
               <>Top tier reached. Every point is another raffle ticket.</>
             )}
