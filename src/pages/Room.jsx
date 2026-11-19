@@ -3,7 +3,7 @@
  *
  *   /room          enter the room code and the check-in word from the projector (B4)
  *   /room/:code    the live room: whatever block is running (B1), plus the help queue,
- *                  pace buttons, links, and a card that says whether attendance counts yet
+ *                  pace buttons, links, and a card that says what attendance pays
  */
 import { useEffect, useId, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
@@ -273,13 +273,13 @@ function BlockView({ state, send, skew }) {
     case 'close':
       main = (
         <>
-          <Waiting title={block.title}>{block.notes}</Waiting>
+          <Waiting title={block.title}>{block.screen}</Waiting>
           <NoteBox send={send} exit={state.exit} />
         </>
       );
       break;
     default:
-      main = <Waiting title={block.type === 'break' ? 'Break' : 'Eyes on the screen'}>{block.type === 'break' ? block.notes : `${block.title}${block.notes ? `\n${block.notes}` : ''}`}</Waiting>;
+      main = <Waiting title={block.type === 'break' ? 'Break' : 'Eyes on the screen'}>{block.type === 'break' ? block.screen : `${block.title}${block.screen ? `\n${block.screen}` : ''}`}</Waiting>;
   }
   return (
     <>
@@ -330,7 +330,7 @@ function InRoom({ code }) {
         <div className="card p-6">
           <h2 className="display text-2xl font-bold">Room closed</h2>
           <p className="mt-2 text-sm" style={{ color: 'var(--ink-soft)' }}>
-            {state.exit ? 'Your attendance counts. Thanks for coming.' : 'You did not do anything that counts for attendance this time.'}
+            {state.exit ? 'Your attendance and the bonus are paid. Thanks for coming.' : 'Your attendance is paid. Thanks for coming.'}
           </p>
           <Link className="btn btn-ghost mt-5" to="/" style={{ textDecoration: 'none' }}>Back to the club</Link>
         </div>

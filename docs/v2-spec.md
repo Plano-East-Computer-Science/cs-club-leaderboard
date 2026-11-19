@@ -94,7 +94,7 @@ hosts, page text, backup). `/officer?s=...` and `/admin` redirect.
   OpportunityCard, MeetingCard, PersonRow, Stat, EmptyState, Pill, Button (primary, secondary,
   ghost, danger), Field, Dialog, Menu, Toast, Skeleton. No inline `style={{}}` for layout or
   colour in new code.
-- Icons: `lucide-react`. Accessible primitives: `@radix-ui/react-*` (dialog, dropdown-menu,
+- Icons: `@phosphor-icons/react` (see `docs/v2-design.md`). Accessible primitives: `@radix-ui/react-*` (dialog, dropdown-menu,
   tabs, popover, tooltip). Editor: CodeMirror 6.
 - Terminal flavour kept with intent: command bar (Ctrl+K / "/"), prompt-style section labels
   used sparingly, boot screen once per session. Removed: holiday toggle in the bar, status bar,

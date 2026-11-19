@@ -5,7 +5,7 @@
  *   /host/:code/screen  projector: one block at a time, big type, no controls (open it on the
  *                       projector display; it follows the console)
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { useRoomSocket } from '../lib/useRoomSocket.js';
@@ -13,7 +13,7 @@ import { Spinner } from '../components/bits.jsx';
 import { Board, LETTERS, PULSES, useCountdown } from './Room.jsx';
 import { DuelBoard, DuelSetup, Notice, PairPanel, clock } from './Duel.jsx';
 import { ContestConsole, ContestSetup } from './Contest.jsx';
-import { BLOCK_LABEL } from '../../shared/session-templates.js';
+import { BLOCK_LABEL, endWarning } from '../../shared/session-templates.js';
 import { BlockEditor, HelpConsole, LabCounts, Projector, RunOfShow, ShowConsole, SpeakerConsole, blockOf, useCheckin, useLeft } from './Session.jsx';
 
 const GOOD = '#2f8f5b';
@@ -335,7 +335,7 @@ function AskForm({ send, disabled }) {
         </label>
       </div>
       <p className="mono text-xs" style={{ color: 'var(--ink-faint)' }}>
-        Tick the correct option to score it, or leave none ticked for a poll. Answering counts as a member's exit artifact.
+        Tick the correct option to score it, or leave none ticked for a poll. Answering earns a member the attendance bonus.
       </p>
       <button className="btn btn-primary" style={{ padding: '0.8rem', justifyContent: 'center' }} disabled={!canAsk}>Ask</button>
     </form>
@@ -391,7 +391,8 @@ function CurrentBlock({ state, send, skew }) {
     <div className="ses-now">
       <p className="eyebrow">now: {BLOCK_LABEL[block.type]}</p>
       <h2 className="display">{block.title}</h2>
-      {block.notes && <p className="d text-sm">{block.notes}</p>}
+      {block.screen && <p className="d text-sm">On screen: {block.screen}</p>}
+      {block.notes && <p className="text-sm">Your notes: {block.notes}</p>}
     </div>
   );
 
@@ -445,7 +446,7 @@ function CurrentBlock({ state, send, skew }) {
   } else if (block.type === 'close') {
     body = (
       <section className="card p-5">
-        <p>Members write one line about what they did. Anyone who has not done anything yet needs it for attendance.</p>
+        <p>Members write one line about what they did. Everyone checked in is paid attendance; doing one thing adds a small bonus.</p>
         <p className="mono g mt-2">{state.exits} of {state.here} here have done one thing.</p>
       </section>
     );
@@ -474,10 +475,37 @@ function TokenChip({ code }) {
   );
 }
 
+/** V3-A: an in-page confirm that says what ending the room will do, from what the room already knows. */
+function EndRoom({ state, onEnd, onCancel }) {
+  const go = useRef(null);
+  useEffect(() => go.current?.focus(), []);
+  const lines = endWarning({
+    joined: state.joined ?? state.here,
+    exits: state.exits ?? 0,
+    dropin: state.session.kind === 'dropin',
+    duelLive: state.duel?.phase === 'live',
+    contestLive: state.contest?.phase === 'live',
+    helpOpen: state.helpOpen,
+  });
+  return (
+    <section className="card ses-end p-5" role="alertdialog" aria-labelledby="end-h" aria-describedby="end-d" onKeyDown={(e) => e.key === 'Escape' && onCancel()}>
+      <h2 id="end-h" className="display text-xl font-bold">End this room?</h2>
+      <div id="end-d" className="mt-2 grid gap-1">
+        {lines.map((l) => <p key={l}>{l}</p>)}
+      </div>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <button ref={go} type="button" className="btn btn-danger" onClick={onEnd}>End room and pay</button>
+        <button type="button" className="btn btn-ghost" onClick={onCancel}>Keep it open</button>
+      </div>
+    </section>
+  );
+}
+
 function Console({ code }) {
   const { state, status, refused, skew, notice, send } = useRoomSocket(code);
   const [editing, setEditing] = useState(false);
   const [closed, setClosed] = useState('');
+  const [ending, setEnding] = useState(false);
   if (refused) return <Refused code={code} />;
   if (!state) return <Spinner label="Connecting" />;
   const dropin = state.session.kind === 'dropin';
@@ -494,29 +522,33 @@ function Console({ code }) {
         <div className="ses-chip">
           <span className="eyebrow">here</span>
           <b className="mono">{state.here}</b>
-          <span className="mono m text-xs">{state.exits} counted</span>
+          <span className="mono m text-xs">{state.exits} did something</span>
         </div>
         <div className="ses-head-btns">
           <a className="btn btn-primary" href={`/host/${code}/screen`} target="_blank" rel="noreferrer">Open projector</a>
-          <button
-            className="btn btn-danger"
-            onClick={async () => {
-              if (!window.confirm('End this room and count attendance?')) return;
-              send({ t: 'end' });
-              // Closing is what pays attendance; doing it here saves a trip to the officer page.
-              try {
-                const d = await api.post(`/admin/hub/rooms/${code}/close`);
-                setClosed(`Closed. ${d.awarded} counted${d.noExit ? `, ${d.noExit} did nothing that counts` : ''}.`);
-              } catch (err) {
-                setClosed(err.message);
-              }
-            }}
-            disabled={state.ended}
-          >
+          <button className="btn btn-danger" onClick={() => setEnding(true)} disabled={state.ended || ending} aria-expanded={ending}>
             {state.ended ? 'Room ended' : 'End room'}
           </button>
         </div>
       </header>
+
+      {ending && !state.ended && (
+        <EndRoom
+          state={state}
+          onCancel={() => setEnding(false)}
+          onEnd={async () => {
+            setEnding(false);
+            send({ t: 'end' });
+            // Closing is what pays attendance; doing it here saves a trip to the officer page.
+            try {
+              const d = await api.post(`/admin/hub/rooms/${code}/close`);
+              setClosed(`Closed. Paid ${d.awarded} attendance${d.bonus ? `, ${d.bonus} bonus${d.bonus === 1 ? '' : 'es'}` : ''}${d.alreadyHad ? `, ${d.alreadyHad} already paid` : ''}.`);
+            } catch (err) {
+              setClosed(err.message);
+            }
+          }}
+        />
+      )}
 
       {closed && <p role="status" className="mono g text-sm">{closed}</p>}
 
@@ -526,8 +558,8 @@ function Console({ code }) {
             <section className="card p-5">
               <p className="eyebrow">drop-in</p>
               <p className="mt-2">
-                No agenda. Members check in, post what they are stuck on and help each other. Attendance counts when they also
-                write one line about what they did or help someone. It pays a smaller drop-in amount, at most twice a week.
+                No agenda. Members check in, post what they are stuck on and help each other. Checking in pays a smaller drop-in
+                amount, at most twice a week. Writing one line about what they did, or helping someone, adds a small bonus.
               </p>
               <p className="mono g mt-2">{state.exits} of {state.here} here have done one thing.</p>
             </section>

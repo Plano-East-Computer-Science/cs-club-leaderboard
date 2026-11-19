@@ -167,7 +167,16 @@ export function BlockEditor({ blocks, send, onDone }) {
                 <button type="button" className="btn btn-ghost" aria-label={`Remove block ${i + 1}`} disabled={draft.length < 2} onClick={() => setDraft((d) => d.filter((_, j) => j !== i))}>remove</button>
               </span>
             </div>
-            <input className="field" maxLength={500} value={b.notes ?? ''} placeholder="Notes for the projector (optional)" aria-label={`Block ${i + 1} notes`} onChange={(e) => set(i, { notes: e.target.value })} />
+            <div className="ses-edit-text">
+              <label className="grid gap-1">
+                <span className="eyebrow">On screen (projector and laptops)</span>
+                <input className="field" maxLength={500} value={b.screen ?? ''} placeholder="Optional, e.g. Pick a tier and find your partner" onChange={(e) => set(i, { screen: e.target.value })} />
+              </label>
+              <label className="grid gap-1">
+                <span className="eyebrow">Officer notes (only officers see these)</span>
+                <input className="field" maxLength={500} value={b.notes ?? ''} placeholder="Optional, e.g. Ask Sam to demo first" onChange={(e) => set(i, { notes: e.target.value })} />
+              </label>
+            </div>
             {b.type === 'lab' && b.lab && (
               <div className="ses-tiers">
                 <label className="mono flex items-center gap-2 text-xs">
@@ -199,7 +208,7 @@ export function BlockEditor({ blocks, send, onDone }) {
           type="button"
           className="btn btn-ghost"
           disabled={draft.length >= 12}
-          onClick={() => setDraft((d) => [...d, { type: addType, title: BLOCK_LABEL[addType], minutes: 5, notes: '', ...(addType === 'lab' && { lab: { pairs: true, tiers: DEFAULT_TIERS.map((t) => ({ ...t })) } }) }])}
+          onClick={() => setDraft((d) => [...d, { type: addType, title: BLOCK_LABEL[addType], minutes: 5, notes: '', screen: '', ...(addType === 'lab' && { lab: { pairs: true, tiers: DEFAULT_TIERS.map((t) => ({ ...t })) } }) }])}
         >
           Add block
         </button>
@@ -468,8 +477,8 @@ export function Projector({ state, code, skew, tok }) {
       <div className="ses-big">
         <p className="eyebrow">{BLOCK_LABEL[block.type]}</p>
         <h1>{block.title}</h1>
-        {block.notes && <p className="ses-sub">{block.notes}</p>}
-        {block.type === 'close' && <p className="ses-sub g">Before you go: write one line about what you did today. That is what makes your attendance count.</p>}
+        {block.screen && <p className="ses-sub">{block.screen}</p>}
+        {block.type === 'close' && <p className="ses-sub g">Before you go: write one line about what you did today.</p>}
       </div>
     );
   }
@@ -507,18 +516,18 @@ const EXIT_LABEL = {
   note: 'wrote what you did',
 };
 
-/** B4: the attendance rule, stated plainly, with where this member stands. */
+/** B4, V3-A: the attendance rule, stated plainly, with where this member stands. */
 export function ExitCard({ exit, dropin }) {
   return (
     <section className={`ses-exit ${exit ? 'ok' : ''}`} aria-label="Attendance" role="status">
       {exit ? (
-        <p><b>Attendance: counts.</b> You checked in and {EXIT_LABEL[exit] ?? 'did something'}. It is paid when the room closes.</p>
+        <p><b>Attendance: counts, plus a bonus.</b> You checked in and {EXIT_LABEL[exit] ?? 'did something'}. Both are paid when the room closes.</p>
       ) : (
         <p>
-          <b>Attendance: checked in, one thing to go.</b>{' '}
+          <b>Attendance: counts.</b> You are checked in, so it is paid when the room closes.{' '}
           {dropin
-            ? 'It counts once you write one line about what you did, or help someone.'
-            : 'It counts once you do one thing here: answer a poll, pass a lab checkpoint, try a duel or contest problem, share in show, help someone, or write one line at the close.'}
+            ? 'Write one line about what you did, or help someone, for a small bonus.'
+            : 'Do one thing here for a small bonus: answer a poll, pass a lab checkpoint, try a duel or contest problem, share in show, help someone, or write one line at the close.'}
         </p>
       )}
     </section>
@@ -625,7 +634,7 @@ export function LabPlay({ lab, block, partner, session, send, skew }) {
     return (
       <section className="card p-5" aria-label="Pick a tier">
         <p className="eyebrow">{block.title}: pick a tier</p>
-        {block.notes && <p className="d mt-1 text-sm">{block.notes}</p>}
+        {block.screen && <p className="d mt-1 text-sm">{block.screen}</p>}
         <div className="duel-divs mt-4">
           {lab.tiers.map((x, i) => (
             <button key={i} type="button" onClick={() => send({ t: 'lab_tier', tier: i })}>

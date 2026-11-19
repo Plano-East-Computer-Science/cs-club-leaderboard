@@ -9,7 +9,8 @@ import { Link } from 'react-router-dom';
 import { api } from '../../lib/api.js';
 import { Spinner, ErrorNote, Empty } from '../../components/bits.jsx';
 import { BlockEditor } from '../Session.jsx';
-import { TEMPLATES, templateBlocks } from '../../../shared/session-templates.js';
+import { DEFAULT_LENGTH, TEMPLATES, templateBlocks } from '../../../shared/session-templates.js';
+import { LengthPicker } from './TemplatePicker.jsx';
 import { kindName, varietyWarning, whenLabel } from '../../../shared/planner.js';
 
 const minutes = (blocks) => blocks.reduce((n, b) => n + (Number(b.minutes) || 0), 0);
@@ -38,7 +39,7 @@ export default function Planner() {
   const start = (plan) => {
     setEditBlocks(false);
     setError(null);
-    setForm(plan ?? { date: d.today, title: '', template: 'build', blocks: templateBlocks('build'), ideaId: '' });
+    setForm(plan ?? { date: d.today, title: '', template: 'build', minutes: DEFAULT_LENGTH, blocks: templateBlocks('build'), ideaId: '' });
   };
   const set = (patch) => setForm((f) => ({ ...f, ...patch }));
 
@@ -87,7 +88,7 @@ export default function Planner() {
         <h2 className="display mt-1 text-2xl font-bold">Plan the next sessions</h2>
         <p className="mt-2 max-w-2xl text-sm" style={{ color: 'var(--ink-soft)' }}>
           Pick a date and a template, fill in the blocks, and open the room from here on the day. Members see the date, title and kind of the next
-          one. Your block notes stay with you.
+          one. Each block has on-screen text, which the room sees, and officer notes, which only officers see.
         </p>
       </div>
 
@@ -130,7 +131,7 @@ export default function Planner() {
                 className="field"
                 value={form.template}
                 onChange={(e) => {
-                  set({ template: e.target.value, blocks: templateBlocks(e.target.value) });
+                  set({ template: e.target.value, blocks: templateBlocks(e.target.value, form.minutes) });
                   setEditBlocks(false);
                 }}
               >
@@ -141,6 +142,18 @@ export default function Planner() {
                 ))}
               </select>
             </label>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="eyebrow">Length</span>
+            {/* Picking a length replaces the blocks with that version of the template. */}
+            <LengthPicker
+              value={form.minutes ?? minutes(form.blocks)}
+              onChange={(m) => {
+                set({ minutes: m, blocks: templateBlocks(form.template, m) });
+                setEditBlocks(false);
+              }}
+            />
           </div>
 
           {warn && (
