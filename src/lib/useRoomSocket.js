@@ -11,7 +11,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
  *    we infer it: three attempts in a row that never opened, or a 1008 close.
  *  - skew: server clock minus local clock (ms); add to Date.now() for server time
  */
-export function useRoomSocket(code) {
+export function useRoomSocket(code, as = '') {
   const [state, setState] = useState(null);
   const [status, setStatus] = useState('connecting');
   const [refused, setRefused] = useState(false);
@@ -32,7 +32,8 @@ export function useRoomSocket(code) {
 
     const connect = () => {
       const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-      const sock = new WebSocket(`${proto}://${location.host}/api/rooms/${encodeURIComponent(code)}/ws`);
+      // as='screen': the projector, which the room treats as read-only and shows no officer detail.
+      const sock = new WebSocket(`${proto}://${location.host}/api/rooms/${encodeURIComponent(code)}/ws${as ? `?as=${as}` : ''}`);
       ws.current = sock;
       let opened = false;
 
@@ -82,7 +83,7 @@ export function useRoomSocket(code) {
       ws.current = null;
       s?.close();
     };
-  }, [code]);
+  }, [code, as]);
 
   const send = useCallback((obj) => {
     if (ws.current?.readyState === WebSocket.OPEN) ws.current.send(JSON.stringify(obj));

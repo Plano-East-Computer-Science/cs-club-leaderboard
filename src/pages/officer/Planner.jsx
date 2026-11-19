@@ -111,7 +111,7 @@ export function PlanEditor({ plan, data, onSaved, onCancel }) {
       </Field>
 
       {editBlocks ? (
-        <BlockEditor key={form.template} blocks={form.blocks} send={(m) => set({ blocks: m.blocks })} onDone={() => setEditBlocks(false)} />
+        <BlockEditor key={form.template} blocks={form.blocks} planId={form.id} send={(m) => set({ blocks: m.blocks })} onDone={() => setEditBlocks(false)} />
       ) : (
         <div className="hq-panel hq-plan__blocks">
           <div>

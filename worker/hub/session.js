@@ -6,9 +6,14 @@
  *
  *   session  { kind, template, blocks, cur, startedAt, endsAt }   cur -1 = lobby (join screen)
  *   help     [{ id, uid, topic, helpers: [uid], status, helper }]  B7 help queue
- *   speaker  { qs: [{ id, uid, text, votes: [uid], answered }], takeaways }   B8
+ *   speaker  { qs: [{ id, uid, text, votes: [uid], answered, seed?, early?, skipped?, hidden?, kept?, reports? }],
+ *              takeaways, mode, loaded }   B8, Wave 6
+ *            seed: written by officers in the plan (uid 'officers'), shown first.
+ *            early: asked on Today before the room opened.
+ *            hidden: an officer hid it, or two members reported it (kept stops that).
  *   show     { items: [{ id, uid, kind, url, line, kudos: [uid] }], picked: [id] }  B6
- *   labs     { blockId: { picks: { uid: tier }, passed: { uid: [checkpoint] } } }  B3
+ *   labs     { blockId: { picks: { uid: tier }, passed: { uid: [checkpoint] }, since: { uid: ms } } }  B3
+ *            since: when the member picked their tier or last passed a checkpoint (who is stuck)
  *
  * Every function returns { error } with a sentence for the student, or a result.
  */
@@ -116,7 +121,8 @@ export function helpClose(help, id, uid = null) {
 
 /* ------------------------------- B8 speaker -------------------------------- */
 
-export const freshSpeaker = () => ({ qs: [], takeaways: '' });
+export const freshSpeaker = () => ({ qs: [], takeaways: '', mode: null, loaded: false });
+export const REPORTS_TO_HIDE = 2;
 
 export function sqAsk(sp, uid, text, id) {
   const t = line(text, 200);
@@ -136,15 +142,67 @@ export function sqVote(sp, uid, id) {
   return { ok: true };
 }
 
-export function sqAnswered(sp, id) {
+/** Toggles answered, or sets it when `value` is a boolean (the moderator's "Answered"). */
+export function sqAnswered(sp, id, value) {
   const q = sp.qs.find((x) => x.id === Number(id));
   if (!q) return { error: 'No such question.' };
-  q.answered = !q.answered;
+  q.answered = typeof value === 'boolean' ? value : !q.answered;
+  if (q.answered) q.skipped = false;
   return { ok: true };
 }
 
-/** Most votes first, then oldest first. */
-export const sqOrder = (qs) => [...qs].sort((a, b) => Number(a.answered) - Number(b.answered) || b.votes.length - a.votes.length || a.id - b.id);
+/** The moderator passes on a question for now: it drops below the others that are waiting. */
+export function sqSkip(sp, id) {
+  const q = sp.qs.find((x) => x.id === Number(id));
+  if (!q || q.answered) return { error: 'No such question.' };
+  q.skipped = true;
+  return { ok: true };
+}
+
+/** A member reports a question. Two reports take it off every screen until an officer looks. */
+export function sqReport(sp, uid, id) {
+  const q = sp.qs.find((x) => x.id === Number(id));
+  if (!q) return { error: 'No such question.' };
+  if (q.uid === uid) return { error: 'That is your own question.' };
+  q.reports = [...new Set([...(q.reports ?? []), uid])];
+  if (q.reports.length >= REPORTS_TO_HIDE && !q.kept) q.hidden = true;
+  return { ok: true };
+}
+
+/** An officer hides a question, or puts a hidden one back (and it then stays up). */
+export function sqHide(sp, id, hidden) {
+  const q = sp.qs.find((x) => x.id === Number(id));
+  if (!q) return { error: 'No such question.' };
+  q.hidden = Boolean(hidden);
+  if (!q.hidden) q.kept = true;
+  return { ok: true };
+}
+
+/**
+ * Seed questions from the plan and questions asked early on Today, added to
+ * the room's list. Seeds are matched by text so loading twice adds nothing;
+ * early questions are added once (`loaded`).
+ */
+export function sqLoad(sp, { seeds = [], early = null }, nextId) {
+  for (const text of seeds) {
+    if (!sp.qs.some((q) => q.seed && q.text === text)) sp.qs.push({ id: nextId(), uid: 'officers', text, votes: [], answered: false, seed: true });
+  }
+  if (early && !sp.loaded) {
+    for (const e of early) sp.qs.push({ id: nextId(), uid: String(e.uid), text: line(e.text, 200), votes: (e.votes ?? []).map(String), answered: false, early: true });
+    sp.loaded = true;
+  }
+}
+
+/** Waiting before answered, skipped after the rest, then most votes; officers' seeds win ties, then oldest. */
+export const sqOrder = (qs) =>
+  [...qs].sort(
+    (a, b) =>
+      Number(a.answered) - Number(b.answered) ||
+      Number(Boolean(a.skipped)) - Number(Boolean(b.skipped)) ||
+      b.votes.length - a.votes.length ||
+      Number(!a.seed) - Number(!b.seed) ||
+      a.id - b.id
+  );
 
 /* -------------------------------- B6 show ---------------------------------- */
 
@@ -203,18 +261,19 @@ export function showKudos(show, uid, id) {
 
 /* --------------------------------- B3 lab ---------------------------------- */
 
-export const freshLab = () => ({ picks: {}, passed: {} });
+export const freshLab = () => ({ picks: {}, passed: {}, since: {} });
 
 /** A member picks tier 0, 1 or 2. Switching keeps checkpoints already passed in the old tier. */
-export function labPick(lab, uid, tier, tiers) {
+export function labPick(lab, uid, tier, tiers, now = Date.now()) {
   const t = Number(tier);
   if (!Number.isInteger(t) || !tiers[t]) return { error: 'Pick one of the tiers.' };
+  if (lab.picks[uid] !== t) (lab.since ??= {})[uid] = now;
   lab.picks[uid] = t;
   return { ok: true };
 }
 
 /** checkpoints: per tier, the ordered list of checkpoint ids (code step ids or problem slugs). */
-export function labPass(lab, uid, step, checkpoints) {
+export function labPass(lab, uid, step, checkpoints, now = Date.now()) {
   const t = lab.picks[uid];
   if (t == null) return { error: 'Pick a tier first.' };
   if (!checkpoints[t]?.includes(String(step))) return { error: 'That is not a checkpoint in your tier.' };
@@ -222,7 +281,27 @@ export function labPass(lab, uid, step, checkpoints) {
   const mine = (lab.passed[uid] ??= []);
   if (mine.includes(key)) return { ok: true, repeat: true };
   mine.push(key);
+  (lab.since ??= {})[uid] = now;
   return { ok: true };
+}
+
+/**
+ * Who is stuck (Wave 6), for the officer console only: every member in the
+ * lab who is here and not finished, with the checkpoint they are on and since
+ * when. The console marks anyone at it 10+ minutes (isStuck in shared/live.js).
+ */
+export function labProgress(lab, tiers, checkpoints, present) {
+  const here = new Set(present.map(String));
+  return Object.keys(lab.picks)
+    .filter((u) => here.has(u))
+    .map((u) => {
+      const t = lab.picks[u];
+      const total = checkpoints[t]?.length ?? 0;
+      const n = passedIn(lab, u, t);
+      return { uid: u, tier: tiers[t]?.name ?? '', at: Math.min(n + 1, total), of: total, since: lab.since?.[u] ?? null, done: n >= total };
+    })
+    .filter((p) => !p.done)
+    .sort((a, b) => (a.since ?? Infinity) - (b.since ?? Infinity));
 }
 
 /** How many checkpoints of tier t this member has passed. */

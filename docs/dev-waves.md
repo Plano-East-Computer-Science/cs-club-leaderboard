@@ -127,3 +127,21 @@ Test on dev (officer account):
 Known gap: Library, Season and Settings still show the older screens inside the new layout; they get restyled later.
 
 Roll back: Revert this PR. No database changes (one officer-only route, /api/admin/hub/inbox).
+
+## Wave 6: speaker night and the live meeting (2026-11-19)
+
+| PR | What |
+| --- | --- |
+| this PR | Speaker block (name, intro, seed questions, officer-only Zoom link), questions open on Today a day before, a phone moderator view, a private speaker link for the guest, a redesigned projector (one clock, Zoom strip mode, between-blocks screen), duel pack chosen in the plan, concept-check votes in a teach block, an officer-only who-is-stuck list, and a public recap page with an Instagram card when the room closes. Also: client x- headers can no longer reach the room, and the most-upvoted question leads the queue. |
+
+Test on dev (officer laptop + phone, two student phones):
+1. HQ > Meetings: plan a Speaker night for a date, fill the speaker block (name, title, intro, Zoom link, two seed questions).
+2. As a student on Today the day before: ask and upvote a question.
+3. Open the room from the plan. Officer phone: open the room's moderator link. Projector: open the projector link.
+4. Students ask and upvote in the room; the moderator taps Answered and the next rises. The projector never shows the Zoom link.
+5. Copy the speaker link and open it in a private window: the guest sees the live questions.
+6. Close the room: the recap page appears; the officer can download the recap card.
+
+Verified only by tests, not yet by hand: teach concept checks, the stuck list, a planned duel pack opening the lobby.
+
+Roll back: Revert this PR. New tables (early questions) stay, unused.
