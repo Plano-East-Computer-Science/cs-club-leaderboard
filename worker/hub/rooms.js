@@ -15,7 +15,7 @@ import { officerOf } from './team.js';
 import { recordActivity } from './ledger.js';
 import { syncQuests } from './quests.js';
 import { publicName } from './names.js';
-import { TEMPLATES } from '../../shared/session-templates.js';
+import { TEMPLATES, lengthOf } from '../../shared/session-templates.js';
 import { sqlTime } from '../../shared/points.js';
 import { getPlan } from './planner.js';
 import { closeRoomGateway, openRoomGateway, roomGateway, setRoomGateway } from './gateway.js';
@@ -81,12 +81,13 @@ roomsAdminRouter.post('/rooms', async (c) => {
   const template = plan ? plan.template : String(body?.template ?? 'build');
   if (template !== 'dropin' && !Object.hasOwn(TEMPLATES, template)) return c.json({ error: 'Pick a template.' }, 400);
   const kind = template === 'dropin' ? 'dropin' : 'meeting';
+  const minutes = lengthOf(body?.minutes); // V3-A: 60 or 120; a planned session brings its own blocks
   let code = null;
   for (let i = 0; i < 5 && !code; i++) {
     const tryCode = makeCode();
     try {
-      await c.env.DB.prepare('INSERT INTO rooms (code, title, kind, template) VALUES (?, ?, ?, ?)')
-        .bind(tryCode, title, kind, kind === 'dropin' ? '' : template)
+      await c.env.DB.prepare('INSERT INTO rooms (code, title, kind, template, minutes) VALUES (?, ?, ?, ?, ?)')
+        .bind(tryCode, title, kind, kind === 'dropin' ? '' : template, minutes)
         .run();
       code = tryCode;
     } catch {
@@ -98,7 +99,7 @@ roomsAdminRouter.post('/rooms', async (c) => {
     // H1: the room's own gateway code. Members who check in see it; no code to hand out.
     await openRoomGateway(c.env.DB, code, template).catch((err) => console.error('room gateway failed', err?.message ?? err));
     await notify(c.env, c.env.DB, `Room ${code} is open: ${title}. Join at ${new URL(c.req.url).origin}/room`);
-    return c.json({ code, title, kind, template });
+    return c.json({ code, title, kind, template, minutes });
   }
   return c.json({ error: 'Could not allocate a room code.' }, 500);
 });
@@ -340,7 +341,7 @@ roomsRouter.get('/rooms/:code/ws', async (c) => {
   if (c.req.header('Upgrade') !== 'websocket') return c.text('Expected WebSocket', 426);
 
   const code = normCode(c.req.param('code'));
-  const room = await c.env.DB.prepare('SELECT code, closed_at, kind, template FROM rooms WHERE code = ?').bind(code).first();
+  const room = await c.env.DB.prepare('SELECT code, closed_at, kind, template, minutes FROM rooms WHERE code = ?').bind(code).first();
   if (!room) return c.text('No such room', 404);
 
   // Same rule as every officer route: an officer account or the shared login hosts.
@@ -365,6 +366,7 @@ roomsRouter.get('/rooms/:code/ws', async (c) => {
   headers.set('x-code', code); // the room records duel results and artifacts under it
   headers.set('x-kind', room.kind || 'meeting');
   headers.set('x-template', room.template || 'build');
+  headers.set('x-minutes', String(room.minutes ?? '')); // V3-A: which length of the template
   // G1: a planned session's blocks (already validated when saved) are the room's run-of-show.
   const planned = await c.env.DB.prepare('SELECT blocks FROM planned_sessions WHERE room_code = ?').bind(code).first();
   if (planned) headers.set('x-blocks', encodeURIComponent(planned.blocks)); // ASCII-safe for a header

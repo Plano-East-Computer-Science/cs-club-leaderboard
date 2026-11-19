@@ -99,7 +99,12 @@ export class Room {
     // The run-of-show comes from the template the officer picked when opening the room.
     let planned = null; // G1: blocks from a planned session, if this room was opened for one
     try { planned = JSON.parse(decodeURIComponent(request.headers.get('x-blocks') || 'null')); } catch { /* fall back to the template */ }
-    this.s.session ??= S.newSession({ kind: request.headers.get('x-kind') || 'meeting', template: request.headers.get('x-template') || 'build', blocks: planned });
+    this.s.session ??= S.newSession({
+      kind: request.headers.get('x-kind') || 'meeting',
+      template: request.headers.get('x-template') || 'build',
+      blocks: planned,
+      minutes: request.headers.get('x-minutes'),
+    });
 
     const pair = new WebSocketPair();
     const [client, server] = Object.values(pair);

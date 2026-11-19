@@ -47,57 +47,122 @@ export const DEFAULT_TIERS = [
 // screen is what the room sees; officer-only notes go in extra.notes.
 const b = (type, title, minutes, screen = '', extra = {}) => ({ type, title, minutes, screen, ...extra });
 
+/** V3-A: meetings run an hour or two. The room-open screen offers both; 120 is the default. */
+export const LENGTHS = [60, 120];
+export const DEFAULT_LENGTH = 120;
+
+const LAB = { lab: { pairs: true, tiers: DEFAULT_TIERS } };
+const PAIRS = 'Pick a tier. Driver types, navigator reads. Swap when the timer says.';
+const BREAK = b('break', 'Break', 10, 'Stretch, get water, back in ten.');
+
+/**
+ * Each template comes in both lengths. Every 120-minute version has a break,
+ * and every version ends with a close (that is where the exit line opens).
+ */
 export const TEMPLATES = {
   build: {
     name: 'Build night',
     blurb: 'Warm-up poll, a demo, a tiered lab in pairs, show, close.',
-    blocks: [
-      b('poll', 'Warm-up poll', 5, 'Join, find your partner, answer the poll.'),
-      b('hook', "Last week's best", 7, '', { notes: 'A member demos what they built. Ask them before the meeting.' }),
-      b('lab', 'Build in pairs', 26, 'Pick a tier. Driver types, navigator reads. Swap when the timer says.', { lab: { pairs: true, tiers: DEFAULT_TIERS } }),
-      b('show', 'Show', 5, 'Two or three pairs, 60 seconds each.'),
-      b('close', 'Close', 2, 'Next week: tell us what you want to build.'),
-    ],
+    lengths: {
+      60: [
+        b('poll', 'Warm-up poll', 5, 'Join, find your partner, answer the poll.'),
+        b('hook', "Last week's best", 7, '', { notes: 'A member demos what they built. Ask them before the meeting.' }),
+        b('lab', 'Build in pairs', 35, PAIRS, LAB),
+        b('show', 'Show', 8, 'Two or three pairs, 60 seconds each.'),
+        b('close', 'Close', 5, 'Next week: tell us what you want to build.'),
+      ],
+      120: [
+        b('poll', 'Warm-up poll', 10, 'Join, find your partner, answer the poll.'),
+        b('hook', "Last week's best", 10, '', { notes: 'A member demos what they built. Ask them before the meeting.' }),
+        b('lab', 'Build in pairs', 40, PAIRS, LAB),
+        BREAK,
+        b('lab', 'Second round: swap roles', 30, 'Same pairs, roles swapped. Pick up a tier, or try the next one.', LAB),
+        b('show', 'Show', 15, 'Four or five pairs, 60 seconds each.'),
+        b('close', 'Close', 5, 'Next week: tell us what you want to build.'),
+      ],
+    },
   },
   duel: {
     name: 'Duel night',
     blurb: 'Matched races by division, with a spotlight after each round.',
-    blocks: [
-      b('poll', 'Warm-up poll', 5),
-      b('hook', 'Tonight: duels', 5, 'Pick your division honestly. It is more fun close.'),
-      b('duel', 'Duel', 30),
-      b('show', 'How I solved it', 3),
-      b('close', 'Close', 2),
-    ],
+    lengths: {
+      60: [
+        b('hook', 'Join and practice', 5, 'Check in, then try the practice problem.'),
+        b('hook', 'Tonight: duels', 5, 'Pick your division honestly. It is more fun close.'),
+        b('duel', 'Three rounds', 39, 'Rounds of 10 minutes, a 3-minute spotlight after each.', { notes: 'Set 10-minute rounds. Spotlight one solver after each round.' }),
+        b('show', 'Upsolve', 8, 'How the winners solved it. Then finish the ones you missed.'),
+        b('close', 'Close', 3),
+      ],
+      120: [
+        b('hook', 'Join and practice', 10, 'Check in, then try the practice problem.'),
+        b('hook', 'Tonight: duels', 10, 'Pick your division honestly. It is more fun close.'),
+        b('duel', 'Three rounds', 45, 'Rounds of 12 minutes, a 3-minute spotlight after each.', { notes: 'Set 12-minute rounds. Spotlight one solver after each round.' }),
+        BREAK,
+        b('duel', '2v2 final', 20, 'Pairs race one last problem together.', { notes: 'Pair the room first, then start one round on the final problem.' }),
+        b('show', 'Upsolve', 15, "Walk through tonight's problems, then finish the ones you missed."),
+        b('close', 'Close', 10),
+      ],
+    },
   },
   mock: {
     name: 'Mock contest',
     blurb: 'Teams of three, a problem set, a scoreboard that freezes for the last ten minutes, then the reveal.',
-    blocks: [
-      b('hook', 'Rules and teams', 5, 'Contest format. No outside help.'),
-      b('contest', 'Mock contest', 35, 'Teams of three. Any teammate can submit. The board freezes for the last ten minutes.', { contest: { freeze: 10, penalty: 20 } }),
-      b('close', 'Close', 5),
-    ],
+    lengths: {
+      60: [
+        b('hook', 'Rules and teams', 5, 'Contest format. No outside help.'),
+        b('contest', 'Mock contest', 45, 'Teams of three. Any teammate can submit. The board freezes for the last ten minutes.', { contest: { freeze: 10, penalty: 20 } }),
+        b('close', 'Reveal and close', 10),
+      ],
+      120: [
+        b('hook', 'Rules and teams', 10, 'Contest format. No outside help.'),
+        b('contest', 'Mock contest', 70, 'Teams of three. Any teammate can submit. The board freezes for the last ten minutes.', { contest: { freeze: 10, penalty: 20 } }),
+        BREAK,
+        b('show', 'Upsolve', 20, 'One solution per problem, explained by the team that got it.'),
+        b('close', 'Close', 10),
+      ],
+    },
   },
   speaker: {
     name: 'Speaker night',
     blurb: 'A guest talk with upvoted questions and a takeaways pad.',
-    blocks: [
-      b('hook', 'Welcome', 3, '', { notes: 'Introduce the speaker.' }),
-      b('speaker', 'Talk and questions', 35, 'Send questions any time. Upvote the ones you want answered.'),
-      b('close', 'Close', 7),
-    ],
+    lengths: {
+      60: [
+        b('hook', 'Welcome', 5, '', { notes: 'Introduce the speaker.' }),
+        b('speaker', 'Talk and questions', 45, 'Send questions any time. Upvote the ones you want answered.'),
+        b('close', 'Close', 10),
+      ],
+      120: [
+        b('poll', 'Warm-up poll', 10, 'Check in and answer the poll.'),
+        b('hook', 'Welcome', 5, '', { notes: 'Introduce the speaker.' }),
+        b('speaker', 'Talk', 45, 'Send questions any time. Upvote the ones you want answered.'),
+        BREAK,
+        b('speaker', 'Questions', 35, 'Most votes first. Keep sending them.'),
+        b('close', 'Close', 15),
+      ],
+    },
   },
   demo: {
     name: 'Demo day',
     blurb: 'End of a ship cycle: everyone shows what they built.',
-    blocks: [
-      b('hook', 'Demo day', 3, 'Order of demos on the board.'),
-      b('show', 'Demos', 35, 'Submit your link. Kudos the ones you liked.'),
-      b('close', 'Close', 7),
-    ],
+    lengths: {
+      60: [
+        b('hook', 'Demo day', 5, 'Order of demos on the board.'),
+        b('show', 'Demos', 45, 'Submit your link. Kudos the ones you liked.'),
+        b('close', 'Close', 10),
+      ],
+      120: [
+        b('hook', 'Demo day', 5, 'Order of demos on the board.'),
+        b('show', 'Demos, first half', 50, 'Submit your link. Kudos the ones you liked.'),
+        BREAK,
+        b('show', 'Demos, second half', 45, 'Submit your link. Kudos the ones you liked.'),
+        b('close', 'Close', 10),
+      ],
+    },
   },
 };
+
+/** 60 or 120 from anything; everything else is the default. */
+export const lengthOf = (v) => (LENGTHS.includes(Number(v)) ? Number(v) : DEFAULT_LENGTH);
 
 /** Room kinds: a normal meeting, or a Panther Pause drop-in (B10) with no agenda. */
 export const ROOM_KINDS = ['meeting', 'dropin'];
@@ -168,7 +233,7 @@ export function endWarning({ joined = 0, exits = 0, dropin = false, duelLive = f
 /** Blocks as a member's laptop may see them: officer notes removed. */
 export const studentBlocks = (blocks) => (blocks ?? []).map(({ notes, ...rest }) => rest);
 
-/** A fresh copy of a template's blocks with ids, or [] for a drop-in / unknown id. */
-export function templateBlocks(id) {
-  return TEMPLATES[id] ? cleanBlocks(TEMPLATES[id].blocks) : [];
+/** A fresh copy of a template's blocks at 60 or 120 minutes, with ids, or [] for a drop-in / unknown id. */
+export function templateBlocks(id, minutes = DEFAULT_LENGTH) {
+  return TEMPLATES[id] ? cleanBlocks(TEMPLATES[id].lengths[lengthOf(minutes)]) : [];
 }

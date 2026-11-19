@@ -19,7 +19,7 @@ import CtfAdmin from './officer/Ctf.jsx';
 import CompetitionAdmin from './officer/Competition.jsx';
 import Analytics from './officer/Analytics.jsx';
 import TemplatePicker from './officer/TemplatePicker.jsx';
-import { endWarning } from '../../shared/session-templates.js';
+import { DEFAULT_LENGTH, endWarning } from '../../shared/session-templates.js';
 import DataAdmin from './officer/Data.jsx';
 import Planner from './officer/Planner.jsx';
 import EditorialsAdmin from './officer/Editorials.jsx';
@@ -465,6 +465,7 @@ function Rooms() {
   const [error, setError] = useState(null);
   const [title, setTitle] = useState('');
   const [template, setTemplate] = useState('build');
+  const [minutes, setMinutes] = useState(DEFAULT_LENGTH);
   const [busy, setBusy] = useState(false);
   const [made, setMade] = useState(null);
   const [open, setOpen] = useState(null);
@@ -482,7 +483,7 @@ function Rooms() {
     setBusy(true);
     setError(null);
     try {
-      setMade(await api.post('/admin/hub/rooms', { title: title.trim(), template }));
+      setMade(await api.post('/admin/hub/rooms', { title: title.trim(), template, minutes }));
       setTitle('');
       load();
     } catch (err) {
@@ -530,7 +531,7 @@ function Rooms() {
       </SectionHead>
 
       <form onSubmit={create} className="card mb-4 grid gap-4 p-4">
-        <TemplatePicker value={template} onChange={setTemplate} />
+        <TemplatePicker value={template} onChange={setTemplate} minutes={minutes} onMinutes={setMinutes} />
         <div className="flex flex-wrap items-end gap-3">
           <label className="grid min-w-56 flex-1 gap-1.5">
             <span className="eyebrow">Title</span>

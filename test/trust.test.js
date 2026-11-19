@@ -15,6 +15,7 @@ import { recordActivity } from '../worker/hub/ledger.js';
 import { buildDigest, groupPoints } from '../worker/digest.js';
 import worker from '../worker/index.js';
 import { chicagoDate } from '../shared/daily.js';
+import { signSession, COOKIE } from '../worker/auth.js';
 
 const SCHEMA = fs.readFileSync(new URL('../worker/schema.sql', import.meta.url), 'utf8');
 let passed = 0;
@@ -255,6 +256,27 @@ await check('the digest groups points by member, drops zero rows and shows no ra
   const d = await buildDigest(db, '2000-01-01T00:00:00Z');
   assert.equal(d.members.length, 1);
   assert.deepEqual(d.members[0].items, ['Duel night: won a round']);
+});
+
+/* --------------------------- 7. 60 and 120 minute rooms --------------------------- */
+
+await check('a room remembers the length the officer picked; odd lengths fall back to 120', async () => {
+  const env = { ADMIN_PASSWORD: 'pw', SESSION_SECRET: 'test-secret', DB: makeTestDb(SCHEMA) };
+  const officer = `${COOKIE}=${await signSession(env)}`;
+  const open = async (body) => {
+    const res = await worker.fetch(
+      new Request('https://club.test/api/admin/hub/rooms', { method: 'POST', headers: { Cookie: officer, 'Content-Type': 'application/json' }, body: JSON.stringify(body) }),
+      env,
+      { waitUntil() {} }
+    );
+    return res.json();
+  };
+  const short = await open({ title: 'Quick duel', template: 'duel', minutes: 60 });
+  const odd = await open({ title: 'Odd', template: 'duel', minutes: 45 });
+  const plain = await open({ title: 'Plain', template: 'build' });
+  assert.deepEqual([short.minutes, odd.minutes, plain.minutes], [60, 120, 120]);
+  const row = await env.DB.prepare('SELECT minutes FROM rooms WHERE code = ?').bind(short.code).first();
+  assert.equal(row.minutes, 60);
 });
 
 console.log(`trust: ${passed} checks passed`);

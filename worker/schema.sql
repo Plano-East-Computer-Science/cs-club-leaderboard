@@ -207,7 +207,8 @@ CREATE TABLE IF NOT EXISTS rooms (
   closed_at  TEXT,
   kind       TEXT NOT NULL DEFAULT 'meeting',  -- B10: meeting | dropin
   template   TEXT NOT NULL DEFAULT '',         -- B1: shared/session-templates.js id
-  takeaways  TEXT NOT NULL DEFAULT ''          -- B8: the speaker block's takeaways pad
+  takeaways  TEXT NOT NULL DEFAULT '',         -- B8: the speaker block's takeaways pad
+  minutes    INTEGER                           -- V3-A: 60 or 120, which length of the template (migration 013)
 );
 -- A row exists only for a check-in with a current rotating token (B4). Every row is
 -- paid attendance when the room closes; exit_kind set (the member did one thing that
