@@ -1,0 +1,18 @@
+In-browser Java compiler used by the club site's code runner.
+
+These files are an unmodified build of teavm-javac:
+  https://github.com/konsoletyper/teavm-javac  commit 0340fab28da146d283ba94df8a36d66a4c635084
+  built against TeaVM 0.17.0-dev-7 (https://teavm.org/maven/repository)
+  with `./gradlew :compiler:createDist`, then deobfuscator.wasm taken from
+  org.teavm:teavm-wasm-gc-deobfuscator:0.17.0-dev-7.
+
+teavm-javac and TeaVM are licensed under the Apache License 2.0:
+  https://www.apache.org/licenses/LICENSE-2.0
+
+compiler.wasm contains the Java compiler from OpenJDK (jdk25u), licensed under
+the GNU General Public License version 2 with the Classpath Exception:
+  https://openjdk.org/legal/gplv2+ce.html
+Its source is available at https://github.com/openjdk/jdk25u (the revision is
+named in teavm-javac's gradle.properties, `jdk.revision`).
+
+How to rebuild: docs/v3c-java-ide.md in the club site repository.

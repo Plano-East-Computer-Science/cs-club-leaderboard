@@ -189,7 +189,9 @@ export function Dock() {
 
   useEffect(() => {
     const onKey = (e) => {
-      if (e.key === '/' && !['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) {
+      // isContentEditable: the code editor (CodeMirror) is a contenteditable div, and "/" is code there.
+      const a = document.activeElement;
+      if (e.key === '/' && !['INPUT', 'TEXTAREA', 'SELECT'].includes(a.tagName) && !a.isContentEditable) {
         e.preventDefault();
         inputRef.current?.focus();
       }
