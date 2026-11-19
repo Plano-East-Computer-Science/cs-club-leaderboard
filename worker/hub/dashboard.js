@@ -143,6 +143,27 @@ export function neighbours(rows, me) {
 /** Compass path to Arena track (shared/board.js names). */
 const TRACK = { contest: 'contest', builder: 'build', ai: 'ai', data: 'data', cyber: 'cyber' };
 
+/**
+ * The open room members can join right now, or null: { code, title, since, here }.
+ * Today and the app shell's Live pill both read this, so they never disagree.
+ */
+// ponytail: a room left open overnight would show as live; the 8 hour window hides it.
+export async function liveRoom(db, userId) {
+  const r = await db
+    .prepare(
+      `SELECT r.code, r.title, r.created_at,
+              EXISTS (SELECT 1 FROM room_checkins k WHERE k.code = r.code AND k.user_id = ?) AS here
+       FROM rooms r WHERE r.closed_at IS NULL AND r.created_at > datetime('now', '-8 hours')
+       ORDER BY r.created_at DESC LIMIT 1`
+    )
+    .bind(userId)
+    .first();
+  return r ? { code: r.code, title: r.title, since: r.created_at, here: Boolean(r.here) } : null;
+}
+
+/** The shell asks this on every page change; members only, since the code lets you check in. */
+dashboardRouter.get('/me/live', requireUser, async (c) => c.json({ live: await liveRoom(c.env.DB, c.get('user').id) }));
+
 dashboardRouter.get('/me/dashboard', requireUser, async (c) => {
   const user = c.get('user');
   const db = c.env.DB;
@@ -153,18 +174,9 @@ dashboardRouter.get('/me/dashboard', requireUser, async (c) => {
   const path = PATHS[me?.path] ? me.path : null;
 
   /* 1. next meeting: a live room, else what officers wrote on the Join page */
-  // ponytail: a room left open overnight would show as live; the 8 hour window hides it. G1 planned sessions replace the fallback.
-  const live = await db
-    .prepare(
-      `SELECT r.code, r.title, r.created_at,
-              EXISTS (SELECT 1 FROM room_checkins k WHERE k.code = r.code AND k.user_id = ?) AS here
-       FROM rooms r WHERE r.closed_at IS NULL AND r.created_at > datetime('now', '-8 hours')
-       ORDER BY r.created_at DESC LIMIT 1`
-    )
-    .bind(user.id)
-    .first();
+  const live = await liveRoom(db, user.id);
   let meeting = { kind: 'none' };
-  if (live) meeting = { kind: 'live', code: live.code, title: live.title, since: live.created_at, here: Boolean(live.here) };
+  if (live) meeting = { kind: 'live', ...live };
   else {
     // G1: the next planned session (member-safe fields only), else what officers wrote on the Join page
     const plan = await nextPublicPlan(db);
