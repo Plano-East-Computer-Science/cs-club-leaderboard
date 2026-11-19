@@ -58,3 +58,19 @@ Test on dev:
 Roll back: Revert #9, #8 or #7 on its own (each was checked to revert
 cleanly), or #9, #8, #7 in that order for the whole wave. #10 only moves CSS
 and never needs reverting. No database changes.
+
+## Wave 3: trust fixes (2026-11-19)
+
+Fallback for everything before v2: branch and tag `dev-fallback-2026-11-18`.
+
+| PR | What |
+| --- | --- |
+| this PR | Officer notes stay private; attendance pays everyone who checked in (+3 bonus for doing something); End room says what will happen; rooms open over 8 hours close and pay themselves; one points table (`/api/club`) on About and Standings; readable digest; 60-minute meetings by default (120 available); meeting time Wednesday 4:30 PM; dev loads content seeds |
+
+Test on dev:
+1. Officer: plan a meeting, put a private note on a block. Join as a student: the note never shows.
+2. Open a room (60 minutes is the default). Check a student in, then End room: the confirm says how many will be paid. Close it: the student gets attendance.
+3. /about and /standings show the same point values.
+4. Practice and the Board are no longer empty on dev.
+
+Roll back: Revert this PR. Migration 013 (`rooms.minutes`) stays, unused.
