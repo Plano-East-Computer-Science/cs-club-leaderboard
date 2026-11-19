@@ -279,4 +279,29 @@ await check('a room remembers the length the officer picked; odd lengths fall ba
   assert.equal(row.minutes, 60);
 });
 
+/* ------------------------------ 8. dev content seeds ------------------------------ */
+
+await check('every seed the dev deploy loads is safe to re-run and adds no members', async () => {
+  const yml = fs.readFileSync(new URL('../.github/workflows/deploy-dev.yml', import.meta.url), 'utf8');
+  const step = yml.slice(yml.indexOf('Load content seeds'));
+  const files = [...step.slice(0, step.indexOf('done')).matchAll(/worker\/(seed[\w-]*\.sql)/g)].map((m) => m[1]);
+  assert.ok(files.includes('seed-problems.sql') && files.includes('seed-rungs.sql'), 'the step lists the content seeds');
+  for (const bad of ['seed.sql', 'seed-demo-standings.sql', 'seed-cycles.sql']) assert.ok(!files.includes(bad), `${bad} holds made-up members`);
+  const db = makeTestDb(SCHEMA);
+  const tables = (await db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'`).all()).results.map((r) => r.name);
+  const counts = async () => Object.fromEntries(await Promise.all(tables.map(async (t) => [t, (await db.prepare(`SELECT COUNT(*) AS n FROM "${t}"`).first()).n])));
+  for (const f of files) {
+    const url = new URL(`../worker/${f}`, import.meta.url);
+    if (!fs.existsSync(url)) continue; // seed-packs.sql arrives with V3-B
+    const sql = fs.readFileSync(url, 'utf8');
+    db.exec(sql);
+    const once = await counts();
+    db.exec(sql);
+    assert.deepEqual(await counts(), once, `${f}: a second run adds nothing`);
+  }
+  const after = await counts();
+  assert.ok(after.problems > 0 && after.rungs > 0 && after.data_challenges > 0, 'content arrived');
+  assert.equal(after.students + after.users, 0, 'no members');
+});
+
 console.log(`trust: ${passed} checks passed`);
