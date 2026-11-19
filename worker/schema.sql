@@ -993,3 +993,25 @@ CREATE TABLE IF NOT EXISTS problem_sets (
   created_at TEXT    NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT    NOT NULL DEFAULT (datetime('now'))
 );
+
+/* ============================ Wave 6: speaker questions, early ============================ */
+-- Members ask (and upvote) questions for a planned speaker night on Today,
+-- from openEarlyHours before the meeting until its room opens. The room's
+-- Durable Object loads them, with their votes, when it opens. Anonymous to
+-- members; officers see who asked. Reports go to the reports table as kind
+-- 'question'. Owned by worker/hub/live.js.
+CREATE TABLE IF NOT EXISTS early_questions (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  plan_id    INTEGER NOT NULL REFERENCES planned_sessions(id) ON DELETE CASCADE,
+  user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  text       TEXT    NOT NULL,
+  hidden     INTEGER NOT NULL DEFAULT 0,             -- an officer hid it
+  created_at TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_early_questions_plan ON early_questions(plan_id);
+CREATE TABLE IF NOT EXISTS early_question_marks (
+  question_id INTEGER NOT NULL REFERENCES early_questions(id) ON DELETE CASCADE,
+  user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  kind        TEXT    NOT NULL DEFAULT 'up' CHECK (kind IN ('up')),
+  PRIMARY KEY (question_id, user_id, kind)
+);

@@ -349,7 +349,8 @@ roomsRouter.get('/rooms/:code/ws', async (c) => {
   const headers = new Headers(c.req.raw.headers);
 
   if (isHost) {
-    headers.set('x-role', 'host');
+    // Wave 6: the projector connects as `screen`, which sees only what the room may see.
+    headers.set('x-role', c.req.query('as') === 'screen' ? 'screen' : 'host');
   } else {
     if (room.closed_at) return c.text('Room closed', 410);
     const user = await currentUser(c);

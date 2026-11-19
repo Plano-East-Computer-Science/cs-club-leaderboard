@@ -18,6 +18,14 @@
  * someone, a "what I did" line) is written to their room_checkins row.
  * Closing the room pays attendance to every check-in and the `active` bonus
  * to rows that have one (V3-A, rooms.js awardAttendance).
+ *
+ * Wave 6 roles: `host` is an officer console (the laptop or the moderator
+ * phone) and the only role that sends controls; `screen` is the projector, an
+ * officer's second socket that only renders and sees what the room sees (no
+ * notes, no Zoom link, no names on questions, no answers before the reveal);
+ * `student` is a checked-in member. Two plain GETs (no socket) come from the
+ * Worker: `guest` for the speaker's private link and `recap` for the public
+ * recap page.
  */
 import { newDuel, setDivision, startRound, submit, everyoneSolved, endRound, pickSpotlight, finish, duelView, findSide, DIVISIONS } from './duel.js';
 import { makePairs, groupKeys } from './pairs.js';
@@ -26,7 +34,8 @@ import { awardFromUser } from './award.js';
 import { findCourse } from '../../shared/courses.js';
 import * as S from './session.js';
 import * as C from '../../shared/contest.js';
-import { studentBlocks } from '../../shared/session-templates.js';
+import { studentBlocks, speakerOf } from '../../shared/session-templates.js';
+import * as T from './teach.js';
 
 const PULSE = ['fast', 'slow', 'lost', 'great'];
 const MAX_CODE = 20_000;
@@ -49,6 +58,8 @@ const fresh = () => ({
   contest: null, // B5, see shared/contest.js
   pairs: null, // B9: [[uid, uid], ...] from "pair the room"
   pairAvoid: [], // last pairs, so the next press rotates
+  check: null, // Wave 6: the concept check running in a teach block, see teach.js
+  qnames: {}, // Wave 6: uid -> name of members who asked early on Today, for officers
   code: '', // the room code, for D1 rows
   ended: false,
   seq: 0,
@@ -89,22 +100,31 @@ export class Room {
   }
 
   async fetch(request) {
-    if (request.headers.get('Upgrade') !== 'websocket') return new Response('Expected WebSocket', { status: 426 });
+    const asked = request.headers.get('x-role');
+    // Plain reads from the Worker, after it checked the speaker link or that the room has closed.
+    if (request.headers.get('Upgrade') !== 'websocket') {
+      if (asked === 'guest') return Response.json(this.guestView());
+      if (asked === 'recap') return Response.json(this.recapView());
+      return new Response('Expected WebSocket', { status: 426 });
+    }
 
-    const role = request.headers.get('x-role') === 'host' ? 'host' : 'student';
-    const uid = role === 'host' ? 'host' : String(request.headers.get('x-uid') ?? '');
+    const role = asked === 'host' || asked === 'screen' ? asked : 'student';
+    const uid = role === 'student' ? String(request.headers.get('x-uid') ?? '') : role;
     const name = request.headers.get('x-name') || 'Student';
     const code = request.headers.get('x-code');
     if (code && !this.s.code) this.s.code = code;
     // The run-of-show comes from the template the officer picked when opening the room.
     let planned = null; // G1: blocks from a planned session, if this room was opened for one
     try { planned = JSON.parse(decodeURIComponent(request.headers.get('x-blocks') || 'null')); } catch { /* fall back to the template */ }
-    this.s.session ??= S.newSession({
-      kind: request.headers.get('x-kind') || 'meeting',
-      template: request.headers.get('x-template') || 'build',
-      blocks: planned,
-      minutes: request.headers.get('x-minutes'),
-    });
+    if (!this.s.session) {
+      this.s.session = S.newSession({
+        kind: request.headers.get('x-kind') || 'meeting',
+        template: request.headers.get('x-template') || 'build',
+        blocks: planned,
+        minutes: request.headers.get('x-minutes'),
+      });
+      await this.loadQuestions();
+    }
 
     const pair = new WebSocketPair();
     const [client, server] = Object.values(pair);
@@ -196,6 +216,7 @@ export class Room {
           if (s.q.open) this.closeQuestion();
           s.q = null;
         }
+        if (!r?.error) s.check = null; // so does a concept check
         break;
       }
       case 'block_time':
@@ -203,13 +224,40 @@ export class Room {
         break;
       case 'blocks_set':
         r = S.setBlocks(sess, m.blocks, now);
+        if (!r.error) await this.loadQuestions(); // seed questions added in the editor join the list
         break;
       // B7, B8, B6
       case 'help_clear':
         r = S.helpClose(s.help, m.id);
         break;
       case 'sq_answered':
-        r = S.sqAnswered(s.speaker, m.id);
+        r = S.sqAnswered(s.speaker, m.id, typeof m.value === 'boolean' ? m.value : undefined);
+        break;
+      case 'sq_skip':
+        r = S.sqSkip(s.speaker, m.id);
+        break;
+      case 'sq_hide':
+        r = S.sqHide(s.speaker, m.id, m.hidden !== false);
+        break;
+      case 'speaker_mode':
+        if (!['questions', 'zoom'].includes(m.mode)) return 'Pick questions or Zoom.';
+        s.speaker.mode = m.mode;
+        break;
+      // Wave 6: concept checks in a teach block
+      case 'check_start': {
+        const c = T.startCheck(S.currentBlock(sess), m.i, ++s.seq);
+        if (c.error) return c.error;
+        s.check = c.check;
+        break;
+      }
+      case 'check_next':
+        r = T.nextPhase(s.check, now);
+        break;
+      case 'check_reveal':
+        r = T.reveal(s.check);
+        break;
+      case 'check_close':
+        s.check = null;
         break;
       case 'takeaways':
         s.speaker.takeaways = String(m.text ?? '').slice(0, 4000);
@@ -280,6 +328,13 @@ export class Room {
       case 'sq_vote':
         r = S.sqVote(s.speaker, uid, m.id);
         break;
+      case 'sq_report':
+        r = S.sqReport(s.speaker, uid, m.id);
+        break;
+      case 'check_vote':
+        r = T.castVote(s.check, uid, m.choice);
+        if (!r.error) await this.exit(uid, 'poll'); // voting counts as doing something; answers earn nothing
+        break;
       // B6
       case 'show_submit': {
         if (type !== 'show') return 'Sharing opens in the show block.';
@@ -307,11 +362,11 @@ export class Room {
       // B3
       case 'lab_tier':
         if (type !== 'lab') return 'The lab is not open.';
-        r = S.labPick((s.labs[block.id] ??= S.freshLab()), uid, m.tier, block.lab.tiers);
+        r = S.labPick((s.labs[block.id] ??= S.freshLab()), uid, m.tier, block.lab.tiers, Date.now());
         break;
       case 'lab_pass':
         if (type !== 'lab') return 'The lab is not open.';
-        r = S.labPass((s.labs[block.id] ??= S.freshLab()), uid, m.step, labCheckpoints(block));
+        r = S.labPass((s.labs[block.id] ??= S.freshLab()), uid, m.step, labCheckpoints(block), Date.now());
         if (r.ok) await this.exit(uid, 'lab');
         break;
       // B4: the one-line "what I did" on the close block (or any time in a drop-in).
@@ -362,6 +417,89 @@ export class Room {
         return 'skip';
     }
     return r?.error ?? null;
+  }
+
+  /**
+   * Wave 6: the plan's seed questions, and (once) the questions members asked
+   * on Today before the room opened, with their votes. Never throws: a room
+   * without a plan or a database simply starts with the seeds it has.
+   */
+  async loadQuestions() {
+    const s = this.s;
+    const seeds = speakerOf(s.session?.blocks)?.seedQuestions ?? [];
+    let early = null;
+    const db = this.env?.DB;
+    if (!s.speaker.loaded && db && s.code) {
+      try {
+        const rows = (
+          await db
+            .prepare(
+              `SELECT q.id, q.user_id, q.text, u.name,
+                      (SELECT group_concat(m.user_id) FROM early_question_marks m WHERE m.question_id = q.id AND m.kind = 'up') AS ups
+               FROM early_questions q JOIN planned_sessions p ON p.id = q.plan_id LEFT JOIN users u ON u.id = q.user_id
+               WHERE p.room_code = ? AND q.hidden = 0 ORDER BY q.id`
+            )
+            .bind(s.code)
+            .all()
+        ).results;
+        early = rows.map((r) => ({ uid: r.user_id, text: r.text, votes: r.ups ? String(r.ups).split(',') : [] }));
+        for (const r of rows) s.qnames[String(r.user_id)] = r.name ?? 'Member';
+      } catch (err) {
+        console.error('early questions failed', err?.message ?? err);
+      }
+    }
+    S.sqLoad(s.speaker, { seeds, early }, () => ++s.seq);
+  }
+
+  /** Who asked a question, for officers only. */
+  asker(q) {
+    if (q.seed) return 'Officers';
+    return this.s.names[q.uid] ?? this.s.qnames?.[q.uid] ?? 'Member';
+  }
+
+  /**
+   * The question queue as one role sees it. Anonymous to everyone but
+   * officers; hidden questions are only on officer screens.
+   */
+  questions(role, uid) {
+    const officer = role === 'host';
+    return S.sqOrder(this.s.speaker.qs)
+      .filter((x) => officer || !x.hidden)
+      .map((x) => ({
+        id: x.id,
+        text: x.text,
+        votes: x.votes.length,
+        answered: x.answered,
+        seed: Boolean(x.seed),
+        skipped: Boolean(x.skipped),
+        ...(officer && { name: this.asker(x), hidden: Boolean(x.hidden), reports: (x.reports ?? []).length, early: Boolean(x.early) }),
+        ...(role === 'student' && { mine: x.uid === uid, voted: x.votes.includes(uid), reported: (x.reports ?? []).includes(uid) }),
+      }));
+  }
+
+  /** The speaker's private link: the live queue, no names, no hidden questions. */
+  guestView() {
+    const sp = speakerOf(this.s.session?.blocks);
+    const qs = this.questions('guest');
+    return {
+      ended: this.s.ended,
+      speaker: sp ? { name: sp.name, title: sp.title } : null,
+      waiting: qs.filter((q) => !q.answered).map(({ id, text, votes, seed }) => ({ id, text, votes, seed })),
+      answered: qs.filter((q) => q.answered).length,
+      now: Date.now(),
+    };
+  }
+
+  /** What the public recap needs from the room: answered questions, most votes first. Text only. */
+  recapView() {
+    const qs = this.questions('guest');
+    return {
+      questions: qs
+        .filter((q) => q.answered)
+        .sort((a, b) => b.votes - a.votes)
+        .slice(0, 5)
+        .map((q) => ({ text: q.text, votes: q.votes })),
+    };
   }
 
   /** What this student can put in the show block as a result: { lab, duel } descriptions or null. */
@@ -683,7 +821,14 @@ export class Room {
     const lab = s.labs[block.id] ?? S.freshLab();
     const cps = labCheckpoints(block);
     const tiers = block.lab.tiers.map((t, i) => ({ name: t.name, source: t.source, checkpoints: cps[i].length }));
-    if (role === 'host') return { pairs: block.lab.pairs, tiers, counts: S.labCounts(lab, block.lab.tiers, cps) };
+    if (role === 'host' || role === 'screen') {
+      const out = { pairs: block.lab.pairs, tiers, counts: S.labCounts(lab, block.lab.tiers, cps) };
+      // Wave 6, who is stuck: names and checkpoints for the officer console, never the projector.
+      if (role === 'host') {
+        out.progress = S.labProgress(lab, block.lab.tiers, cps, this.present()).map(({ uid: u, ...p }) => ({ ...p, name: this.s.names[u] ?? 'Student' }));
+      }
+      return out;
+    }
     const tier = lab.picks[uid] ?? null;
     const group = s.pairs?.find((g) => g.includes(uid));
     return {
@@ -701,7 +846,8 @@ export class Room {
     const live = this.ctx.getWebSockets().map((w) => w.deserializeAttachment()).filter((a) => a?.role === 'student');
     const connected = new Set(live.map((a) => a.uid));
     const q = s.q;
-    const host = role === 'host';
+    const host = role === 'host'; // an officer console: names, notes, controls
+    const wall = host || role === 'screen'; // what the whole room may see on the projector
     const name = (u) => s.names[u] ?? 'Student';
 
     const counts = q ? q.options.map((_, i) => Object.values(s.answers).filter((a) => a.choice === i).length) : [];
@@ -734,7 +880,9 @@ export class Room {
       helpOpen: openHelp.length,
       help: host
         ? openHelp.map((h) => ({ id: h.id, topic: h.topic, name: name(h.uid), helpers: h.helpers.map(name) }))
-        : openHelp.map((h) => ({
+        : role === 'screen'
+          ? []
+          : openHelp.map((h) => ({
             id: h.id,
             topic: h.topic,
             name: first(name(h.uid)),
@@ -743,21 +891,23 @@ export class Room {
             ...(h.uid === uid && { helpers: h.helpers.map((u) => ({ uid: u, name: name(u) })) }),
           })),
       helped: host ? s.help.filter((h) => h.status === 'solved' && h.helper).length : undefined,
-      // B8: questions are anonymous everywhere.
+      // B8: questions are anonymous to everyone but officers (Wave 6: officers see who asked, to moderate).
       speaker: {
         takeaways: s.speaker.takeaways,
-        qs: S.sqOrder(s.speaker.qs).map((x) => ({ id: x.id, text: x.text, votes: x.votes.length, answered: x.answered, mine: x.uid === uid, voted: x.votes.includes(uid) })),
+        mode: s.speaker.mode ?? speakerOf(sess.blocks)?.projector ?? 'questions',
+        qs: this.questions(role, uid),
       },
+      check: T.checkView(s.check, role, uid),
       // B6
       show: {
         picked: s.show.picked,
         items: s.show.items.map((x) => ({ id: x.id, name: name(x.uid), kind: x.kind, url: x.url, line: x.line, result: x.result, kudos: x.kudos.length, mine: x.uid === uid, gave: x.kudos.includes(uid) })),
       },
-      earned: host ? undefined : this.earned(uid),
+      earned: role === 'student' ? this.earned(uid) : undefined,
       lab: this.labView(role, uid),
-      duel: duelView(s.duel, { role, uid, names: s.names, present: [...connected] }),
+      duel: duelView(s.duel, { role: wall ? 'host' : role, uid, names: s.names, present: [...connected] }),
       contest: this.contestView(role, uid),
-      pairs: host ? s.pairs?.map((g) => g.map(name)) : s.pairs?.find((g) => g.includes(uid))?.filter((u) => u !== uid).map(name),
+      pairs: host ? s.pairs?.map((g) => g.map(name)) : role === 'screen' ? null : s.pairs?.find((g) => g.includes(uid))?.filter((u) => u !== uid).map(name),
       q: q && {
         id: q.id,
         text: q.text,
