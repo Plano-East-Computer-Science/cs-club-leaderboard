@@ -23,10 +23,10 @@ function day(v) {
 const KIND = { compete: 'Competed in', place: 'Placed in', ship: 'Shipped' };
 const ymd = (iso) => (iso ? new Date(`${iso}T12:00:00Z`).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }) : '');
 
-// Light page, no site chrome. Chrome is the tab bar, dock, footer, boot and snow layers.
+// Light page, no site chrome. Chrome is the top bar, bottom tabs, footer, the Me links, boot and snow.
 const PRINT_CSS = `
 @media print {
-  .tabs, .dock, footer, #boot, #snow, .no-print { display: none !important; }
+  .ui-top, .ui-tabbar, .ui-foot, .ui-me, #boot, #snow, .no-print { display: none !important; }
   html, body { background: #fff !important; color: #000 !important; padding: 0 !important; }
   .hub { padding: 0 !important; max-width: none !important; }
   .pf-sheet { box-shadow: none !important; border: none !important; padding: 0 !important; max-width: none !important; background: #fff !important; }
@@ -35,8 +35,10 @@ const PRINT_CSS = `
   a { text-decoration: none; }
 }`;
 
-export default function Portfolio() {
-  const { id } = useParams();
+/** `/u/:id`, or the Me door passing the signed-in member's id. */
+export default function Portfolio({ id: own }) {
+  const params = useParams();
+  const id = own ?? params.id;
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);

@@ -1,6 +1,7 @@
 /**
  * Holiday theme: an `xmas` class on <html>. Persisted in localStorage `e-xmas`,
- * forced by `?xmas=1` / `?xmas=0`, and on by default during December.
+ * forced by `?xmas=1` / `?xmas=0`. Off unless asked for: since Wave 4 the bar no
+ * longer has a toggle, so it is the `xmas` command in the palette.
  */
 import { useSyncExternalStore } from 'react';
 
@@ -23,7 +24,7 @@ const write = (v) => {
 const q = new URLSearchParams(location.search).get('xmas');
 if (q === '1' || q === '0') write(q === '1' ? 'on' : 'off');
 
-let on = read() ? read() === 'on' : new Date().getMonth() === 11;
+let on = read() === 'on';
 const subs = new Set();
 const apply = () => document.documentElement.classList.toggle('xmas', on);
 apply();

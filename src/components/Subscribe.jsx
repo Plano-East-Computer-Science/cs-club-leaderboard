@@ -22,9 +22,9 @@ export function SubscribeBox() {
 
   return (
     <>
-      <form className="sub-form" onSubmit={submit}>
-        <span>&gt;</span>
+      <form className="ui-sub" onSubmit={submit}>
         <input
+          className="ui-input"
           type="email"
           placeholder="you@gmail.com"
           aria-label="Email address"
@@ -33,12 +33,14 @@ export function SubscribeBox() {
           onChange={(e) => setEmail(e.target.value)}
           required
         />
-        <button disabled={state.busy}>{state.busy ? 'sending...' : 'subscribe'}</button>
+        <button className="ui-btn ui-btn--secondary" disabled={state.busy}>
+          {state.busy ? 'Sending' : 'Subscribe'}
+        </button>
       </form>
-      <div className="sub-out" aria-live="polite" style={state.error ? { color: 'var(--down)' } : undefined}>
-        {state.done && `> confirmation sent to ${email}. click the link in it to finish subscribing.`}
-        {state.error && `> ${state.error}`}
-      </div>
+      <p className={state.error ? 'ui-field__e' : 'ui-field__h'} aria-live="polite">
+        {state.done && `Check ${email} for a link to confirm.`}
+        {state.error}
+      </p>
     </>
   );
 }
