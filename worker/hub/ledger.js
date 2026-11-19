@@ -54,8 +54,10 @@ async function award(db, act, officer, rules) {
   // ponytail: two approvals for one student in the same instant can both pass a cap; fine at club scale.
   const meta = parseMeta(act.meta);
   const pts = pointsFor(act.kind, meta, history, rules, act.created_at);
-  // The reason starts with the kind so the standings page reads it as-is.
-  const reason = `${act.kind}: ${meta.title || act.ref}`.slice(0, 200);
+  // The reason starts with the kind; shared/points.js pointLabel turns it into words.
+  // A placing carries its place ("USACO Bronze #2") so the label can say "2nd place".
+  const place = act.kind === 'place' && Number.isInteger(meta.place) ? ` #${meta.place}` : '';
+  const reason = `${act.kind}: ${String(meta.title || act.ref).slice(0, 180)}${place}`.slice(0, 200);
   const [ins] = await db.batch([
     db
       .prepare(`INSERT INTO point_events (student_id, delta, reason) SELECT student_id, ?, ? FROM activity WHERE id = ? AND status = 'pending'`)
@@ -185,7 +187,7 @@ ledgerRouter.get('/feed', async (c) => {
                 EXISTS (SELECT 1 FROM kudos k WHERE k.activity_id = a.id AND k.user_id = ?) AS mine,
                 a.student_id = ? AS own
          FROM activity a JOIN students s ON s.id = a.student_id AND s.active = 1
-         WHERE a.status = 'approved' AND a.hidden = 0
+         WHERE a.status = 'approved' AND a.hidden = 0 AND a.kind != 'active' -- the meeting bonus rides on the attend row
          ORDER BY a.decided_at DESC, a.id DESC LIMIT 30`
       )
       .bind(user?.id ?? 0, user?.student_id ?? 0)

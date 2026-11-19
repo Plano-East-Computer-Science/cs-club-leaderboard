@@ -20,6 +20,7 @@ import CtfAdmin from './officer/Ctf.jsx';
 import CompetitionAdmin from './officer/Competition.jsx';
 import Analytics from './officer/Analytics.jsx';
 import TemplatePicker from './officer/TemplatePicker.jsx';
+import { DEFAULT_LENGTH, endWarning } from '../../shared/session-templates.js';
 import DataAdmin from './officer/Data.jsx';
 import Planner from './officer/Planner.jsx';
 import EditorialsAdmin from './officer/Editorials.jsx';
@@ -458,7 +459,7 @@ function IdeasAdmin() {
 const paid = (d) =>
   `Paid attendance to ${d.awarded} member${d.awarded === 1 ? '' : 's'}` +
   (d.alreadyHad ? `, ${d.alreadyHad} already paid` : '') +
-  (d.noExit ? `, ${d.noExit} checked in but did nothing that counts` : '') +
+  (d.noExit ? `, ${d.noExit} did nothing else, so no bonus` : '') +
   (d.unlinked ? `. ${d.unlinked} still waiting on a link request.` : '.');
 
 function Rooms() {
@@ -466,11 +467,13 @@ function Rooms() {
   const [error, setError] = useState(null);
   const [title, setTitle] = useState('');
   const [template, setTemplate] = useState('build');
+  const [minutes, setMinutes] = useState(DEFAULT_LENGTH);
   const [busy, setBusy] = useState(false);
   const [made, setMade] = useState(null);
   const [open, setOpen] = useState(null);
   const [attendees, setAttendees] = useState({});
   const [awardMsg, setAwardMsg] = useState({});
+  const [closing, setClosing] = useState(null); // V3-A: the room whose in-page close confirm is showing
 
   const load = useCallback(() => {
     api.get('/admin/hub/rooms').then((d) => setRooms(d.rooms)).catch((e) => setError(e.message));
@@ -482,7 +485,7 @@ function Rooms() {
     setBusy(true);
     setError(null);
     try {
-      setMade(await api.post('/admin/hub/rooms', { title: title.trim(), template }));
+      setMade(await api.post('/admin/hub/rooms', { title: title.trim(), template, minutes }));
       setTitle('');
       load();
     } catch (err) {
@@ -530,7 +533,7 @@ function Rooms() {
       </SectionHead>
 
       <form onSubmit={create} className="card mb-4 grid gap-4 p-4">
-        <TemplatePicker value={template} onChange={setTemplate} />
+        <TemplatePicker value={template} onChange={setTemplate} minutes={minutes} onMinutes={setMinutes} />
         <div className="flex flex-wrap items-end gap-3">
           <label className="grid min-w-56 flex-1 gap-1.5">
             <span className="eyebrow">Title</span>
@@ -582,17 +585,28 @@ function Rooms() {
                     {when(r.created_at)}
                   </span>
                   <button className="btn btn-ghost" onClick={() => toggle(r.code)} aria-expanded={open === r.code}>
-                    {r.attendees} checked in, {r.eligible ?? 0} count
+                    {r.attendees} checked in, {r.eligible ?? 0} did something
                   </button>
                   <Link to={`/host/${r.code}`} className="btn btn-ghost" style={{ textDecoration: 'none' }}>
                     Host
                   </Link>
                   {isOpen && (
-                    <button className="btn btn-danger" onClick={() => close(r.code)}>
+                    <button className="btn btn-danger" onClick={() => setClosing(r.code)} aria-expanded={closing === r.code}>
                       Close
                     </button>
                   )}
                 </div>
+                {isOpen && closing === r.code && (
+                  <div className="ses-end mt-3 border p-3" role="alertdialog" aria-label={`Close room ${r.code}?`}>
+                    {endWarning({ joined: r.attendees, exits: r.eligible ?? 0, dropin: r.kind === 'dropin' }).map((l) => (
+                      <p key={l} className="text-sm">{l}</p>
+                    ))}
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <button className="btn btn-danger" autoFocus onClick={() => { setClosing(null); close(r.code); }}>Close and pay</button>
+                      <button className="btn btn-ghost" onClick={() => setClosing(null)}>Keep it open</button>
+                    </div>
+                  </div>
+                )}
                 {awardMsg[r.code] && (
                   <p className="mono mt-2 text-xs" role="status" style={{ color: 'var(--up)' }}>{awardMsg[r.code]}</p>
                 )}
@@ -608,7 +622,7 @@ function Rooms() {
                           <li key={i} className="flex flex-wrap gap-x-3 text-sm">
                             <span className="font-medium">{a.name}</span>
                             <span className="mono text-xs" style={{ color: 'var(--ink-faint)' }}>
-                              {a.email} · {when(a.joined_at)} · {a.exit_kind ? `counts (${a.exit_kind})` : 'no exit artifact yet'}
+                              {a.email} · {when(a.joined_at)} · {a.exit_kind ? `bonus (${a.exit_kind})` : 'checked in only'}
                             </span>
                             {a.exit_note && <span className="w-full text-xs" style={{ color: 'var(--ink-soft)' }}>{a.exit_note}</span>}
                           </li>

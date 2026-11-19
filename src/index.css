@@ -1854,3 +1854,12 @@ h1,h2,.display{text-wrap:balance}
 .sets-pick .duel-pick{max-height:420px}
 .sets-pick .duel-pick button{grid-template-columns:minmax(0,1fr) auto auto}
 .sets-preview{border:1px solid var(--line);padding:12px 14px;max-height:420px;overflow:auto;min-width:0}
+
+/* V3-A: block editor on-screen text and officer notes side by side when there is room */
+.ses-edit-text{display:grid;gap:6px}
+@media(min-width:900px){.ses-edit-text{grid-template-columns:1fr 1fr}}
+.ses-end{border-color:rgba(255,98,83,.5)}
+.st-points{max-width:640px}
+/* V3-A: the host console fits a phone (grid items no longer push past 390px) */
+.ses-console>*,.ses-cols>*,.ses-cols>*>*{min-width:0}
+@media(max-width:600px){.ses-edit-main{grid-template-columns:2em minmax(0,1fr) 4.5em;grid-auto-flow:dense}.ses-edit-main>input:not(.ses-min){grid-column:1/-1}}

@@ -11,7 +11,7 @@ import { makeTestDb } from './d1-shim.js';
 import worker from '../worker/index.js';
 import { signValue } from '../worker/auth.js';
 import { USER_COOKIE } from '../worker/hub/users.js';
-import { BLOCK_TYPES, TEMPLATES, cleanBlocks, templateBlocks } from '../shared/session-templates.js';
+import { BLOCK_TYPES, LENGTHS, TEMPLATES, cleanBlocks, templateBlocks } from '../shared/session-templates.js';
 import * as S from '../worker/hub/session.js';
 import { exportFor } from '../worker/hub/safety.js';
 import { Room, labCheckpoints } from '../worker/hub/room-do.js';
@@ -22,20 +22,35 @@ const schema = fs.readFileSync(new URL('../worker/schema.sql', import.meta.url),
 
 /* ------------------------------ B1 templates ------------------------------ */
 
-for (const [id, t] of Object.entries(TEMPLATES)) {
-  const blocks = templateBlocks(id);
-  assert.equal(blocks.length, t.blocks.length, `${id}: nothing dropped by the validator`);
-  assert.ok(blocks.every((b) => BLOCK_TYPES.includes(b.type) && b.title && b.minutes > 0), `${id}: typed, titled, timed`);
-  assert.equal(new Set(blocks.map((b) => b.id)).size, blocks.length, `${id}: unique ids`);
-  assert.deepEqual(cleanBlocks(blocks), blocks, `${id}: validating twice changes nothing`);
+// V3-A: every template in both lengths, each filling its length exactly.
+for (const [id, t] of Object.entries(TEMPLATES)) for (const len of LENGTHS) {
+  const blocks = templateBlocks(id, len);
+  const at = `${id} ${len}`;
+  assert.equal(blocks.length, t.lengths[len].length, `${at}: nothing dropped by the validator`);
+  assert.ok(blocks.every((b) => BLOCK_TYPES.includes(b.type) && b.title && b.minutes > 0), `${at}: typed, titled, timed`);
+  assert.equal(new Set(blocks.map((b) => b.id)).size, blocks.length, `${at}: unique ids`);
+  assert.deepEqual(cleanBlocks(blocks), blocks, `${at}: validating twice changes nothing`);
   const total = blocks.reduce((n, b) => n + b.minutes, 0);
-  assert.ok(total >= 40 && total <= 50, `${id}: fits a 45-minute meeting (${total})`);
-  assert.equal(blocks.at(-1).type === 'close' || id === 'demo', true, `${id}: ends with a close`);
+  // The hour is tight and may leave a few minutes to get in and out; two hours are planned to the minute.
+  assert.ok(len === 120 ? total === 120 : total >= 50 && total <= 60, `${at}: fits the meeting (${total})`);
+  assert.equal(blocks.at(-1).type, 'close', `${at}: ends with a close`);
+  assert.equal(blocks.some((b) => b.type === 'break'), len === 120, `${at}: a break in the long version only`);
   for (const b of blocks.filter((x) => x.type === 'lab')) {
-    assert.equal(b.lab.tiers.length, 3, `${id}: three tiers`);
-    assert.ok(labCheckpoints(b).every((c) => c.length > 0), `${id}: every tier has checkpoints from a real course`);
+    assert.equal(b.lab.tiers.length, 3, `${at}: three tiers`);
+    assert.ok(labCheckpoints(b).every((c) => c.length > 0), `${at}: every tier has checkpoints from a real course`);
   }
 }
+assert.deepEqual(templateBlocks('duel'), templateBlocks('duel', 60), 'an hour is the default');
+assert.deepEqual(templateBlocks('duel', 45), templateBlocks('duel', 60), 'an odd length falls back to the default');
+// The lead's one-hour duel and speaker nights, block by block.
+assert.deepEqual(templateBlocks('duel', 60).map((b) => [b.type, b.minutes]), [['hook', 5], ['hook', 5], ['duel', 36], ['close', 5]]);
+assert.deepEqual(templateBlocks('speaker', 60).map((b) => [b.type, b.minutes]), [['hook', 5], ['hook', 3], ['speaker', 30], ['speaker', 15], ['close', 7]]);
+// The 120-minute duel night from the officer audit, block by block.
+assert.deepEqual(
+  templateBlocks('duel', 120).map((b) => [b.type, b.minutes]),
+  [['hook', 10], ['hook', 10], ['duel', 45], ['break', 10], ['duel', 20], ['show', 15], ['close', 10]]
+);
+assert.equal(S.newSession({ template: 'build', minutes: '60' }).blocks.length, templateBlocks('build', 60).length, 'a room opens at its length');
 assert.ok(templateBlocks('mock').some((b) => b.type === 'contest'), 'mock contest runs the B5 team contest block');
 assert.deepEqual(templateBlocks('nope'), []);
 // Validation: bad types dropped, text trimmed, minutes bounded, bad lab sources fall back.
@@ -56,16 +71,16 @@ assert.deepEqual(templateBlocks('nope'), []);
 /* ---------------------------- B1 state machine ---------------------------- */
 
 {
-  const sess = S.newSession({ template: 'build' });
+  const sess = S.newSession({ template: 'build', minutes: 60 });
   assert.equal(sess.cur, -1, 'starts on the join screen');
   assert.ok(S.goTo(sess, 0, 1000).ok);
-  assert.equal(sess.endsAt, 1000 + 5 * 60_000, 'block timer starts');
+  assert.equal(sess.endsAt, 1000 + sess.blocks[0].minutes * 60_000, 'block timer starts');
   assert.ok(S.goTo(sess, 99, 1).error);
   assert.ok(S.goTo(sess, -2, 1).error);
   S.goTo(sess, 2, 5000);
   assert.equal(S.currentBlock(sess).type, 'lab');
   assert.ok(S.addTime(sess, 2, 6000).ok);
-  assert.equal(sess.endsAt, 5000 + 28 * 60_000);
+  assert.equal(sess.endsAt, 5000 + (sess.blocks[2].minutes + 2) * 60_000);
   // Edit during the meeting: the current block survives a reorder and keeps its timer.
   const lab = sess.blocks[2];
   const ends = sess.endsAt;
@@ -239,7 +254,7 @@ function makeRoom(db, sockets, code = 'ROOM') {
   const room = makeRoom(db, [host, ...st]);
   await new Promise((r) => setTimeout(r, 0));
   Object.assign(room.s, { code: 'ROOM', names: { 1: 'Ana A', 2: 'Ben B', 3: 'Cy C', 4: 'Dee D', 5: 'Eli E', 6: 'Fay F' } });
-  room.s.session = S.newSession({ template: 'build' });
+  room.s.session = S.newSession({ template: 'build', minutes: 60 });
   const msg = (ws, m) => room.webSocketMessage(ws, JSON.stringify(m));
   const last = (ws) => ws.sent.at(-1);
   const sess = () => room.s.session;
@@ -364,14 +379,18 @@ function makeRoom(db, sockets, code = 'ROOM') {
   await msg(host, { t: 'takeaways', text: 'Ship small things.' });
   assert.equal((await db.prepare(`SELECT takeaways FROM rooms WHERE code = 'ROOM'`).first()).takeaways, 'Ship small things.');
 
-  // Closing pays exactly the members with an exit artifact: Ana poll, Ben and Cy lab,
-  // Dee and Eli duel, Fay note. Add a seventh who only checked in.
+  // V3-A: closing pays attendance to everyone who checked in, and the `active` bonus to the
+  // members with an exit artifact: Ana poll, Ben and Cy lab, Dee and Eli duel, Fay note.
+  // Add a seventh who only checked in: paid attendance, no bonus.
   db.exec(`INSERT INTO users (id, email, name, student_id) VALUES (7, 'g@x.org', 'Gus', NULL); INSERT INTO room_checkins (code, user_id) VALUES ('ROOM', 7)`);
   const paid = await awardAttendance(db, 'ROOM');
-  assert.deepEqual(paid, { awarded: 6, alreadyHad: 0, unlinked: 0, noExit: 1 });
+  assert.deepEqual(paid, { awarded: 7, alreadyHad: 0, unlinked: 0, noExit: 1, bonus: 6 });
   const att = (await db.prepare(`SELECT student_id, json_extract(meta, '$.exit') AS exit FROM activity WHERE kind = 'attend' ORDER BY student_id`).all()).results;
-  assert.deepEqual(att.map((a) => a.exit), ['poll', 'lab', 'lab', 'duel', 'duel', 'note']);
-  assert.equal(await (await db.prepare(`SELECT COUNT(*) AS n FROM students WHERE name = 'Gus'`).first()).n, 0, 'no exit, no entry made, no points');
+  assert.deepEqual(att.map((a) => a.exit), ['poll', 'lab', 'lab', 'duel', 'duel', 'note', null]);
+  const bonus = (await db.prepare(`SELECT COUNT(*) AS n, SUM(points) AS pts FROM activity WHERE kind = 'active'`).first());
+  assert.deepEqual({ ...bonus }, { n: 6, pts: 6 * POINT_RULES.active.points });
+  assert.equal(await (await db.prepare(`SELECT COUNT(*) AS n FROM students WHERE name = 'Gus'`).first()).n, 1, 'checking in alone puts Gus on the board');
+  assert.deepEqual(await awardAttendance(db, 'ROOM'), { awarded: 0, alreadyHad: 7, unlinked: 0, noExit: 1, bonus: 0 }, 'a second close pays nobody twice');
 }
 
 /* ------------------------------ B10 drop-in ------------------------------- */

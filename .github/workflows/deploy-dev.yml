@@ -75,6 +75,22 @@ jobs:
       - name: Apply schema to dev database
         run: npx wrangler d1 execute cs-club-dev --remote --config wrangler.dev.toml --file worker/schema.sql
 
+      # Content the dev site needs to be usable: problems, Board rungs, data challenges and
+      # (once V3-B lands it) duel packs. Each file only adds what is missing (INSERT OR IGNORE
+      # on a unique key, or WHERE NOT EXISTS), so it is safe on every push; test/trust.test.js
+      # applies each one twice to check. Problems first: rungs link to /p/ pages.
+      # Not here: seed.sql, seed-demo-standings.sql and seed-cycles.sql. They add made-up
+      # members who would show on the dev leaderboard.
+      - name: Load content seeds into dev database
+        run: |
+          for f in worker/seed-problems.sql worker/seed-rungs.sql worker/seed-data-arena.sql worker/seed-packs.sql; do
+            if [ -f "$f" ]; then
+              npx wrangler d1 execute cs-club-dev --remote --config wrangler.dev.toml --file "$f"
+            else
+              echo "skipped (not in this commit): $f"
+            fi
+          done
+
       - name: Deploy dev Worker
         run: npx wrangler deploy --config wrangler.dev.toml
 
