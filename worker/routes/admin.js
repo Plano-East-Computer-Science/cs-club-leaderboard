@@ -582,6 +582,8 @@ adminRouter.put('/settings', async (c) => {
 adminRouter.get('/backup', async (c) => {
   const stamp = new Date().toISOString().slice(0, 10);
   const body = JSON.stringify(await exportBackup(c.env.DB), null, 2);
+  // A GET is not audited, so log it here: HQ's "Due this week" reads the last one.
+  await logOfficer(c.env.DB, c.get('officer'), 'backup', 'Downloaded a backup');
   return new Response(body, {
     headers: {
       'Content-Type': 'application/json',

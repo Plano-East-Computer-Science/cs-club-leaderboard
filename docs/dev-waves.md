@@ -111,3 +111,19 @@ Test on dev:
 5. Practice, Build, Compete and Me still show the old pages inside the new shell; those are rebuilt in Wave 7.
 
 Roll back: Revert this PR. No database changes (one new members-only route, /api/me/live).
+
+## Wave 5: Officer HQ (2026-11-19)
+
+| PR | What |
+| --- | --- |
+| this PR | Officer tools move to /hq: Home ("This week": next meeting with a readiness checklist, rooms still open with Close and pay, inbox counts, members not seen in 3 weeks with Copy a message, digest and backup reminders), Meetings (timeline and plan editor), one Inbox for every queue with inline approve and reject, Members with search, last seen and a member drawer, plus Library, Announce, Season and Settings. Old /officer and /admin links redirect. |
+
+Test on dev (officer account):
+1. Click HQ in the top bar. Home shows the next meeting and what is missing before it.
+2. Inbox: approve or reject a claim in one click.
+3. Members: search a name, open the drawer, award points, see readable history.
+4. Old bookmarks like /officer?s=claims land in the matching HQ page.
+
+Known gap: Library, Season and Settings still show the older screens inside the new layout; they get restyled later.
+
+Roll back: Revert this PR. No database changes (one officer-only route, /api/admin/hub/inbox).

@@ -54,7 +54,8 @@ safetyRouter.post('/reports', requireUser, async (c) => {
   return c.json({ ok: true });
 });
 
-const PREVIEW = `
+// Also read by HQ's Inbox (hq.js), so a report there shows the same preview.
+export const PREVIEW = `
   CASE r.kind
     WHEN 'idea' THEN (SELECT body FROM ideas WHERE id = r.target_id)
     WHEN 'project' THEN (SELECT title || ' - ' || description FROM projects WHERE id = r.target_id)
