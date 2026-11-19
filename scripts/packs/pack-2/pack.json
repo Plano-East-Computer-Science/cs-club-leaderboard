@@ -1,0 +1,22 @@
+{
+  "slug": "duel-pack-2",
+  "title": "Duel Pack 2",
+  "practice": "name-tag",
+  "new": ["top-score", "mirror-word", "letter-grades"],
+  "comfortable": ["club-fair", "seat-pairs", "balanced-teams"],
+  "contest": ["quiet-stretch", "course-order", "fire-drill"],
+  "final": "bracket-check",
+  "problems": {
+    "name-tag": { "title": "Name tag", "difficulty": 1, "samples": 1 },
+    "top-score": { "title": "Top score", "difficulty": 1, "samples": 1 },
+    "mirror-word": { "title": "Mirror word", "difficulty": 1, "samples": 2 },
+    "letter-grades": { "title": "Letter grades", "difficulty": 2, "samples": 1 },
+    "club-fair": { "title": "Club fair signups", "difficulty": 2, "samples": 1 },
+    "seat-pairs": { "title": "Seat pairs", "difficulty": 2, "samples": 1 },
+    "balanced-teams": { "title": "Balanced relay pairs", "difficulty": 3, "samples": 2 },
+    "quiet-stretch": { "title": "Quiet stretch", "difficulty": 3, "samples": 1 },
+    "course-order": { "title": "Course order", "difficulty": 4, "samples": 2 },
+    "fire-drill": { "title": "Fire drill", "difficulty": 5, "samples": 2 },
+    "bracket-check": { "title": "Bracket check", "difficulty": 3, "samples": 2 }
+  }
+}
