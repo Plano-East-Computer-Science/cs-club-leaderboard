@@ -30,7 +30,9 @@ for (const [id, t] of Object.entries(TEMPLATES)) for (const len of LENGTHS) {
   assert.ok(blocks.every((b) => BLOCK_TYPES.includes(b.type) && b.title && b.minutes > 0), `${at}: typed, titled, timed`);
   assert.equal(new Set(blocks.map((b) => b.id)).size, blocks.length, `${at}: unique ids`);
   assert.deepEqual(cleanBlocks(blocks), blocks, `${at}: validating twice changes nothing`);
-  assert.equal(blocks.reduce((n, b) => n + b.minutes, 0), len, `${at}: fills the meeting`);
+  const total = blocks.reduce((n, b) => n + b.minutes, 0);
+  // The hour is tight and may leave a few minutes to get in and out; two hours are planned to the minute.
+  assert.ok(len === 120 ? total === 120 : total >= 50 && total <= 60, `${at}: fits the meeting (${total})`);
   assert.equal(blocks.at(-1).type, 'close', `${at}: ends with a close`);
   assert.equal(blocks.some((b) => b.type === 'break'), len === 120, `${at}: a break in the long version only`);
   for (const b of blocks.filter((x) => x.type === 'lab')) {
@@ -38,8 +40,11 @@ for (const [id, t] of Object.entries(TEMPLATES)) for (const len of LENGTHS) {
     assert.ok(labCheckpoints(b).every((c) => c.length > 0), `${at}: every tier has checkpoints from a real course`);
   }
 }
-assert.deepEqual(templateBlocks('duel'), templateBlocks('duel', 120), '120 is the default');
-assert.deepEqual(templateBlocks('duel', 45), templateBlocks('duel', 120), 'an odd length falls back to the default');
+assert.deepEqual(templateBlocks('duel'), templateBlocks('duel', 60), 'an hour is the default');
+assert.deepEqual(templateBlocks('duel', 45), templateBlocks('duel', 60), 'an odd length falls back to the default');
+// The lead's one-hour duel and speaker nights, block by block.
+assert.deepEqual(templateBlocks('duel', 60).map((b) => [b.type, b.minutes]), [['hook', 5], ['hook', 5], ['duel', 36], ['close', 5]]);
+assert.deepEqual(templateBlocks('speaker', 60).map((b) => [b.type, b.minutes]), [['hook', 5], ['hook', 3], ['speaker', 30], ['speaker', 15], ['close', 7]]);
 // The 120-minute duel night from the officer audit, block by block.
 assert.deepEqual(
   templateBlocks('duel', 120).map((b) => [b.type, b.minutes]),

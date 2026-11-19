@@ -180,7 +180,7 @@ await check('GET /api/club is public: meeting settings, the next unheld session,
   };
   let r = await get();
   assert.equal(r.status, 200, 'no sign-in needed');
-  assert.deepEqual(r.body.meeting, { day: '', time: '', place: '', note: '' });
+  assert.deepEqual(r.body.meeting, { day: 'Wednesday', time: '4:30 PM', place: '', note: '' }, 'defaults when nothing is set, and no guessed place');
   assert.equal(r.body.next, null);
   const today = chicagoDate();
   db.exec(`INSERT INTO settings (key, value) VALUES ('meeting_day', 'Tuesdays'), ('meeting_time', ' 4:15 pm '), ('meeting_place', 'Room 2104'),
@@ -260,7 +260,7 @@ await check('the digest groups points by member, drops zero rows and shows no ra
 
 /* --------------------------- 7. 60 and 120 minute rooms --------------------------- */
 
-await check('a room remembers the length the officer picked; odd lengths fall back to 120', async () => {
+await check('a room remembers the length the officer picked; odd lengths fall back to 60', async () => {
   const env = { ADMIN_PASSWORD: 'pw', SESSION_SECRET: 'test-secret', DB: makeTestDb(SCHEMA) };
   const officer = `${COOKIE}=${await signSession(env)}`;
   const open = async (body) => {
@@ -271,12 +271,12 @@ await check('a room remembers the length the officer picked; odd lengths fall ba
     );
     return res.json();
   };
-  const short = await open({ title: 'Quick duel', template: 'duel', minutes: 60 });
+  const long = await open({ title: 'Long duel', template: 'duel', minutes: 120 });
   const odd = await open({ title: 'Odd', template: 'duel', minutes: 45 });
   const plain = await open({ title: 'Plain', template: 'build' });
-  assert.deepEqual([short.minutes, odd.minutes, plain.minutes], [60, 120, 120]);
-  const row = await env.DB.prepare('SELECT minutes FROM rooms WHERE code = ?').bind(short.code).first();
-  assert.equal(row.minutes, 60);
+  assert.deepEqual([long.minutes, odd.minutes, plain.minutes], [120, 60, 60]);
+  const row = await env.DB.prepare('SELECT minutes FROM rooms WHERE code = ?').bind(long.code).first();
+  assert.equal(row.minutes, 120);
 });
 
 /* ------------------------------ 8. dev content seeds ------------------------------ */

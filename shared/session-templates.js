@@ -47,17 +47,21 @@ export const DEFAULT_TIERS = [
 // screen is what the room sees; officer-only notes go in extra.notes.
 const b = (type, title, minutes, screen = '', extra = {}) => ({ type, title, minutes, screen, ...extra });
 
-/** V3-A: meetings run an hour or two. The room-open screen offers both; 120 is the default. */
+/**
+ * V3-A: the club meets for an hour (Wednesdays, 4:30 PM Central), so 60 is the
+ * default; 120 is there for a long event. The room-open screen offers both.
+ */
 export const LENGTHS = [60, 120];
-export const DEFAULT_LENGTH = 120;
+export const DEFAULT_LENGTH = 60;
 
 const LAB = { lab: { pairs: true, tiers: DEFAULT_TIERS } };
 const PAIRS = 'Pick a tier. Driver types, navigator reads. Swap when the timer says.';
 const BREAK = b('break', 'Break', 10, 'Stretch, get water, back in ten.');
 
 /**
- * Each template comes in both lengths. Every 120-minute version has a break,
- * and every version ends with a close (that is where the exit line opens).
+ * Each template comes in both lengths. The 60-minute versions are tight and
+ * may leave a few minutes for getting in and out; every 120-minute version has
+ * a break. Every version ends with a close (that is where the exit line opens).
  */
 export const TEMPLATES = {
   build: {
@@ -65,10 +69,10 @@ export const TEMPLATES = {
     blurb: 'Warm-up poll, a demo, a tiered lab in pairs, show, close.',
     lengths: {
       60: [
-        b('poll', 'Warm-up poll', 5, 'Join, find your partner, answer the poll.'),
-        b('hook', "Last week's best", 7, '', { notes: 'A member demos what they built. Ask them before the meeting.' }),
+        b('poll', 'Join and warm-up poll', 5, 'Check in, find your partner, answer the poll.'),
+        b('hook', "Last week's best", 5, '', { notes: 'A member demos what they built. Ask them before the meeting.' }),
         b('lab', 'Build in pairs', 35, PAIRS, LAB),
-        b('show', 'Show', 8, 'Two or three pairs, 60 seconds each.'),
+        b('show', 'Show', 10, 'Three or four pairs, 60 seconds each.'),
         b('close', 'Close', 5, 'Next week: tell us what you want to build.'),
       ],
       120: [
@@ -89,9 +93,8 @@ export const TEMPLATES = {
       60: [
         b('hook', 'Join and practice', 5, 'Check in, then try the practice problem.'),
         b('hook', 'Tonight: duels', 5, 'Pick your division honestly. It is more fun close.'),
-        b('duel', 'Three rounds', 39, 'Rounds of 10 minutes, a 3-minute spotlight after each.', { notes: 'Set 10-minute rounds. Spotlight one solver after each round.' }),
-        b('show', 'Upsolve', 8, 'How the winners solved it. Then finish the ones you missed.'),
-        b('close', 'Close', 3),
+        b('duel', 'Three rounds', 36, 'Rounds of 10 minutes, a 2-minute spotlight after each.', { notes: 'Set 10-minute rounds. Spotlight one solver for 2 minutes after each round.' }),
+        b('close', 'Close', 5, 'Finish the ones you missed at home: they stay open in Practice.'),
       ],
       120: [
         b('hook', 'Join and practice', 10, 'Check in, then try the practice problem.'),
@@ -127,9 +130,11 @@ export const TEMPLATES = {
     blurb: 'A guest talk with upvoted questions and a takeaways pad.',
     lengths: {
       60: [
-        b('hook', 'Welcome', 5, '', { notes: 'Introduce the speaker.' }),
-        b('speaker', 'Talk and questions', 45, 'Send questions any time. Upvote the ones you want answered.'),
-        b('close', 'Close', 10),
+        b('hook', 'Join', 5, 'Check in and find a seat.'),
+        b('hook', 'Welcome', 3, '', { notes: 'Introduce the speaker.' }),
+        b('speaker', 'Talk', 30, 'Send questions any time. Upvote the ones you want answered.'),
+        b('speaker', 'Questions', 15, 'Most votes first. Keep sending them.'),
+        b('close', 'Close', 7),
       ],
       120: [
         b('poll', 'Warm-up poll', 10, 'Check in and answer the poll.'),
@@ -146,7 +151,7 @@ export const TEMPLATES = {
     blurb: 'End of a ship cycle: everyone shows what they built.',
     lengths: {
       60: [
-        b('hook', 'Demo day', 5, 'Order of demos on the board.'),
+        b('hook', 'Join: demo order', 5, 'Check in. The order of demos is on the board.'),
         b('show', 'Demos', 45, 'Submit your link. Kudos the ones you liked.'),
         b('close', 'Close', 10),
       ],
