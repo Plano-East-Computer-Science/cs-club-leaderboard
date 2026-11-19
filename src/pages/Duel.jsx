@@ -2,7 +2,8 @@
  * Duel block (B2) and pair maker (B9) screens. The room's Durable Object
  * (worker/hub/room-do.js + duel.js) holds the state; these render it.
  *
- *   DuelSetup  officer picks problems per division, round length and count
+ *   DuelSetup  officer opens a live duel pack in one tap (V3-B), or picks
+ *              problems per division by hand; round length and count
  *   DuelBoard  the projector: live match grid per division, timer, spotlight
  *   DuelPlay   a student's laptop: pick a division, solve, submit, result
  *   PairPanel  officer "pair the room"; PartnerCard shows a student their partner
@@ -11,6 +12,7 @@
  * room on submit for officer spot-checks and is never rendered on the projector.
  */
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { runCases, warmUp } from '../lib/pyrunner.js';
 import CodeRunner from '../components/CodeRunner.jsx';
@@ -96,15 +98,21 @@ export function DuelSetup({ send, disabled }) {
   const [minutes, setMinutes] = useState(10);
   const [rounds, setRounds] = useState(3);
   const [newMode, setNewMode] = useState('1v1');
+  const [packs, setPacks] = useState(null); // V3-B: live duel packs, played in one tap
+  const [hand, setHand] = useState(false);
 
   useEffect(() => {
     api
       .get('/admin/hub/problems?status=live')
       .then((d) => setAll(d.problems))
       .catch((e) => setErr(e.message));
+    api
+      .get('/admin/hub/sets?kind=duel&status=live')
+      .then((d) => setPacks(d.sets))
+      .catch((e) => setErr(e.message));
   }, []);
 
-  const shown = useMemo(() => (all ?? []).filter((p) => !diff || p.difficulty === diff), [all, diff]);
+  const titles = useMemo(() => Object.fromEntries((all ?? []).map((p) => [p.slug, p.title])), [all]);
   const toggle = (slug) =>
     setPicked((p) => {
       const cur = p[div];
@@ -112,11 +120,84 @@ export function DuelSetup({ send, disabled }) {
       return cur.length >= 3 ? p : { ...p, [div]: [...cur, slug] };
     });
   const total = Object.values(picked).flat().length;
+  const settings = { minutes: Number(minutes), rounds: Number(rounds), newMode };
+  const byHand = hand || (packs && !packs.length);
 
   return (
     <section className="card grid gap-3 p-5" aria-label="Set up a duel">
-      <p className="eyebrow">Duel: pick up to 3 problems per division, played one per round</p>
       {err && <p className="dn text-sm">{err}</p>}
+      <p className="eyebrow">Duel: use a pack</p>
+      {!packs ? (
+        !err && <Spinner label="Loading duel packs" />
+      ) : !packs.length ? (
+        <p className="d text-sm">No live duel packs yet. Make one in Officer tools, Duel packs and contest sets.</p>
+      ) : (
+        <ul className="duel-packs">
+          {packs.map((s) => (
+            <li key={s.slug}>
+              <PackSummary set={s} titles={titles} />
+              <button type="button" className="btn btn-primary" disabled={disabled} onClick={() => send({ t: 'duel_setup', set: s.slug, ...settings })}>
+                Open the lobby with {s.title}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="flex flex-wrap items-end gap-3">
+        <label className="mono grid gap-1 text-xs">
+          Minutes per round
+          <input className="field" style={{ width: '6rem' }} type="number" min={1} max={60} value={minutes} onChange={(e) => setMinutes(e.target.value)} />
+        </label>
+        <label className="mono grid gap-1 text-xs">
+          Rounds
+          <input className="field" style={{ width: '5rem' }} type="number" min={1} max={6} value={rounds} onChange={(e) => setRounds(e.target.value)} />
+        </label>
+        <div className="chips" role="group" aria-label="New division format">
+          <button type="button" aria-pressed={newMode === '1v1'} onClick={() => setNewMode('1v1')}>New: 1v1</button>
+          <button type="button" aria-pressed={newMode === '2v2'} onClick={() => setNewMode('2v2')}>New: 2v2 driver and navigator</button>
+        </div>
+      </div>
+      {packs?.length > 0 && (
+        <button type="button" className="btn btn-ghost justify-self-start" aria-expanded={hand} onClick={() => setHand((h) => !h)}>
+          {hand ? 'Hide the hand picker' : 'Pick problems by hand'}
+        </button>
+      )}
+      {byHand && <HandPicker {...{ all, err, diff, setDiff, div, setDiv, picked, toggle, total, disabled }} onOpen={() => send({ t: 'duel_setup', problems: picked, ...settings })} />}
+    </section>
+  );
+}
+
+/** What a pack plays: the three problems per division, plus its warm-up and final. */
+function PackSummary({ set, titles }) {
+  const name = (slug) => titles[slug] ?? slug;
+  const b = set.body;
+  return (
+    <div className="min-w-0">
+      <b>{set.title}</b>
+      <dl className="duel-pack-divs">
+        {DIVS.map(([k, l]) => (
+          <div key={k}>
+            <dt>{l}</dt>
+            <dd>{(b[k] ?? []).map(name).join(', ') || 'none'}</dd>
+          </div>
+        ))}
+      </dl>
+      {(b.practice || b.final) && (
+        <p className="m mono text-xs">
+          {b.practice && <>Warm-up while people arrive: <Link to={`/p/${b.practice}`}>{name(b.practice)}</Link>. </>}
+          {b.final && <>Final for pairs: <Link to={`/p/${b.final}`}>{name(b.final)}</Link>.</>}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/** The original setup: up to 3 problems per division from the live bank. */
+function HandPicker({ all, err, diff, setDiff, div, setDiv, picked, toggle, total, disabled, onOpen }) {
+  const shown = (all ?? []).filter((p) => !diff || p.difficulty === diff);
+  return (
+    <div className="grid gap-3">
+      <p className="eyebrow">By hand: up to 3 problems per division, played one per round</p>
       <div className="chips" role="group" aria-label="Division">
         {DIVS.map(([k, l]) => (
           <button key={k} type="button" aria-pressed={div === k} onClick={() => setDiv(k)}>
@@ -151,30 +232,16 @@ export function DuelSetup({ send, disabled }) {
           })}
         </ul>
       )}
-      <div className="flex flex-wrap items-end gap-3">
-        <label className="mono grid gap-1 text-xs">
-          Minutes per round
-          <input className="field" style={{ width: '6rem' }} type="number" min={1} max={60} value={minutes} onChange={(e) => setMinutes(e.target.value)} />
-        </label>
-        <label className="mono grid gap-1 text-xs">
-          Rounds
-          <input className="field" style={{ width: '5rem' }} type="number" min={1} max={6} value={rounds} onChange={(e) => setRounds(e.target.value)} />
-        </label>
-        <div className="chips" role="group" aria-label="New division format">
-          <button type="button" aria-pressed={newMode === '1v1'} onClick={() => setNewMode('1v1')}>New: 1v1</button>
-          <button type="button" aria-pressed={newMode === '2v2'} onClick={() => setNewMode('2v2')}>New: 2v2 driver and navigator</button>
-        </div>
-      </div>
       <button
         type="button"
         className="btn btn-primary"
         style={{ padding: '0.8rem', justifyContent: 'center' }}
         disabled={!total || disabled}
-        onClick={() => send({ t: 'duel_setup', problems: picked, minutes: Number(minutes), rounds: Number(rounds), newMode })}
+        onClick={onOpen}
       >
         Open the duel lobby
       </button>
-    </section>
+    </div>
   );
 }
 

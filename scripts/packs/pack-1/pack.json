@@ -1,0 +1,22 @@
+{
+  "slug": "duel-pack-1",
+  "title": "Duel Pack 1",
+  "practice": "hello-panther",
+  "new": ["box-score", "vowel-count", "panther-east"],
+  "comfortable": ["win-streak", "next-bus", "pair-sums"],
+  "contest": ["range-sums", "fewest-rooms", "hallway-paths"],
+  "final": "lunch-line",
+  "problems": {
+    "hello-panther": { "title": "Hello, Panther", "difficulty": 1, "samples": 1 },
+    "box-score": { "title": "Box score", "difficulty": 1, "samples": 1 },
+    "vowel-count": { "title": "Vowel count", "difficulty": 1, "samples": 2 },
+    "panther-east": { "title": "Panther East", "difficulty": 2, "samples": 1 },
+    "win-streak": { "title": "Longest win streak", "difficulty": 2, "samples": 2 },
+    "next-bus": { "title": "Next bus", "difficulty": 3, "samples": 2 },
+    "pair-sums": { "title": "Pair sums", "difficulty": 2, "samples": 1 },
+    "range-sums": { "title": "Range sums", "difficulty": 3, "samples": 1 },
+    "fewest-rooms": { "title": "Fewest rooms", "difficulty": 4, "samples": 2 },
+    "hallway-paths": { "title": "Hallway paths", "difficulty": 4, "samples": 2 },
+    "lunch-line": { "title": "Lunch line", "difficulty": 2, "samples": 1 }
+  }
+}

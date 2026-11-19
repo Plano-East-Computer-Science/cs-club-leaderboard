@@ -976,3 +976,20 @@ CREATE TABLE IF NOT EXISTS quant_entries (
   updated_at   TEXT NOT NULL DEFAULT (datetime('now')),
   PRIMARY KEY (round_id, user_id)
 );
+
+/* ================================ V3-B: problem sets ================================ */
+-- Duel packs and contest sets: a fixed choice of bank problems that a meeting
+-- block runs in one tap. Owned by worker/hub/sets.js.
+-- Duel body:    { practice, new: [3 slugs], comfortable: [3], contest: [3], final }
+-- Contest body: { problems: [slug, ...] } in play order
+CREATE TABLE IF NOT EXISTS problem_sets (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  slug       TEXT    NOT NULL UNIQUE,
+  kind       TEXT    NOT NULL CHECK (kind IN ('duel', 'contest')),
+  title      TEXT    NOT NULL,
+  body       TEXT    NOT NULL DEFAULT '{}',        -- JSON, shape set by kind
+  status     TEXT    NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'live')),
+  created_by TEXT    NOT NULL DEFAULT '',
+  created_at TEXT    NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT    NOT NULL DEFAULT (datetime('now'))
+);
