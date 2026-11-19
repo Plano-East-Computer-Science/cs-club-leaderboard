@@ -3,9 +3,9 @@
  * run-of-show. The room's Durable Object (worker/hub/room-do.js + session.js)
  * holds the state; these render it.
  *
- *   officer console  RunOfShow, BlockEditor, LabCounts, ShowConsole, SpeakerConsole, HelpConsole
- *   projector        Projector (one block at a time, big type, never names on lab progress)
- *   student laptop   ExitCard, LabPlay, ShowPlay, SpeakerPlay, HelpQueue, NoteBox
+ *   officer console  RunOfShow, BlockEditor, LabCounts, ShowConsole, HelpConsole
+ *   student laptop   ExitCard, LabPlay, ShowPlay, HelpQueue, NoteBox
+ * Wave 6 moved the projector, the speaker screens and concept checks to src/pages/live/.
  */
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '../lib/api.js';
@@ -13,10 +13,9 @@ import CodeRunner from '../components/CodeRunner.jsx';
 import { Spinner } from '../components/bits.jsx';
 import { Body } from './Course.jsx';
 import { BLOCK_LABEL, BLOCK_TYPES, DEFAULT_TIERS } from '../../shared/session-templates.js';
-import { DuelBoard, clock } from './Duel.jsx';
-import { ContestScreen } from './Contest.jsx';
+import { clock } from './Duel.jsx';
+import BlockPayload from './officer/blocks/index.jsx';
 
-const LETTERS = 'ABCDEF';
 const SWAP_MS = 7 * 60_000; // same as worker/hub/session.js
 
 /** ms left until a server timestamp, ticking once a second. 0 when there is no timer. */
@@ -124,8 +123,12 @@ export function RunOfShow({ state, send, skew, onEdit }) {
   );
 }
 
-/** Edit the run-of-show, before or during the meeting. Saving keeps the current block running. */
-export function BlockEditor({ blocks, send, onDone }) {
+/**
+ * Edit the run-of-show, before or during the meeting. Saving keeps the current block running.
+ * Wave 6: each block also edits its payload (speaker, duel pack, concept checks); planId lets
+ * the speaker editor list questions asked early for that plan.
+ */
+export function BlockEditor({ blocks, send, onDone, planId }) {
   const [draft, setDraft] = useState(() => blocks.map((b) => ({ ...b, lab: b.lab && { ...b.lab, tiers: b.lab.tiers.map((t) => ({ ...t })) } })));
   const [courses, setCourses] = useState([]);
   const [addType, setAddType] = useState('hook');
@@ -144,6 +147,7 @@ export function BlockEditor({ blocks, send, onDone }) {
     });
   const setTier = (i, k, patch) => set(i, { lab: { ...draft[i].lab, tiers: draft[i].lab.tiers.map((t, j) => (j === k ? { ...t, ...patch } : t)) } });
   const total = draft.reduce((n, b) => n + (Number(b.minutes) || 0), 0);
+  const firstSpeaker = draft.findIndex((b) => b.type === 'speaker');
 
   return (
     <section className="card grid gap-3 p-5" aria-label="Edit blocks">
@@ -177,6 +181,7 @@ export function BlockEditor({ blocks, send, onDone }) {
                 <input className="field" maxLength={500} value={b.notes ?? ''} placeholder="Optional, e.g. Ask Sam to demo first" onChange={(e) => set(i, { notes: e.target.value })} />
               </label>
             </div>
+            <BlockPayload block={b} onChange={(patch) => set(i, patch)} planId={planId} firstSpeaker={i === firstSpeaker} />
             {b.type === 'lab' && b.lab && (
               <div className="ses-tiers">
                 <label className="mono flex items-center gap-2 text-xs">
@@ -276,49 +281,6 @@ export function ShowConsole({ show, send }) {
   );
 }
 
-/** B8: questions by votes, answered toggle, and the takeaways pad saved with the room. */
-export function SpeakerConsole({ speaker, send }) {
-  const [pad, setPad] = useState(speaker.takeaways);
-  const [saved, setSaved] = useState(true);
-  return (
-    <div className="grid gap-4">
-      {speaker.qs.length === 0 ? (
-        <p className="m text-sm">No questions yet.</p>
-      ) : (
-        <ul className="ses-qs">
-          {speaker.qs.map((q) => (
-            <li key={q.id} className={q.answered ? 'done' : ''}>
-              <span className="ses-votes"><b>{q.votes}</b></span>
-              <span className="flex-1">{q.text}</span>
-              <button type="button" className="btn btn-ghost" aria-pressed={q.answered} aria-label={`${q.answered ? 'Answered' : 'Mark answered'}: ${q.text.slice(0, 40)}`} onClick={() => send({ t: 'sq_answered', id: q.id })}>
-                {q.answered ? 'Answered' : 'Mark answered'}
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-      <label className="grid gap-1">
-        <span className="eyebrow">takeaways (saved with the room)</span>
-        <textarea
-          className="field"
-          rows={5}
-          maxLength={4000}
-          value={pad}
-          onChange={(e) => {
-            setPad(e.target.value);
-            setSaved(false);
-          }}
-          onBlur={() => {
-            send({ t: 'takeaways', text: pad });
-            setSaved(true);
-          }}
-        />
-        <span className="m mono text-xs" role="status">{saved ? 'Saved.' : 'Saves when you click away.'}</span>
-      </label>
-    </div>
-  );
-}
-
 /** B7 for officers: names and topics. The projector shows only the count. */
 export function HelpConsole({ help, helped, send }) {
   return (
@@ -343,164 +305,6 @@ export function HelpConsole({ help, helped, send }) {
         </ul>
       )}
     </section>
-  );
-}
-
-/* =================================== projector =================================== */
-
-function JoinPanel({ code, tok, big }) {
-  const left = useLeft(tok?.rotatesAt, 0);
-  return (
-    <div className={`ses-join ${big ? 'big' : ''}`}>
-      <div>
-        <span className="eyebrow">room</span>
-        <b className="mono">{code}</b>
-      </div>
-      <div>
-        <span className="eyebrow">check-in word{tok ? `, new one in ${clock(left)}` : ''}</span>
-        <b className="mono g">{tok?.token ?? '....'}</b>
-      </div>
-      {big && <p className="ses-join-url mono">{location.host}/room</p>}
-    </div>
-  );
-}
-
-function ProjectorPoll({ q, here, answered }) {
-  if (!q) return null;
-  const sum = (q.counts ?? []).reduce((a, b) => a + b, 0) || 1;
-  const showBars = !q.open;
-  return (
-    <div className="ses-poll">
-      <h2>{q.text}</h2>
-      <p className="mono m">{q.open ? `${answered} of ${here} answered` : q.revealed ? 'answer' : 'closed'}</p>
-      <ul>
-        {q.options.map((o, i) => (
-          <li key={i} className={q.revealed && q.correct === i ? 'ok' : ''}>
-            {showBars && <span className="ses-bar" style={{ '--w': `${((q.counts?.[i] ?? 0) / sum) * 100}%` }} aria-hidden="true" />}
-            <span className="mono m">{LETTERS[i]}</span>
-            <span className="flex-1">{o}</span>
-            {showBars && <b className="mono">{q.counts?.[i] ?? 0}</b>}
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
-/** The projector: one block at a time, big type. No controls, no names on progress. */
-export function Projector({ state, code, skew, tok }) {
-  const sess = state.session;
-  const block = blockOf(state);
-  const dropin = sess.kind === 'dropin';
-  useTick();
-
-  let body;
-  if (dropin) {
-    body = (
-      <div className="ses-big">
-        <p className="eyebrow">panther pause</p>
-        <h1>Drop in. Ask. Help.</h1>
-        <p className="ses-sub">Check in, then post what you are stuck on, or help someone who is.</p>
-      </div>
-    );
-  } else if (!block) {
-    body = (
-      <div className="ses-big">
-        <p className="eyebrow">today</p>
-        <ol className="ses-plan">
-          {sess.blocks.map((b) => (
-            <li key={b.id}>
-              <span>{b.title}</span>
-              <span className="mono m">{b.minutes ? `${b.minutes} min` : ''}</span>
-            </li>
-          ))}
-        </ol>
-      </div>
-    );
-  } else if (block.type === 'poll' && state.q) {
-    body = <ProjectorPoll q={state.q} here={state.here} answered={state.answered} />;
-  } else if (block.type === 'lab') {
-    const swapLeft = block && state.lab?.pairs ? SWAP_MS - ((Date.now() + skew - sess.startedAt) % SWAP_MS) : 0;
-    body = (
-      <div className="grid gap-6">
-        <div className="ses-head-line">
-          <h1 className="ses-title">{block.title}</h1>
-          {state.lab?.pairs && <p className="mono d">driver and navigator swap in {clock(swapLeft)}</p>}
-        </div>
-        <LabCounts lab={state.lab} big />
-      </div>
-    );
-  } else if (block.type === 'duel' && state.duel) {
-    body = <DuelBoard duel={state.duel} send={() => {}} skew={skew} readOnly />;
-  } else if (block.type === 'contest' && state.contest) {
-    body = <ContestScreen c={state.contest} skew={skew} />;
-  } else if (block.type === 'show') {
-    const picked = state.show.picked.map((id) => state.show.items.find((x) => x.id === id)).filter(Boolean);
-    body = picked.length ? (
-      <div className="ses-gallery">
-        {picked.map((x) => (
-          <article key={x.id}>
-            <b>{x.name}</b>
-            <p>{x.line}</p>
-            <p className="mono g">{x.url ? x.url.replace(/^https:\/\//, '') : x.result}</p>
-            <span className="mono m">{x.kudos} kudos</span>
-          </article>
-        ))}
-      </div>
-    ) : (
-      <div className="ses-big">
-        <h1>{block.title}</h1>
-        <p className="ses-sub">Share a link or today's result from your laptop. {state.show.items.length} shared so far.</p>
-      </div>
-    );
-  } else if (block.type === 'speaker') {
-    const top = state.speaker.qs.filter((q) => !q.answered).slice(0, 3);
-    body = (
-      <div className="grid gap-6">
-        <h1 className="ses-title">{block.title}</h1>
-        {top.length ? (
-          <ol className="ses-pq">
-            {top.map((q) => (
-              <li key={q.id}>
-                <b className="mono g">{q.votes}</b>
-                <span>{q.text}</span>
-              </li>
-            ))}
-          </ol>
-        ) : (
-          <p className="ses-sub">Send questions from your laptop. Upvote the ones you want answered.</p>
-        )}
-      </div>
-    );
-  } else {
-    body = (
-      <div className="ses-big">
-        <p className="eyebrow">{BLOCK_LABEL[block.type]}</p>
-        <h1>{block.title}</h1>
-        {block.screen && <p className="ses-sub">{block.screen}</p>}
-        {block.type === 'close' && <p className="ses-sub g">Before you go: write one line about what you did today.</p>}
-      </div>
-    );
-  }
-
-  return (
-    <div className="ses-proj">
-      <header className="ses-proj-top">
-        {block ? <JoinPanel code={code} tok={tok} /> : <span className="eyebrow">{dropin ? 'drop-in' : 'starting soon'}</span>}
-        <div className="ses-proj-right">
-          {block && <span className="mono m">{sess.cur + 1} / {sess.blocks.length}</span>}
-          {/* The contest has its own clock; two timers on one screen would disagree. */}
-          {!(block?.type === 'contest' && state.contest) && <BlockTimer session={sess} skew={skew} big />}
-        </div>
-      </header>
-      {!block && <JoinPanel code={code} tok={tok} big />}
-      <main className="ses-proj-main">{body}</main>
-      <footer className="ses-proj-foot mono">
-        <span><b>{state.here}</b> here</span>
-        <span><b>{state.helpOpen}</b> waiting for help</span>
-        {state.ended && <span className="dn">room ended</span>}
-      </footer>
-    </div>
   );
 }
 
@@ -750,56 +554,6 @@ export function ShowPlay({ show, earned, send }) {
               </li>
             ))}
           </ul>
-        </section>
-      )}
-    </div>
-  );
-}
-
-/** B8: ask the speaker, upvote others (one each). Anonymous. */
-export function SpeakerPlay({ speaker, send }) {
-  const [text, setText] = useState('');
-  return (
-    <div className="grid gap-4">
-      <form
-        className="card grid gap-2 p-4"
-        onSubmit={(e) => {
-          e.preventDefault();
-          send({ t: 'sq_ask', text: text.trim() });
-          setText('');
-        }}
-      >
-        <label className="eyebrow" htmlFor="sq-box">Ask the speaker (no name shown)</label>
-        <div className="flex gap-2">
-          <input id="sq-box" className="field" maxLength={200} value={text} onChange={(e) => setText(e.target.value)} placeholder="Type a question" />
-          <button className="btn btn-primary" disabled={text.trim().length < 3}>Send</button>
-        </div>
-      </form>
-      {speaker.qs.length > 0 && (
-        <ul className="ses-qs card p-4">
-          {speaker.qs.map((q) => (
-            <li key={q.id} className={q.answered ? 'done' : ''}>
-              <button
-                type="button"
-                className="ses-vote"
-                aria-pressed={q.voted}
-                disabled={q.mine || q.answered}
-                aria-label={`${q.mine ? 'Your question' : q.voted ? 'You upvoted this' : 'Upvote'}, ${q.votes} ${q.votes === 1 ? 'vote' : 'votes'}`}
-                onClick={() => send({ t: 'sq_vote', id: q.id })}
-              >
-                <span aria-hidden="true">^</span>
-                <b>{q.votes}</b>
-              </button>
-              <span className="flex-1">{q.text}{q.mine && <span className="m mono text-xs"> (yours)</span>}</span>
-              {q.answered && <span className="m mono text-xs">answered</span>}
-            </li>
-          ))}
-        </ul>
-      )}
-      {speaker.takeaways && (
-        <section className="card p-4">
-          <p className="eyebrow mb-1">takeaways</p>
-          <p className="text-sm whitespace-pre-wrap">{speaker.takeaways}</p>
         </section>
       )}
     </div>
