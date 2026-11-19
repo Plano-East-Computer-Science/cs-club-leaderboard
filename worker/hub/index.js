@@ -46,6 +46,7 @@ import { alumniRouter, alumniAdminRouter } from './alumni.js';
 import { pathwaysRouter } from './pathways.js';
 import { quantRouter, quantAdminRouter } from './quant.js';
 import { clubRouter } from './club.js';
+import { hqAdminRouter } from './hq.js';
 
 export { Room } from './room-do.js';
 
@@ -82,6 +83,7 @@ hubAdmin.route('/', handoffAdminRouter);
 hubAdmin.route('/', researchAdminRouter);
 hubAdmin.route('/', alumniAdminRouter);
 hubAdmin.route('/', quantAdminRouter);
+hubAdmin.route('/', hqAdminRouter); // Wave 5: Officer HQ read-only summaries
 
 /** Call BEFORE the catch-all `/api` and static handlers. */
 export function mountHub(app) {

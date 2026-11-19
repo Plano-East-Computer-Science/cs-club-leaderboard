@@ -26,7 +26,6 @@ import Problem from './pages/Problem.jsx';
 import SignIn from './pages/SignIn.jsx';
 import Room from './pages/Room.jsx';
 import Host from './pages/Host.jsx';
-import Officer from './pages/Officer.jsx';
 import Gateway from './pages/Gateway.jsx';
 import Reader from './pages/Reader.jsx';
 import Build from './pages/Build.jsx';
@@ -47,10 +46,13 @@ import Alumni from './pages/Alumni.jsx';
 import Me from './pages/Me.jsx';
 import { Boot, Snow } from './components/Chrome.jsx';
 import { DataProvider } from './lib/data.jsx';
-import { AppShell, NavTabs, EmptyState, Button } from './ui/index.js';
+import { AppShell, NavTabs, EmptyState, Button, SkeletonList } from './ui/index.js';
+import { oldOfficerTarget } from '../shared/hq.js';
 
 // V3-C: try-it page for the editor; lazy so the editor bundle stays off other pages.
 const EditorLab = lazy(() => import('./pages/EditorLab.jsx'));
+// Wave 5: Officer HQ. Lazy, so members never download the officer screens.
+const Hq = lazy(() => import('./pages/hq/Hq.jsx'));
 
 document.documentElement.classList.add('js');
 
@@ -107,6 +109,12 @@ function Moved({ to }) {
   return <Navigate to={`${to}${search}${hash}`} replace />;
 }
 
+/** /officer?s=<old screen id> to its place in Officer HQ. */
+function OldOfficer() {
+  const { search } = useLocation();
+  return <Navigate to={oldOfficerTarget(search)} replace />;
+}
+
 function NotFound() {
   return (
     <div className="ui-page">
@@ -134,7 +142,7 @@ function Shell() {
 
   return (
     <>
-      <AppShell footer={!/^\/(admin|officer|signin)/.test(pathname)}>
+      <AppShell footer={!/^\/(admin|officer|hq|signin)/.test(pathname)}>
         <Routes>
           <Route path="/" element={<Home />} />
           {/* Wave 4 doors. Practice and Compete wrap the existing pages until Wave 7 rebuilds them. */}
@@ -180,7 +188,6 @@ function Shell() {
             <Route path="/signin" element={<SignIn />} />
             <Route path="/room" element={<Room />} />
             <Route path="/room/:code" element={<Room />} />
-            <Route path="/officer" element={<Officer />} />
             <Route path="/gateway" element={<Gateway />} />
             <Route path="/read" element={<Reader />} />
             <Route path="/projects" element={<Navigate to="/build" replace />} />
@@ -193,7 +200,10 @@ function Shell() {
             <Route path="/verify/:code" element={<Verify />} />
           </Route>
           <Route path="/lab/editor" element={<Suspense fallback={null}><EditorLab /></Suspense>} />
-          <Route path="/admin" element={<Navigate to="/officer" replace />} />
+          <Route path="/hq/*" element={<Suspense fallback={<div className="ui-page"><SkeletonList rows={5} label="Loading HQ" /></div>}><Hq /></Suspense>} />
+          {/* The old officer console: every screen id lands on its place in HQ (shared/hq.js). */}
+          <Route path="/officer" element={<OldOfficer />} />
+          <Route path="/admin" element={<Navigate to="/hq" replace />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </AppShell>
