@@ -25,6 +25,7 @@ import { awardFromUser } from './award.js';
 import { findCourse } from '../../shared/courses.js';
 import * as S from './session.js';
 import * as C from '../../shared/contest.js';
+import { studentBlocks } from '../../shared/session-templates.js';
 
 const PULSE = ['fast', 'slow', 'lost', 'great'];
 const MAX_CODE = 20_000;
@@ -709,7 +710,8 @@ export class Room {
       pulse,
       board,
       stage: s.stage ?? [],
-      session: { kind: sess.kind, template: sess.template, blocks: sess.blocks, cur: sess.cur, startedAt: sess.startedAt, endsAt: sess.endsAt },
+      // Block notes are officer prep: only host sockets (console and projector) get them.
+      session: { kind: sess.kind, template: sess.template, blocks: host ? sess.blocks : studentBlocks(sess.blocks), cur: sess.cur, startedAt: sess.startedAt, endsAt: sess.endsAt },
       // B4: what counts so far. The host sees how many have one; a student sees their own.
       exits: host ? Object.keys(s.exits).length : undefined,
       exit: host ? undefined : (s.exits[uid] ?? null),

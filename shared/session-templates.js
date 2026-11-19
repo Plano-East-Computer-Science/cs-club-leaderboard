@@ -6,8 +6,13 @@
  * room's Durable Object, so it must not import course content: courses carry
  * solutions, and this file is bundled into the browser.
  *
- * A block is { id, type, title, minutes, notes, lab? }.
+ * A block is { id, type, title, minutes, notes, screen, lab? }.
  *   minutes 0 means no timer. The host advances; the timer never does.
+ *   notes:  officer prep ("ask Sam to go first", answers). Officers only: the
+ *           room strips it from every member socket (studentBlocks below).
+ *           Blocks saved before `screen` existed keep their text here, so old
+ *           text stays private rather than suddenly showing on laptops.
+ *   screen: the line shown on the projector and on member laptops.
  *   lab: { pairs, tiers: [{ name, source }] } where source is
  *        "course:<slug>" or "problems:<slug>,<slug>".
  *   contest (B5): { freeze, penalty } defaults for the setup form: minutes the
@@ -39,7 +44,8 @@ export const DEFAULT_TIERS = [
   { name: 'Stretch', source: 'course:cp-patterns' },
 ];
 
-const b = (type, title, minutes, notes = '', extra = {}) => ({ type, title, minutes, notes, ...extra });
+// screen is what the room sees; officer-only notes go in extra.notes.
+const b = (type, title, minutes, screen = '', extra = {}) => ({ type, title, minutes, screen, ...extra });
 
 export const TEMPLATES = {
   build: {
@@ -47,7 +53,7 @@ export const TEMPLATES = {
     blurb: 'Warm-up poll, a demo, a tiered lab in pairs, show, close.',
     blocks: [
       b('poll', 'Warm-up poll', 5, 'Join, find your partner, answer the poll.'),
-      b('hook', "Last week's best", 7, 'A member demos what they built.'),
+      b('hook', "Last week's best", 7, '', { notes: 'A member demos what they built. Ask them before the meeting.' }),
       b('lab', 'Build in pairs', 26, 'Pick a tier. Driver types, navigator reads. Swap when the timer says.', { lab: { pairs: true, tiers: DEFAULT_TIERS } }),
       b('show', 'Show', 5, 'Two or three pairs, 60 seconds each.'),
       b('close', 'Close', 2, 'Next week: tell us what you want to build.'),
@@ -77,7 +83,7 @@ export const TEMPLATES = {
     name: 'Speaker night',
     blurb: 'A guest talk with upvoted questions and a takeaways pad.',
     blocks: [
-      b('hook', 'Welcome', 3, 'Introduce the speaker.'),
+      b('hook', 'Welcome', 3, '', { notes: 'Introduce the speaker.' }),
       b('speaker', 'Talk and questions', 35, 'Send questions any time. Upvote the ones you want answered.'),
       b('close', 'Close', 7),
     ],
@@ -130,12 +136,16 @@ export function cleanBlocks(blocks) {
       title: str(x.title, 60) || BLOCK_LABEL[x.type],
       minutes: m >= 0 && m <= 90 ? m : 0,
       notes: String(x.notes ?? '').trim().slice(0, 500),
+      screen: String(x.screen ?? '').trim().slice(0, 500),
     };
     if (x.type === 'lab') out.lab = cleanLab(x.lab);
     if (x.type === 'contest') out.contest = cleanContest(x.contest);
     return out;
   });
 }
+
+/** Blocks as a member's laptop may see them: officer notes removed. */
+export const studentBlocks = (blocks) => (blocks ?? []).map(({ notes, ...rest }) => rest);
 
 /** A fresh copy of a template's blocks with ids, or [] for a drop-in / unknown id. */
 export function templateBlocks(id) {

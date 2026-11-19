@@ -87,7 +87,7 @@ export default function Planner() {
         <h2 className="display mt-1 text-2xl font-bold">Plan the next sessions</h2>
         <p className="mt-2 max-w-2xl text-sm" style={{ color: 'var(--ink-soft)' }}>
           Pick a date and a template, fill in the blocks, and open the room from here on the day. Members see the date, title and kind of the next
-          one. Your block notes stay with you.
+          one. Each block has on-screen text, which the room sees, and officer notes, which only officers see.
         </p>
       </div>
 

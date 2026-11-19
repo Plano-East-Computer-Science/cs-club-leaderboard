@@ -273,13 +273,13 @@ function BlockView({ state, send, skew }) {
     case 'close':
       main = (
         <>
-          <Waiting title={block.title}>{block.notes}</Waiting>
+          <Waiting title={block.title}>{block.screen}</Waiting>
           <NoteBox send={send} exit={state.exit} />
         </>
       );
       break;
     default:
-      main = <Waiting title={block.type === 'break' ? 'Break' : 'Eyes on the screen'}>{block.type === 'break' ? block.notes : `${block.title}${block.notes ? `\n${block.notes}` : ''}`}</Waiting>;
+      main = <Waiting title={block.type === 'break' ? 'Break' : 'Eyes on the screen'}>{block.type === 'break' ? block.screen : `${block.title}${block.screen ? `\n${block.screen}` : ''}`}</Waiting>;
   }
   return (
     <>

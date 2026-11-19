@@ -391,7 +391,8 @@ function CurrentBlock({ state, send, skew }) {
     <div className="ses-now">
       <p className="eyebrow">now: {BLOCK_LABEL[block.type]}</p>
       <h2 className="display">{block.title}</h2>
-      {block.notes && <p className="d text-sm">{block.notes}</p>}
+      {block.screen && <p className="d text-sm">On screen: {block.screen}</p>}
+      {block.notes && <p className="text-sm">Your notes: {block.notes}</p>}
     </div>
   );
 
