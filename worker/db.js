@@ -234,7 +234,7 @@ export const listDigestRecipients = (db) =>
 export const pointEventsSince = (db, since) =>
   all(
     db,
-    `SELECT e.delta, e.reason, e.created_at, ${PUBLIC_NAME_SQL} AS name
+    `SELECT e.student_id, e.delta, e.reason, e.created_at, ${PUBLIC_NAME_SQL} AS name
      FROM point_events e JOIN students s ON s.id = e.student_id
      WHERE e.created_at > datetime(?)
      ORDER BY e.created_at DESC`,

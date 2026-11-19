@@ -10,7 +10,9 @@ import { Room } from '../worker/hub/room-do.js';
 import * as S from '../worker/hub/session.js';
 import { cleanBlocks, endWarning } from '../shared/session-templates.js';
 import { awardAttendance, autoCloseRooms, staleRooms } from '../worker/hub/rooms.js';
-import { POINT_RULES, pointsFor, pointsTable, capText } from '../shared/points.js';
+import { POINT_RULES, pointsFor, pointsTable, capText, pointLabel, groupLabels } from '../shared/points.js';
+import { recordActivity } from '../worker/hub/ledger.js';
+import { buildDigest, groupPoints } from '../worker/digest.js';
 import worker from '../worker/index.js';
 import { chicagoDate } from '../shared/daily.js';
 
@@ -192,6 +194,67 @@ await check('GET /api/club is public: meeting settings, the next unheld session,
   assert.deepEqual(r.body.next, { date: '2099-01-05', title: 'Duel night', kind: 'Duel night' });
   assert.equal(r.body.points.find((p) => p.kind === 'attend').points, 12, 'officer overrides show up');
   assert.ok(!JSON.stringify(r.body).includes('secret'), 'no block notes');
+});
+
+/* ------------------------------ 6. readable labels ------------------------------ */
+
+await check('ledger reasons read as plain words, old and hand-written ones untouched', async () => {
+  const cases = {
+    'duel: duel-win:H72R:3': 'Duel night: won a round',
+    'duel: duel:H72R:3': 'Duel night: played a round',
+    'attend: Week 12 meeting': 'Meeting: Week 12 meeting',
+    'attend: room:ABCD': 'Came to a meeting',
+    'active: Lab night': 'Took part in: Lab night',
+    'daily: 2026-11-10': 'Daily problem: Nov 10',
+    'solve: rung:12': 'Practice: solved a problem',
+    'solve: cf:1234A': 'Practice: solved a problem',
+    'solve: Data: Titanic': 'Data: Titanic',
+    'place: USACO Bronze #2': 'USACO Bronze: 2nd place',
+    'place: USACO Bronze #11': 'USACO Bronze: 11th place',
+    'place: USACO Bronze': 'Placed: USACO Bronze',
+    'compete: comp:3': 'Entered a competition',
+    'mentor: help:ROOM:4': 'Helped another member',
+    'quest: In the room': 'Quest: In the room',
+    'Meeting: Week 1 (ABCD)': 'Meeting: Week 1 (ABCD)',
+    'Taught a workshop': 'Taught a workshop',
+    '': 'Points',
+  };
+  for (const [reason, want] of Object.entries(cases)) assert.equal(pointLabel(reason), want, reason);
+  assert.deepEqual(groupLabels(['duel: duel-win:A:1', 'duel: duel:A:1', 'duel: duel-win:A:2', 'duel: duel:A:2', 'attend: Week 1', 'attend: Week 1']), [
+    'Duel night: won 2 rounds',
+    'Duel night: played 2 rounds',
+    'Meeting: Week 1 (x2)',
+  ]);
+});
+
+await check('a placing is written with its place, so the label says it', async () => {
+  const db = makeTestDb(SCHEMA);
+  db.exec(`INSERT INTO students (id, name) VALUES (10, 'Ana')`);
+  await recordActivity(db, { studentId: 10, kind: 'place', ref: 'comp:1', meta: { title: 'USACO Bronze', place: 2 }, status: 'approved' });
+  const { reason } = await db.prepare('SELECT reason FROM point_events').first();
+  assert.equal(pointLabel(reason), 'USACO Bronze: 2nd place');
+});
+
+await check('the digest groups points by member, drops zero rows and shows no raw refs', async () => {
+  const members = groupPoints([
+    { student_id: 1, name: 'Ana', delta: 2, reason: 'duel: duel-win:H72R:1' },
+    { student_id: 1, name: 'Ana', delta: 2, reason: 'duel: duel-win:H72R:2' },
+    { student_id: 1, name: 'Ana', delta: 0, reason: 'duel: duel:H72R:3' },
+    { student_id: 2, name: 'Ben', delta: 25, reason: 'place: USACO Bronze #2' },
+    { student_id: 3, name: 'Cy', delta: 0, reason: 'solve: rung:4' },
+  ]);
+  assert.deepEqual(members, [
+    { name: 'Ben', total: 25, items: ['USACO Bronze: 2nd place'] },
+    { name: 'Ana', total: 4, items: ['Duel night: won 2 rounds'] },
+  ]);
+  const db = makeTestDb(SCHEMA);
+  db.exec(`INSERT INTO students (id, name) VALUES (10, 'Ana Lee');
+    INSERT INTO point_events (student_id, delta, reason) VALUES (10, 0, 'duel: duel:H72R:3')`);
+  assert.equal(await buildDigest(db, '2000-01-01T00:00:00Z'), null, 'a week of +0 rows sends nothing');
+  db.exec(`INSERT INTO point_events (student_id, delta, reason) VALUES (10, 2, 'duel: duel-win:H72R:3')`);
+  const d = await buildDigest(db, '2000-01-01T00:00:00Z');
+  assert.equal(d.members.length, 1);
+  assert.deepEqual(d.members[0].items, ['Duel night: won a round']);
 });
 
 console.log(`trust: ${passed} checks passed`);

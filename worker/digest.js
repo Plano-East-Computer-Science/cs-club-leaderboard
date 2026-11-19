@@ -13,7 +13,7 @@ import {
   listDigestRecipients, getSetting, setSetting, getLeaderboard,
 } from './db.js';
 import { squadStandings } from './hub/standings.js';
-import { seasonOf } from '../shared/points.js';
+import { seasonOf, groupLabels } from '../shared/points.js';
 import { nextPublicPlan } from './hub/planner.js';
 import { whenLabel } from '../shared/planner.js';
 import { sendEmail, esc, unsubscribeHeaders, emailEnabled } from './email.js';
@@ -31,7 +31,7 @@ const originOf = (env) => (env.SITE_ORIGIN || 'https://peshcompsci.org').replace
  * as last week and nagging weekly is what gets a sender muted.
  */
 export async function buildDigest(db, since) {
-  const [points, opportunities, deadlines, rawNotes] = await Promise.all([
+  const [allPoints, opportunities, deadlines, rawNotes] = await Promise.all([
     pointEventsSince(db, since),
     opportunitiesSince(db, since),
     deadlinesWithin(db, DEADLINE_WINDOW_DAYS),
@@ -46,9 +46,31 @@ export async function buildDigest(db, since) {
     /* a corrupt setting just means no notes */
   }
 
+  // V3-A: a capped activity writes a +0 row; it is not news.
+  const points = allPoints.filter((p) => p.delta !== 0);
   if (!points.length && !opportunities.length && !notes.length) return null;
   // G1: the next planned meeting rides along like deadlines do; it never decides whether an email goes out.
-  return { since, points, opportunities, deadlines, notes, session: await nextPublicPlan(db) };
+  return { since, points, members: groupPoints(points), opportunities, deadlines, notes, session: await nextPublicPlan(db) };
+}
+
+/**
+ * V3-A: point rows grouped by member, most points first, each with readable
+ * lines ("Duel night: won 2 rounds") instead of raw ledger refs. Zero rows are
+ * dropped. Pure, so it is tested without a database.
+ */
+export function groupPoints(rows) {
+  const by = new Map();
+  for (const p of rows) {
+    if (!p.delta) continue;
+    const key = p.student_id ?? p.name;
+    if (!by.has(key)) by.set(key, { name: p.name, total: 0, reasons: [] });
+    const m = by.get(key);
+    m.total += p.delta;
+    m.reasons.push(p.reason);
+  }
+  return [...by.values()]
+    .sort((a, b) => b.total - a.total || String(a.name).localeCompare(String(b.name)))
+    .map(({ name, total, reasons }) => ({ name, total, items: groupLabels(reasons) }));
 }
 
 /**
@@ -174,12 +196,12 @@ function renderText(digest, origin, unsubscribeUrl) {
     lines.push('NEXT MEETING', `  ${whenLabel(digest.session.date)}: ${digest.session.title} (${digest.session.kind})`, '');
   }
 
-  if (digest.points.length) {
+  if (digest.members?.length) {
     lines.push('POINTS AWARDED');
-    for (const p of digest.points) {
-      lines.push(`  ${p.name}  +${p.delta}${p.reason ? `  (${p.reason})` : ''}`);
+    for (const m of digest.members) {
+      lines.push(`  ${m.name}  ${m.total > 0 ? '+' : ''}${m.total}`, ...m.items.map((l) => `    ${l}`));
     }
-    lines.push('', `  Standings: ${origin}/`, '');
+    lines.push('', `  Standings: ${origin}/standings`, '');
   }
 
   if (digest.opportunities.length) {
@@ -242,19 +264,19 @@ function renderHtml(digest, origin, unsubscribeUrl) {
     );
   }
 
-  if (digest.points.length) {
+  if (digest.members?.length) {
     parts.push(
       section(
         'Points awarded',
-        `<ul style="margin:0;padding-left:18px">${digest.points
+        `<ul style="margin:0;padding-left:18px">${digest.members
           .map(
-            (p) =>
-              `<li style="margin:4px 0"><strong>${esc(p.name)}</strong> +${p.delta}${
-                p.reason ? ` <span style="color:#6b7689">${esc(p.reason)}</span>` : ''
-              }</li>`
+            (m) =>
+              `<li style="margin:6px 0"><strong>${esc(m.name)}</strong> ${m.total > 0 ? '+' : ''}${m.total}<br><span style="color:#6b7689">${m.items
+                .map(esc)
+                .join('<br>')}</span></li>`
           )
           .join('')}</ul>
-         <p style="margin:12px 0 0"><a href="${origin}/">See the standings</a></p>`
+         <p style="margin:12px 0 0"><a href="${origin}/standings">See the standings</a></p>`
       )
     );
   }
@@ -394,7 +416,8 @@ export async function runDigest(env, { dry = false } = {}) {
 function subjectFor(digest, personal = null) {
   if (personal?.did.length) return `CS Club — your week: ${personal.did.length} thing${personal.did.length === 1 ? '' : 's'} you did`;
   const bits = [];
-  if (digest.points.length) bits.push(`${digest.points.length} point award${digest.points.length === 1 ? '' : 's'}`);
+  const n = digest.members?.length ?? 0;
+  if (n) bits.push(`points for ${n} member${n === 1 ? '' : 's'}`);
   if (digest.opportunities.length) bits.push(`${digest.opportunities.length} new opportunit${digest.opportunities.length === 1 ? 'y' : 'ies'}`);
   if (digest.notes?.length) bits.push('club news');
   return `CS Club — ${bits.join(', ')}`;

@@ -7,6 +7,7 @@ import { parseTs, dayOf, shortDate } from '../lib/season.js';
 import { first, useMedia, useReveal } from '../lib/ui.js';
 import { formatDate } from '../lib/format.js';
 import { Crest } from '../components/Crest.jsx';
+import { pointLabel } from '../../shared/points.js';
 
 const bar = (p) => {
   const i = tierIndex(p);
@@ -129,7 +130,7 @@ export default function Student() {
                     {desc.map((e, k) => (
                       <tr key={e.id} style={{ '--i': k }}>
                         <td className="d1">{shortDate(season, dayOf(season, parseTs(e.created_at)))}</td>
-                        <td className="rs">{e.reason || 'No reason recorded'}<small>{ago(parseTs(e.created_at))}</small></td>
+                        <td className="rs">{e.reason ? pointLabel(e.reason) : 'No reason recorded'}<small>{ago(parseTs(e.created_at))}</small></td>
                         <td className={`pp ${e.delta < 0 ? 'neg' : ''}`}>{e.delta > 0 ? '+' : ''}{e.delta}</td>
                         <td className="tot hx">{tot.get(e.id)}</td>
                       </tr>
@@ -176,7 +177,7 @@ export default function Student() {
               <div className="dline"><span>biggest single award</span><span className="g">{best ? `+${best.delta}` : 'none'}</span></div>
               <div className="dline"><span>last award</span><span>{data.last_award ? ago(parseTs(data.last_award)) : 'none'}</span></div>
               <div className="dline"><span>this week</span><span>{thisWeek > 0 ? '+' : ''}{thisWeek}</span></div>
-              {best?.reason && <p className="pf-note">Best haul: <b>{best.reason}</b></p>}
+              {best?.reason && <p className="pf-note">Best haul: <b>{pointLabel(best.reason)}</b></p>}
             </div>
           </section>
         </aside>

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../../lib/api.js';
 import { formatDate, relativeDate, TYPE_LABELS, FORMAT_LABELS } from '../../lib/format.js';
 import { Avatar, TierMark, Spinner } from '../../components/bits.jsx';
-import { POINT_RULES } from '../../../shared/points.js';
+import { POINT_RULES, pointLabel } from '../../../shared/points.js';
 
 /*
  * The screens of the original admin panel. They now live inside the officer
@@ -364,7 +364,7 @@ export function MembersTab({ say }) {
                           {e.delta > 0 ? '+' : ''}
                           {e.delta}
                         </span>
-                        <span className="min-w-0 flex-1 truncate">{e.reason}</span>
+                        <span className="min-w-0 flex-1 truncate" title={e.reason}>{pointLabel(e.reason)}</span>
                         <span className="mono text-[0.65rem]" style={{ color: 'var(--ink-faint)' }}>
                           {relativeDate(e.created_at)}
                         </span>
