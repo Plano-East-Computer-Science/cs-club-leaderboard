@@ -16,6 +16,7 @@ import { recordActivity } from './ledger.js';
 import { syncQuests } from './quests.js';
 import { publicName } from './names.js';
 import { TEMPLATES } from '../../shared/session-templates.js';
+import { sqlTime } from '../../shared/points.js';
 import { getPlan } from './planner.js';
 import { closeRoomGateway, openRoomGateway, roomGateway, setRoomGateway } from './gateway.js';
 
@@ -202,17 +203,49 @@ export async function awardAttendance(db, code) {
   return out;
 }
 
+/** Closes a room and pays it. Shared by the officer's Close and the auto-close cron. */
+export async function closeRoom(db, code) {
+  await db.prepare(`UPDATE rooms SET closed_at = datetime('now') WHERE code = ? AND closed_at IS NULL`).bind(code).run();
+  await closeRoomGateway(db, code); // H1: the gateway ends with the meeting
+  return awardAttendance(db, code);
+}
+
 roomsAdminRouter.post('/rooms/:code/close', async (c) => {
-  const code = normCode(c.req.param('code'));
-  await c.env.DB
-    .prepare(`UPDATE rooms SET closed_at = datetime('now') WHERE code = ? AND closed_at IS NULL`)
-    .bind(code)
-    .run();
-  await closeRoomGateway(c.env.DB, code); // H1: the gateway ends with the meeting
-  const result = await awardAttendance(c.env.DB, code);
+  const result = await closeRoom(c.env.DB, normCode(c.req.param('code')));
   if (!result) return c.json({ error: 'No such room.' }, 404);
   return c.json({ ok: true, ...result });
 });
+
+/* --------------------------- V3-A: auto-close cron --------------------------- */
+
+export const STALE_HOURS = 8;
+
+/** Codes of rooms still open more than STALE_HOURS after they were opened: someone forgot to end them. */
+export async function staleRooms(db, now = new Date()) {
+  const cutoff = sqlTime(now.getTime() - STALE_HOURS * 3_600_000);
+  const rows = (await db.prepare('SELECT code FROM rooms WHERE closed_at IS NULL AND created_at < ? ORDER BY created_at').bind(cutoff).all()).results;
+  return rows.map((r) => r.code);
+}
+
+/**
+ * Hourly (worker/index.js scheduled): closes and pays every stale room, so a
+ * forgotten room still pays the members who came. One failing room does not
+ * stop the rest.
+ */
+// ponytail: members still connected keep their socket until they reload; the Worker refuses new joins once closed_at is set.
+export async function autoCloseRooms(env, now = new Date()) {
+  const out = { closed: [], failed: [] };
+  for (const code of await staleRooms(env.DB, now)) {
+    try {
+      await closeRoom(env.DB, code);
+      out.closed.push(code);
+    } catch (err) {
+      console.error('[rooms] auto-close failed', code, err?.message ?? err);
+      out.failed.push(code);
+    }
+  }
+  return out;
+}
 
 /* ------------------------------ H1: room gateway ------------------------------ */
 

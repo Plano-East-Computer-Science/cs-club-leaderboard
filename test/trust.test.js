@@ -9,7 +9,7 @@ import { makeTestDb } from './d1-shim.js';
 import { Room } from '../worker/hub/room-do.js';
 import * as S from '../worker/hub/session.js';
 import { cleanBlocks, endWarning } from '../shared/session-templates.js';
-import { awardAttendance } from '../worker/hub/rooms.js';
+import { awardAttendance, autoCloseRooms, staleRooms } from '../worker/hub/rooms.js';
 import { POINT_RULES, pointsFor } from '../shared/points.js';
 
 const SCHEMA = fs.readFileSync(new URL('../worker/schema.sql', import.meta.url), 'utf8');
@@ -131,6 +131,27 @@ await check('the host view counts who joined; a student view does not', async ()
   assert.equal(room.view('host', 'host').joined, 2);
   assert.equal(room.view('host', 'host').exits, 1);
   assert.equal(room.view('student', '1').joined, undefined);
+});
+
+/* -------------------------------- 4. auto-close -------------------------------- */
+
+await check('the cron closes and pays only rooms open longer than eight hours', async () => {
+  const db = makeTestDb(SCHEMA);
+  db.exec(`INSERT INTO students (id, name) VALUES (10, 'Ana');
+    INSERT INTO users (id, email, name, student_id) VALUES (1, 'a@x.org', 'Ana', 10);
+    INSERT INTO rooms (code, title, created_at, closed_at) VALUES
+      ('OLD1', 'Forgotten', '2026-11-18 08:00:00', NULL),
+      ('EDGE', 'Exactly eight hours', '2026-11-18 12:00:00', NULL),
+      ('NEW1', 'Running now', '2026-11-18 19:00:00', NULL),
+      ('DONE', 'Closed already', '2026-11-17 08:00:00', '2026-11-17 09:00:00');
+    INSERT INTO room_checkins (code, user_id, joined_at) VALUES ('OLD1', 1, '2026-11-18 08:05:00')`);
+  const now = new Date('2026-11-18T20:00:00Z');
+  assert.deepEqual(await staleRooms(db, now), ['OLD1'], 'eight hours to the second is not yet stale');
+  assert.deepEqual(await autoCloseRooms({ DB: db }, now), { closed: ['OLD1'], failed: [] });
+  assert.ok((await db.prepare(`SELECT closed_at FROM rooms WHERE code = 'OLD1'`).first()).closed_at);
+  const att = await db.prepare(`SELECT points, created_at FROM activity WHERE kind = 'attend'`).first();
+  assert.equal(att.created_at, '2026-11-18 08:05:00', 'paid on the day they came');
+  assert.deepEqual(await autoCloseRooms({ DB: db }, now), { closed: [], failed: [] }, 'nothing left to close');
 });
 
 console.log(`trust: ${passed} checks passed`);
