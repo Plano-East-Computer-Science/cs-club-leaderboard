@@ -9,6 +9,7 @@ import { api } from '../../lib/api.js';
 import { Spinner } from '../../components/bits.jsx';
 import CodeRunner from '../../components/CodeRunner.jsx';
 import { Body } from '../Course.jsx';
+import { parseStarter } from '../../../shared/starter.js';
 
 const BAD = '#c42e2e';
 const EMPTY = {
@@ -206,7 +207,7 @@ function Editor({ start, onDone }) {
           <div className="card p-3">
             <Body text={f.body} />
             <div className="mt-4">
-              <CodeRunner id="pb-prev" cases={f.cases} initial={f.starter} runLabel="Run tests as a student" />
+              <CodeRunner id="pb-prev" cases={f.cases} initial={parseStarter(f.starter).python} runLabel="Run tests as a student" />
             </div>
           </div>
         ) : (
@@ -215,7 +216,7 @@ function Editor({ start, onDone }) {
       </div>
 
       <label className="grid gap-1">
-        <span className="eyebrow">Starter code shown to students</span>
+        <span className="eyebrow">Starter code shown to students (Python, or JSON with java and python keys)</span>
         <textarea className="field mono" rows={5} value={f.starter} onChange={(e) => set('starter', e.target.value)} spellCheck={false} />
       </label>
 

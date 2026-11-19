@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { Spinner, ErrorNote, Empty } from '../components/bits.jsx';
 import Problems from './officer/Problems.jsx';
+import Sets from './officer/Sets.jsx';
 import Announce from './officer/Announce.jsx';
 import Team from './officer/Team.jsx';
 import Claims from './officer/Claims.jsx';
@@ -89,6 +90,7 @@ const GROUPS = [
     label: 'Content',
     screens: [
       { id: 'problems', label: 'Problem bank', C: Problems },
+      { id: 'sets', label: 'Duel packs and contest sets', C: Sets },
       { id: 'daily', label: 'Daily problem', C: DailyAdmin },
       { id: 'board', label: 'The Board', C: Board },
       { id: 'puzzles', label: 'Puzzles', C: PuzzlesTab, titled: true },
