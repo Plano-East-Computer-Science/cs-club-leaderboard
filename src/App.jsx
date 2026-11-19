@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Link, Navigate, Outlet, useLocation } from 'react-router-dom';
 
 import Home from './pages/Home.jsx';
@@ -47,6 +47,9 @@ import Alumni from './pages/Alumni.jsx';
 import { SubscribeBox } from './components/Subscribe.jsx';
 import { TabBar, Dock, Boot, Snow, PAGES } from './components/Chrome.jsx';
 import { DataProvider, useData } from './lib/data.jsx';
+
+// V3-C: try-it page for the editor; lazy so the editor bundle stays off other pages.
+const EditorLab = lazy(() => import('./pages/EditorLab.jsx'));
 
 document.documentElement.classList.add('js');
 
@@ -189,6 +192,7 @@ function Shell() {
             <Route path="/officers/apply" element={<OfficerApply />} />
             <Route path="/verify/:code" element={<Verify />} />
           </Route>
+          <Route path="/lab/editor" element={<Suspense fallback={null}><EditorLab /></Suspense>} />
           <Route path="/admin" element={<Navigate to="/officer" replace />} />
           <Route
             path="*"
