@@ -1840,3 +1840,4 @@ h1,h2,.display{text-wrap:balance}
 .ses-edit-text{display:grid;gap:6px}
 @media(min-width:900px){.ses-edit-text{grid-template-columns:1fr 1fr}}
 .ses-end{border-color:rgba(255,98,83,.5)}
+.st-points{max-width:640px}

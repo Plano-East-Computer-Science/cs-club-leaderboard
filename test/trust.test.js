@@ -10,7 +10,9 @@ import { Room } from '../worker/hub/room-do.js';
 import * as S from '../worker/hub/session.js';
 import { cleanBlocks, endWarning } from '../shared/session-templates.js';
 import { awardAttendance, autoCloseRooms, staleRooms } from '../worker/hub/rooms.js';
-import { POINT_RULES, pointsFor } from '../shared/points.js';
+import { POINT_RULES, pointsFor, pointsTable, capText } from '../shared/points.js';
+import worker from '../worker/index.js';
+import { chicagoDate } from '../shared/daily.js';
 
 const SCHEMA = fs.readFileSync(new URL('../worker/schema.sql', import.meta.url), 'utf8');
 let passed = 0;
@@ -152,6 +154,44 @@ await check('the cron closes and pays only rooms open longer than eight hours', 
   const att = await db.prepare(`SELECT points, created_at FROM activity WHERE kind = 'attend'`).first();
   assert.equal(att.created_at, '2026-11-18 08:05:00', 'paid on the day they came');
   assert.deepEqual(await autoCloseRooms({ DB: db }, now), { closed: [], failed: [] }, 'nothing left to close');
+});
+
+/* ---------------------------- 5. one points table ---------------------------- */
+
+await check('the points table comes from the rules, with caps in words, and no manual row', async () => {
+  const t = pointsTable();
+  assert.ok(!t.some((r) => r.kind === 'manual'));
+  const attend = t.find((r) => r.kind === 'attend');
+  assert.deepEqual(attend, { kind: 'attend', label: 'Come to a meeting', points: POINT_RULES.attend.points, cap: 'once a day, your first 3 count double' });
+  assert.equal(t.find((r) => r.kind === 'place').cap, 'up to 50 points a season, an officer checks it');
+  assert.equal(capText({ points: 1 }), null);
+  assert.ok(t.every((r) => r.label && Number.isInteger(r.points)));
+});
+
+await check('GET /api/club is public: meeting settings, the next unheld session, live point rules', async () => {
+  const db = makeTestDb(SCHEMA);
+  const env = { DB: db, ADMIN_PASSWORD: 'pw', SESSION_SECRET: 's' };
+  const get = async () => {
+    const res = await worker.fetch(new Request('https://club.test/api/club'), env, { waitUntil() {} });
+    return { status: res.status, body: await res.json() };
+  };
+  let r = await get();
+  assert.equal(r.status, 200, 'no sign-in needed');
+  assert.deepEqual(r.body.meeting, { day: '', time: '', place: '', note: '' });
+  assert.equal(r.body.next, null);
+  const today = chicagoDate();
+  db.exec(`INSERT INTO settings (key, value) VALUES ('meeting_day', 'Tuesdays'), ('meeting_time', ' 4:15 pm '), ('meeting_place', 'Room 2104'),
+      ('point_rules', '{"attend":{"points":12}}');
+    INSERT INTO rooms (code, title) VALUES ('HELD', 'Held');
+    INSERT INTO planned_sessions (date, title, template, blocks, room_code) VALUES
+      ('${today}', 'Already running', 'build', '[{"type":"hook","title":"x","minutes":3,"notes":"secret"}]', 'HELD'),
+      ('2099-01-05', 'Duel night', 'duel', '[{"type":"hook","title":"x","minutes":3,"notes":"secret"}]', NULL),
+      ('2000-01-01', 'Long ago', 'build', '[]', NULL)`);
+  r = await get();
+  assert.deepEqual(r.body.meeting, { day: 'Tuesdays', time: '4:15 pm', place: 'Room 2104', note: '' });
+  assert.deepEqual(r.body.next, { date: '2099-01-05', title: 'Duel night', kind: 'Duel night' });
+  assert.equal(r.body.points.find((p) => p.kind === 'attend').points, 12, 'officer overrides show up');
+  assert.ok(!JSON.stringify(r.body).includes('secret'), 'no block notes');
 });
 
 console.log(`trust: ${passed} checks passed`);

@@ -43,6 +43,44 @@ export const POINT_RULES = {
   manual: { points: 0, approval: true },
 };
 
+/**
+ * V3-A: the public points table, generated from the rules so About, Standings
+ * and HQ never disagree. In the order a new member meets them. `manual` is
+ * left out: an officer picks its amount each time.
+ */
+export const POINT_LABELS = {
+  attend: 'Come to a meeting',
+  active: 'Do something in the meeting',
+  dropin: 'Drop in to Panther Pause',
+  solve: 'Solve a practice problem',
+  daily: 'Solve the daily problem',
+  duel: 'Play a duel round, or win one',
+  quest: 'Finish a quest',
+  idea: 'Share an idea for the club',
+  compete: 'Enter a competition',
+  place: 'Place in a competition',
+  ship: 'Ship a project',
+  mentor: 'Help another member',
+};
+
+/** "once a day, first 3 count double" for a rule; null when it has no limit. */
+export function capText(r) {
+  const parts = [];
+  if (r.perDay) parts.push(r.perDay === 1 ? 'once a day' : `${r.perDay} a day`);
+  if (r.perWeek) parts.push(`${r.perWeek} a week`);
+  if (r.perSeason) parts.push(`${r.perSeason} a season`);
+  if (r.seasonPoints != null) parts.push(`up to ${r.seasonPoints} points a season`);
+  if (r.firstDoubled) parts.push(`your first ${r.firstDoubled} count double`);
+  if (r.approval) parts.push('an officer checks it');
+  return parts.length ? parts.join(', ') : null;
+}
+
+/** [{ kind, label, points, cap }] from the live rules (defaults with the officer's overrides). */
+export const pointsTable = (rules = POINT_RULES) =>
+  Object.keys(POINT_LABELS)
+    .filter((k) => rules[k])
+    .map((kind) => ({ kind, label: POINT_LABELS[kind], points: rules[kind].points || 0, cap: capText(rules[kind]) }));
+
 const NUM_FIELDS = ['points', 'perDay', 'perWeek', 'perSeason', 'seasonPoints', 'firstDoubled'];
 
 /** Date, ms number, ISO string or SQLite "YYYY-MM-DD HH:MM:SS" (UTC) to a Date. */

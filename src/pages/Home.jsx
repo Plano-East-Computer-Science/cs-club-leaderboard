@@ -12,6 +12,8 @@ import { TIERS, tierIndex, tierProgress, nextTier } from '../lib/tiers.js';
 import { PATHS } from '../../shared/compass.js';
 import { QuestRow, RankBar } from './Quests.jsx';
 import ReportButton from '../components/ReportButton.jsx';
+import { useClub, meetingLine } from '../lib/club.js';
+import { whenLabel } from '../../shared/planner.js';
 
 export default function Home() {
   const { user, loading, signOut } = useUser();
@@ -32,6 +34,8 @@ const SHAPE = [
 
 function Landing() {
   const { settings, students, season, totalPoints } = useData();
+  const club = useClub();
+  const meets = meetingLine(club?.meeting);
   useReveal();
   return (
     <>
@@ -46,6 +50,12 @@ function Landing() {
               {settings.club_name || 'Plano East CS Club'} runs on this site. <b>Meet, practise, build and compete</b>, on school
               wifi, with nothing to install.
             </p>
+            {(meets || club?.next) && (
+              <p className="lead" style={{ marginTop: 8 }}>
+                {meets && <>We meet <b>{meets}</b>.</>}
+                {club.next && <> Next: {whenLabel(club.next.date)}, {club.next.title}.</>}
+              </p>
+            )}
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 20 }}>
               <Link className="btn pri" to="/signin">Create your account</Link>
               <Link className="btn" to="/arena">See the board first</Link>

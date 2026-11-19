@@ -44,6 +44,7 @@ import { researchRouter, researchAdminRouter } from './research.js';
 import { alumniRouter, alumniAdminRouter } from './alumni.js';
 import { pathwaysRouter } from './pathways.js';
 import { quantRouter, quantAdminRouter } from './quant.js';
+import { clubRouter } from './club.js';
 
 export { Room } from './room-do.js';
 
@@ -84,6 +85,7 @@ hubAdmin.route('/', quantAdminRouter);
 export function mountHub(app) {
   app.route('/gw', gatewayRouter);
   app.route('/api/admin/hub', hubAdmin); // before /api/admin so its own lock applies
+  app.route('/api', clubRouter); // V3-A: public meeting time, next session, points table
   app.route('/api', usersRouter);
   app.route('/api', learnRouter);
   app.route('/api', roomsRouter);
