@@ -328,7 +328,7 @@ Print Q lines. Line i is the answer to question i: the sum al + ... + ar.
 
 ## Constraints
 
-- 1 ≤ N, Q ≤ 100,000
+- 1 ≤ N ≤ 30,000 and 1 ≤ Q ≤ 6,000
 - 0 ≤ each reading ≤ 1,000,000,000
 - 1 ≤ l ≤ r ≤ N (seconds are numbered from 1)
 - An answer can be larger than 2,147,483,647.
@@ -11387,7 +11387,7 @@ Print one integer: the fewest rooms needed.
 
 ## Constraints
 
-- 1 ≤ N ≤ 100,000
+- 1 ≤ N ≤ 10,000
 - 0 ≤ s < e ≤ 1,000,000,000
 
 ## Sample input 1

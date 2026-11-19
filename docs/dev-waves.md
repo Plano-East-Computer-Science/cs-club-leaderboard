@@ -85,3 +85,14 @@ Test on dev, ideally on a school laptop on school wifi:
 3. Switch to Python: it runs too.
 
 Roll back: Revert the PR. Nothing else depends on it yet.
+
+### Wave 3, PR 3: duel packs
+
+Two prepared duel packs (22 original problems, each checked in Java and Python against every test). Officers start a duel from a pack in one tap. Officer tools > Content > "Duel packs and contest sets" to view or build packs.
+
+Test on dev:
+1. Officer: open a room with the Duel night template, go to the Duel block, press "Open the lobby with Duel Pack 1".
+2. Students pick a division and race. Each round uses the pack's next problem.
+3. Officer tools > Content > Duel packs shows both packs with their problems.
+
+Roll back: Revert the PR. The problem_sets table and the pack problems stay in the database, unused.

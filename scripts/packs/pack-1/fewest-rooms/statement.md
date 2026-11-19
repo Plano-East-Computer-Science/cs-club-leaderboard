@@ -14,5 +14,5 @@ Print one integer: the fewest rooms needed.
 
 ## Constraints
 
-- 1 ≤ N ≤ 100,000
+- 1 ≤ N ≤ 10,000
 - 0 ≤ s < e ≤ 1,000,000,000
