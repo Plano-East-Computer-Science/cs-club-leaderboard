@@ -456,7 +456,14 @@ export class Room {
     const db = this.env?.DB;
     if (m.t === 'duel_setup') {
       if (s.duel && s.duel.phase !== 'done') return 'A duel is already running. Close it first.';
-      const asked = Object.fromEntries(DIVISIONS.map((d) => [d, (Array.isArray(m.problems?.[d]) ? m.problems[d] : []).map(String).slice(0, 3)]));
+      let asked = Object.fromEntries(DIVISIONS.map((d) => [d, (Array.isArray(m.problems?.[d]) ? m.problems[d] : []).map(String).slice(0, 3)]));
+      // V3-B: { set: slug } plays a live duel pack; its problems are read here, never trusted from the message.
+      if (m.set != null) {
+        const { duelPackProblems } = await import('./sets.js');
+        const pack = await duelPackProblems(db, m.set);
+        if (pack.error) return pack.error;
+        asked = pack.asked;
+      }
       const slugs = [...new Set(Object.values(asked).flat())];
       if (!slugs.length) return 'Pick at least one problem.';
       // Only live problems from the bank; titles come from there, not from the message.

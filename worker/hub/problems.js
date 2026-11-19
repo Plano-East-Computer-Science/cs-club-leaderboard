@@ -8,6 +8,7 @@
  * The server never runs code.
  */
 import { Hono } from 'hono';
+import { parseStarter } from '../../shared/starter.js';
 
 export const problemsRouter = new Hono();
 export const problemsAdminRouter = new Hono();
@@ -16,17 +17,25 @@ export const STATUSES = ['draft', 'live', 'retired'];
 const SLUG = /^[a-z0-9][a-z0-9-]{0,79}$/;
 const MAX_CASES = 50;
 const MAX_TEXT = 20_000;
+// One case may be a max-size input (duel packs, V3-B); a D1 row holds up to 2 MB.
+const MAX_CASE_TEXT = 200_000;
+const MAX_CASES_TOTAL = 600_000;
 
 const splitTags = (s) => String(s || '').split(',').map((t) => t.trim()).filter(Boolean);
 
-/** Row -> what a browser may see: no solution, cases and tags parsed. */
+/**
+ * Row -> what a browser may see: no solution, cases and tags parsed.
+ * `starter` is always the Python text (every runner today is Python) and
+ * `starters` carries both languages, however the row stores them (V3-B).
+ */
 export function publicProblem(row) {
   const { solution, ...rest } = row; // eslint-disable-line no-unused-vars
   let cases = [];
   try {
     cases = JSON.parse(row.cases || '[]');
   } catch { /* a broken row shows no tests rather than a 500 */ }
-  return { ...rest, tags: splitTags(row.tags), cases };
+  const starters = parseStarter(row.starter);
+  return { ...rest, tags: splitTags(row.tags), cases, starter: starters.python, starters };
 }
 
 /**
@@ -62,11 +71,11 @@ export function validateProblem(input, { partial = false } = {}) {
   }
   if (!Array.isArray(cases) || cases.length > MAX_CASES) return { error: `Cases must be a list of at most ${MAX_CASES} tests.` };
   for (const c of cases) {
-    if (!c || typeof c.stdin !== 'string' || typeof c.stdout !== 'string' || c.stdin.length > MAX_TEXT || c.stdout.length > MAX_TEXT) {
-      return { error: 'Each case needs text for stdin and stdout.' };
-    }
+    if (!c || typeof c.stdin !== 'string' || typeof c.stdout !== 'string') return { error: 'Each case needs text for stdin and stdout.' };
+    if (c.stdin.length > MAX_CASE_TEXT || c.stdout.length > MAX_CASE_TEXT) return { error: 'One case is limited to 200,000 characters of input and of output.' };
   }
   cases = cases.map((c) => ({ stdin: c.stdin, stdout: c.stdout }));
+  if (cases.reduce((n, c) => n + c.stdin.length + c.stdout.length, 0) > MAX_CASES_TOTAL) return { error: 'All cases together are limited to 600,000 characters.' };
 
   const body = str(b.body);
   const starter = str(b.starter);
@@ -140,7 +149,8 @@ problemsAdminRouter.get('/problems', async (c) => {
 problemsAdminRouter.get('/problems/:id', async (c) => {
   const row = await c.env.DB.prepare('SELECT * FROM problems WHERE id = ?').bind(idOf(c)).first();
   if (!row) return c.json({ error: 'No such problem.' }, 404);
-  return c.json({ ...publicProblem(row), solution: row.solution });
+  // Raw starter, so the editor saves it back the way it found it (plain or JSON).
+  return c.json({ ...publicProblem(row), starter: row.starter, solution: row.solution });
 });
 
 problemsAdminRouter.post('/problems', async (c) => {
