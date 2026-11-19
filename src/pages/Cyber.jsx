@@ -19,7 +19,7 @@ const DEFAULT_BODY = `The Cybersecurity Committee is the offensive-and-defensive
 - Malware analysis: what a real sample does, in an environment where it cannot do it to you
 
 ## Rules of the road
-We break into things we are allowed to break into. Everything we practise on is a lab, a competition box, or our own machines. Doing it anywhere else is a felony and gets you removed from the club. Not a metaphor, an actual law.
+We break into things we are allowed to break into. Everything we practice on is a lab, a competition box, or our own machines. Doing it anywhere else is a felony and gets you removed from the club. Not a metaphor, an actual law.
 
 ## Getting started
 Show up. Bring a laptop if you have one; if you do not, say so and we will pair you with someone who does.`;

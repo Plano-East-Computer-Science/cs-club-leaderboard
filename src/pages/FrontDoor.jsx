@@ -133,7 +133,7 @@ export default function FrontDoor() {
         <div className="fd-hero__in">
           <div className="fd-hero__copy ui-enter">
             <h1 className="ui-display-xl">The computer science club at Plano East</h1>
-            <p className="fd-lead">Contests, projects, AI, data and cyber. We meet every week, and you can practise here any time.</p>
+            <p className="fd-lead">Contests, projects, AI, data and cyber. We meet every week, and you can practice here any time.</p>
             <div className="fd-cta">
               <Button to="/signin" variant="primary" size="lg">Create your account</Button>
               <Button to="/signin" variant="ghost" size="lg">Sign in</Button>
