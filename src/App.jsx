@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Link, Navigate, Outlet, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
 
 import Home from './pages/Home.jsx';
 import Leaderboard from './pages/Leaderboard.jsx';
@@ -44,9 +44,10 @@ import OfficerApply from './pages/OfficerApply.jsx';
 import Verify from './pages/Verify.jsx';
 import Research from './pages/Research.jsx';
 import Alumni from './pages/Alumni.jsx';
-import { SubscribeBox } from './components/Subscribe.jsx';
-import { TabBar, Dock, Boot, Snow, PAGES } from './components/Chrome.jsx';
-import { DataProvider, useData } from './lib/data.jsx';
+import Me from './pages/Me.jsx';
+import { Boot, Snow } from './components/Chrome.jsx';
+import { DataProvider } from './lib/data.jsx';
+import { AppShell, NavTabs, EmptyState, Button } from './ui/index.js';
 
 document.documentElement.classList.add('js');
 
@@ -65,7 +66,8 @@ window.addEventListener(
 
 /** The mockup's CSS keys a few layouts off body[data-page]. */
 function pageKey(pathname) {
-  if (pathname.startsWith('/student')) return 'standings';
+  if (pathname.startsWith('/student') || pathname === '/compete') return 'standings';
+  if (pathname === '/practice') return 'arena';
   return pathname.split('/')[1] || 'home';
 }
 
@@ -78,42 +80,35 @@ function HubLayout() {
   );
 }
 
-function Footer() {
-  const { settings } = useData();
+/** Compete door: standings first, then club teams, opportunities and the calendar, as tabs. */
+function CompeteLayout() {
   return (
-    <footer>
-      <div className="wrap">
-        <div className="fg">
-          <div>
-            <h2>Get the weekly digest</h2>
-            <p className="d" style={{ marginTop: 8, maxWidth: '50ch' }}>
-              New opportunities, deadlines, the problem of the week and the standings, once a week. Use a
-              personal address, not a school one. Confirm by email to subscribe.
-            </p>
-            <SubscribeBox />
-          </div>
-          <div className="links">
-            {PAGES.map(([n, to]) => (
-              <Link key={n} to={to}>
-                {n}
-              </Link>
-            ))}
-            <Link to="/privacy">privacy</Link>
-            <Link to="/parents">for parents</Link>
-            {settings.discord_url && (
-              <a href={settings.discord_url} target="_blank" rel="noreferrer noopener">
-                discord
-              </a>
-            )}
-            {settings.email && <a href={`mailto:${settings.email}`}>{settings.email}</a>}
-          </div>
-        </div>
-        <p className="fine">
-          {settings.school_name || 'Plano East Senior High School'}. Go Panthers.
-          Points come from meetings, competitions, solved problems and shipped projects, by the club's rules.
-        </p>
-      </div>
-    </footer>
+    <>
+      <NavTabs
+        label="Compete"
+        items={[
+          { to: '/compete', label: 'Standings', end: true },
+          { to: '/competitions', label: 'Competitions', end: true },
+          { to: '/opportunities', label: 'Opportunities' },
+          { to: '/calendar', label: 'Calendar' },
+        ]}
+      />
+      <Outlet />
+    </>
+  );
+}
+
+/** An old address that now lives somewhere else; keeps the query and hash. */
+function Moved({ to }) {
+  const { search, hash } = useLocation();
+  return <Navigate to={`${to}${search}${hash}`} replace />;
+}
+
+function NotFound() {
+  return (
+    <div className="ui-page">
+      <EmptyState action={<Button to="/" variant="secondary">Back to Today</Button>}>There is no page at this address.</EmptyState>
+    </div>
   );
 }
 
@@ -136,16 +131,21 @@ function Shell() {
 
   return (
     <>
-      <TabBar />
-      <main>
+      <AppShell footer={!/^\/(admin|officer|signin)/.test(pathname)}>
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/standings" element={<Leaderboard />} />
+          {/* Wave 4 doors. Practice and Compete wrap the existing pages until Wave 7 rebuilds them. */}
+          <Route path="/practice" element={<Arena />} />
+          <Route element={<CompeteLayout />}>
+            <Route path="/compete" element={<Leaderboard />} />
+            <Route path="/competitions" element={<Competitions />} />
+            <Route path="/opportunities" element={<Opportunities />} />
+            <Route path="/calendar" element={<CalendarPage />} />
+          </Route>
+          <Route path="/standings" element={<Moved to="/compete" />} />
+          <Route path="/me" element={<Me />} />
           <Route path="/student/:id" element={<Student />} />
-          <Route path="/opportunities" element={<Opportunities />} />
-          <Route path="/calendar" element={<CalendarPage />} />
           <Route path="/curriculum" element={<Curriculum />} />
-          <Route path="/competitions" element={<Competitions />} />
           <Route path="/competitions/:id" element={<Competition />} />
           <Route path="/puzzles" element={<Puzzles />} />
           <Route path="/join" element={<Join />} />
@@ -190,23 +190,9 @@ function Shell() {
             <Route path="/verify/:code" element={<Verify />} />
           </Route>
           <Route path="/admin" element={<Navigate to="/officer" replace />} />
-          <Route
-            path="*"
-            element={
-              <div className="state-note">
-                <p className="display" style={{ fontSize: 40, color: 'var(--text)' }}>
-                  Nothing here
-                </p>
-                <Link className="g uline" to="/">
-                  cd ../standings
-                </Link>
-              </div>
-            }
-          />
+          <Route path="*" element={<NotFound />} />
         </Routes>
-      </main>
-      {/^\/(admin|officer|signin)/.test(pathname) ? null : <Footer />}
-      <Dock />
+      </AppShell>
       <Boot />
       <Snow />
     </>
