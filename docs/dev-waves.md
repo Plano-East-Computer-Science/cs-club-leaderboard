@@ -74,3 +74,25 @@ Test on dev:
 4. Practice and the Board are no longer empty on dev.
 
 Roll back: Revert this PR. Migration 013 (`rooms.minutes`) stays, unused.
+
+### Wave 3, PR 2: code editor and Java in the browser
+
+A real editor (CodeMirror 6) and Java that runs in the browser from our own domain (TeaVM javac compiled to WebAssembly, served from /teavm, about 4.5 MB on first use). Not wired into problems yet; try it at /lab/editor?editor=1.
+
+Test on dev, ideally on a school laptop on school wifi:
+1. Open https://dev.peshcompsci.org/lab/editor?editor=1, pick Java, type a program that reads with Scanner, put input in the stdin box, press Run (or Ctrl+Enter). The first run takes a few seconds; later runs about 1 second.
+2. Make a typo: the error shows on the line in the editor.
+3. Switch to Python: it runs too.
+
+Roll back: Revert the PR. Nothing else depends on it yet.
+
+### Wave 3, PR 3: duel packs
+
+Two prepared duel packs (22 original problems, each checked in Java and Python against every test). Officers start a duel from a pack in one tap. Officer tools > Content > "Duel packs and contest sets" to view or build packs.
+
+Test on dev:
+1. Officer: open a room with the Duel night template, go to the Duel block, press "Open the lobby with Duel Pack 1".
+2. Students pick a division and race. Each round uses the pack's next problem.
+3. Officer tools > Content > Duel packs shows both packs with their problems.
+
+Roll back: Revert the PR. The problem_sets table and the pack problems stay in the database, unused.

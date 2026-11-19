@@ -1,0 +1,2 @@
+# Generated content compared byte for byte in tests; keep LF on Windows too.
+worker/seed-packs.sql text eol=lf
