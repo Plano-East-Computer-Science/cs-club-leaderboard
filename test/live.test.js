@@ -94,7 +94,7 @@ await check('meeting start in Central time, across daylight saving', () => {
   assert.equal(earlyWindow({ date: '2026-12-02', time: '4:30 PM', hours: 24, now: Date.parse('2026-12-01T22:30:00Z') }).open, true);
 });
 
-await check('the queue: seeds first, then votes; skip drops one; two reports hide it until an officer keeps it', () => {
+await check('the queue: most votes first, seeds win ties; skip drops one; two reports hide it until an officer keeps it', () => {
   const sp = S.freshSpeaker();
   let id = 0;
   S.sqLoad(sp, { seeds: ['Seed one'], early: [{ uid: 7, text: 'Early, two votes', votes: [1, 2] }] }, () => ++id);
@@ -103,7 +103,7 @@ await check('the queue: seeds first, then votes; skip drops one; two reports hid
   S.sqAsk(sp, '3', 'Live, no votes', ++id);
   S.sqAsk(sp, '4', 'Live, three votes', ++id);
   for (const u of ['1', '2', '5']) S.sqVote(sp, u, id);
-  assert.deepEqual(S.sqOrder(sp.qs).map((q) => q.text), ['Seed one', 'Live, three votes', 'Early, two votes', 'Live, no votes']);
+  assert.deepEqual(S.sqOrder(sp.qs).map((q) => q.text), ['Live, three votes', 'Early, two votes', 'Seed one', 'Live, no votes']);
   assert.deepEqual(sp.qs.find((q) => q.early).votes, ['1', '2'], 'early votes carry, as member ids');
   S.sqSkip(sp, sp.qs[0].id);
   assert.equal(S.sqOrder(sp.qs)[0].text, 'Live, three votes', 'a skipped question waits behind the rest');
@@ -308,11 +308,11 @@ await check('early questions carry into the room, votes and all; then Today stop
   const qs = st.sent.at(-1).speaker.qs;
   assert.deepEqual(
     qs.map((q) => [q.text, q.votes, q.seed]),
-    [['How did you start?', 0, true], ['What was your first project?', 2, false], ['Question number 0', 0, false], ['Question number 1', 0, false], ['Question number 2', 0, false]],
-    'seeds first, then early questions by votes; hidden ones stay out; loading twice adds nothing'
+    [['What was your first project?', 2, false], ['How did you start?', 0, true], ['Question number 0', 0, false], ['Question number 1', 0, false], ['Question number 2', 0, false]],
+    'most votes first, seeds win ties; hidden ones stay out; loading twice adds nothing'
   );
-  assert.equal(qs[1].voted, true, 'Cy upvoted it on Today and still has the vote in the room');
-  assert.equal(host.sent.at(-1).speaker.qs[1].name, 'Ana Alvarez', 'officers see who asked early');
+  assert.equal(qs[0].voted, true, 'Cy upvoted it on Today and still has the vote in the room');
+  assert.equal(host.sent.at(-1).speaker.qs[0].name, 'Ana Alvarez', 'officers see who asked early');
   assert.ok(!JSON.stringify(screen.sent.at(-1).speaker).includes('Ana'));
   assert.equal(screen.sent.at(-1).speaker.mode, 'zoom', 'the plan put Zoom on the projector');
   const g = await call('/api/speaker-questions', { cookie: ana });
@@ -414,6 +414,24 @@ await check('a concept check through the room: members vote, the projector never
   assert.equal(a.sent.at(-1).check.answer, 0);
   await send(host, { t: 'block_go', i: -1 });
   assert.equal(room.s.check, null, 'a check belongs to its block');
+});
+
+await check('room socket: a client cannot send its own x- headers to the room', async () => {
+  db.exec(`INSERT INTO rooms (code, title, template) VALUES ('HDRS', 'Unplanned', 'build')`);
+  db.exec(`INSERT INTO room_checkins (code, user_id) VALUES ('HDRS', 1)`);
+  let seen = null;
+  rooms.set('HDRS', { fetch: (req) => ((seen = req.headers), new Response(null, { status: 200 })) });
+  const res = await worker.fetch(
+    new Request('https://club.test/api/rooms/HDRS/ws', {
+      headers: { Upgrade: 'websocket', Cookie: ana, 'x-role': 'host', 'x-blocks': encodeURIComponent('[{"type":"poll"}]'), 'x-uid': '999' },
+    }),
+    env,
+    ctx
+  );
+  assert.equal(res.status, 200);
+  assert.equal(seen.get('x-role'), 'student');
+  assert.equal(seen.get('x-uid'), '1', 'the uid comes from the session, not the client');
+  assert.equal(seen.get('x-blocks'), null, 'an unplanned room never takes blocks from the client');
 });
 
 console.log(`live: ${passed} checks passed`);

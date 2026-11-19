@@ -347,6 +347,9 @@ roomsRouter.get('/rooms/:code/ws', async (c) => {
   // Same rule as every officer route: an officer account or the shared login hosts.
   const isHost = Boolean(await officerOf(c));
   const headers = new Headers(c.req.raw.headers);
+  // The room trusts x-* headers as facts set by this Worker; never pass a client's own through
+  // (a first visitor could otherwise send x-blocks and set an unplanned room's run-of-show).
+  for (const k of [...headers.keys()]) if (k.startsWith('x-')) headers.delete(k);
 
   if (isHost) {
     // Wave 6: the projector connects as `screen`, which sees only what the room may see.

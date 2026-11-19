@@ -193,14 +193,14 @@ export function sqLoad(sp, { seeds = [], early = null }, nextId) {
   }
 }
 
-/** Waiting before answered, skipped after the rest, officers' seeds first, then most votes, then oldest. */
+/** Waiting before answered, skipped after the rest, then most votes; officers' seeds win ties, then oldest. */
 export const sqOrder = (qs) =>
   [...qs].sort(
     (a, b) =>
       Number(a.answered) - Number(b.answered) ||
       Number(Boolean(a.skipped)) - Number(Boolean(b.skipped)) ||
-      Number(!a.seed) - Number(!b.seed) ||
       b.votes.length - a.votes.length ||
+      Number(!a.seed) - Number(!b.seed) ||
       a.id - b.id
   );
 
