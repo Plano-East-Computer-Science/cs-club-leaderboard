@@ -3,7 +3,9 @@
  *
  *   /host/:code         console: run-of-show, the current block's controls, help queue, pace, agenda
  *   /host/:code/screen  projector: one block at a time, big type, no controls (open it on the
- *                       projector display; it follows the console)
+ *                       projector display; it follows the console). Wave 6: its own read-only
+ *                       `screen` socket, so it never receives notes, the Zoom link or names.
+ *   /host/:code/mod     Wave 6: the question moderator on an officer's phone
  */
 import { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
@@ -14,7 +16,11 @@ import { Board, LETTERS, PULSES, useCountdown } from './Room.jsx';
 import { DuelBoard, DuelSetup, Notice, PairPanel, clock } from './Duel.jsx';
 import { ContestConsole, ContestSetup } from './Contest.jsx';
 import { BLOCK_LABEL, endWarning } from '../../shared/session-templates.js';
-import { BlockEditor, HelpConsole, LabCounts, Projector, RunOfShow, ShowConsole, SpeakerConsole, blockOf, useCheckin, useLeft } from './Session.jsx';
+import { BlockEditor, HelpConsole, LabCounts, RunOfShow, ShowConsole, blockOf, useCheckin, useLeft } from './Session.jsx';
+import Projector from './live/Projector.jsx';
+import { SpeakerConsole, ModView } from './live/Speaker.jsx';
+import { TeachConsole } from './live/Teach.jsx';
+import Stuck from './live/Stuck.jsx';
 
 const GOOD = '#2f8f5b';
 
@@ -39,7 +45,7 @@ const EXAMPLES = [
   },
 ];
 
-export default function Host({ screen = false }) {
+export default function Host({ screen = false, mod = false }) {
   const { code: raw } = useParams();
   const code = raw.toUpperCase();
   const [authed, setAuthed] = useState(null);
@@ -53,6 +59,7 @@ export default function Host({ screen = false }) {
 
   if (authed === null) return <Spinner />;
   if (!authed) return <NeedOfficer />;
+  if (mod) return <Mod code={code} />;
   return screen ? <Screen code={code} /> : <Console code={code} />;
 }
 
@@ -84,13 +91,26 @@ function Refused({ code }) {
   );
 }
 
-/** The projector page: a second socket as host that only renders. */
+/** The projector page: a second, read-only socket that the room treats as the projector. */
 function Screen({ code }) {
-  const { state, refused, skew } = useRoomSocket(code);
+  const { state, refused, skew } = useRoomSocket(code, 'screen');
   const tok = useCheckin(code);
   if (refused) return <Refused code={code} />;
   if (!state) return <Spinner label="Connecting" />;
   return <Projector state={state} code={code} skew={skew} tok={tok} />;
+}
+
+/** The moderator view on an officer's phone: an officer socket, questions only. */
+function Mod({ code }) {
+  const { state, status, refused, notice, send } = useRoomSocket(code);
+  if (refused) return <Refused code={code} />;
+  if (!state) return <Spinner label="Connecting" />;
+  return (
+    <>
+      <Notice notice={notice} />
+      <ModView state={state} code={code} send={send} status={status} />
+    </>
+  );
 }
 
 /**
@@ -371,7 +391,7 @@ function Pace({ state, send }) {
 }
 
 /** The controls for whatever block is running. */
-function CurrentBlock({ state, send, skew }) {
+function CurrentBlock({ state, send, skew, code }) {
   const block = blockOf(state);
   const duelLive = state.duel && state.duel.phase !== 'done';
 
@@ -415,6 +435,7 @@ function CurrentBlock({ state, send, skew }) {
           <p className="eyebrow mb-3">progress (the projector shows this, never names)</p>
           <LabCounts lab={state.lab} />
         </section>
+        <Stuck progress={state.lab?.progress} skew={skew} />
         {state.lab?.pairs && <PairPanel pairs={state.pairs} send={send} />}
       </>
     );
@@ -422,10 +443,10 @@ function CurrentBlock({ state, send, skew }) {
     body = duelLive || state.duel?.phase === 'done' ? (
       <>
         <DuelBoard duel={state.duel} send={send} skew={skew} />
-        {state.duel.phase === 'done' && <DuelSetup send={send} disabled={state.ended} />}
+        {state.duel.phase === 'done' && <DuelSetup send={send} disabled={state.ended} preset={block.duel} />}
       </>
     ) : (
-      <DuelSetup send={send} disabled={state.ended} />
+      <DuelSetup send={send} disabled={state.ended} preset={block.duel} />
     );
   } else if (block.type === 'contest') {
     body = state.contest ? <ContestConsole c={state.contest} send={send} skew={skew} /> : <ContestSetup send={send} disabled={state.ended} block={block} />;
@@ -437,12 +458,9 @@ function CurrentBlock({ state, send, skew }) {
       </section>
     );
   } else if (block.type === 'speaker') {
-    body = (
-      <section className="card p-5" aria-label="Speaker">
-        <p className="eyebrow mb-3">audience questions, most votes first</p>
-        <SpeakerConsole speaker={state.speaker} send={send} />
-      </section>
-    );
+    body = <SpeakerConsole state={state} code={code} send={send} />;
+  } else if (block.type === 'teach') {
+    body = <TeachConsole block={block} check={state.check} here={state.here} send={send} skew={skew} />;
   } else if (block.type === 'close') {
     body = (
       <section className="card p-5">
@@ -568,7 +586,7 @@ function Console({ code }) {
           ) : (
             <RunOfShow state={state} send={send} skew={skew} onEdit={() => setEditing(true)} />
           )}
-          {!dropin && <CurrentBlock state={state} send={send} skew={skew} />}
+          {!dropin && <CurrentBlock state={state} send={send} skew={skew} code={code} />}
         </div>
         <div className="grid content-start gap-5">
           <HelpConsole help={state.help} helped={state.helped} send={send} />

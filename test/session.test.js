@@ -249,9 +249,10 @@ function makeRoom(db, sockets, code = 'ROOM') {
   db.exec(`INSERT INTO problems (slug, title, cases, solution, status) VALUES ('sum', 'Sum', '[]', 'x', 'live')`);
 
   const host = new Ws({ role: 'host', uid: 'host' });
+  const screen = new Ws({ role: 'screen', uid: 'screen' }); // Wave 6: the projector's own read-only socket
   const st = [1, 2, 3, 4, 5, 6].map((i) => new Ws({ role: 'student', uid: String(i), name: `S${i}` }));
   const [ana, ben, cy, dee, eli, fay] = st;
-  const room = makeRoom(db, [host, ...st]);
+  const room = makeRoom(db, [host, screen, ...st]);
   await new Promise((r) => setTimeout(r, 0));
   Object.assign(room.s, { code: 'ROOM', names: { 1: 'Ana A', 2: 'Ben B', 3: 'Cy C', 4: 'Dee D', 5: 'Eli E', 6: 'Fay F' } });
   room.s.session = S.newSession({ template: 'build', minutes: 60 });
@@ -300,7 +301,10 @@ function makeRoom(db, sockets, code = 'ROOM') {
   const hv = last(host).lab;
   assert.deepEqual(hv.counts[0].past.slice(0, 2), [2, 1], '"2 past checkpoint 1"');
   assert.equal(hv.counts[1].people, 1);
-  const projector = JSON.stringify(hv);
+  // Wave 6: the projector socket gets counts only; the officer console also gets who is where (who is stuck).
+  assert.deepEqual(last(screen).lab.counts, hv.counts, 'the projector sees the same counts');
+  assert.ok(hv.progress.some((p) => p.name === 'Dee D'), 'the officer console sees names for who is stuck');
+  const projector = JSON.stringify(last(screen).lab);
   for (const n of ['Ana', 'Ben', 'Cy', 'Dee', '"2"', '"3"', 'uids', 'picks', 'passed'])assert.ok(!projector.includes(n), `projector lab view has no ${n}`);
   assert.deepEqual(last(ben).lab.passed, cp0.slice(0, 2), 'a student sees their own progress');
 
@@ -375,7 +379,10 @@ function makeRoom(db, sockets, code = 'ROOM') {
   await msg(ben, { t: 'sq_vote', id: qid });
   await msg(ana, { t: 'sq_vote', id: qid });
   assert.equal(last(host).speaker.qs[0].votes, 1);
-  assert.ok(!JSON.stringify(last(host).speaker).includes('Ana'), 'questions are anonymous');
+  // Wave 6: anonymous to members and the projector; officers see who asked, to moderate.
+  assert.ok(!JSON.stringify(last(ben).speaker).includes('Ana'), 'questions are anonymous to members');
+  assert.ok(!JSON.stringify(last(screen).speaker).includes('Ana'), 'and on the projector');
+  assert.equal(last(host).speaker.qs[0].name, 'Ana A', 'officers see who asked');
   await msg(host, { t: 'takeaways', text: 'Ship small things.' });
   assert.equal((await db.prepare(`SELECT takeaways FROM rooms WHERE code = 'ROOM'`).first()).takeaways, 'Ship small things.');
 

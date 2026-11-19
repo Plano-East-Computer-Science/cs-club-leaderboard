@@ -13,7 +13,9 @@ import { useRoomSocket } from '../lib/useRoomSocket.js';
 import { Spinner } from '../components/bits.jsx';
 import { DuelPlay, Notice, PartnerCard } from './Duel.jsx';
 import { ContestPlay } from './Contest.jsx';
-import { BlockTimer, ExitCard, HelpQueue, LabPlay, NoteBox, ShowPlay, SpeakerPlay, blockOf } from './Session.jsx';
+import { BlockTimer, ExitCard, HelpQueue, LabPlay, NoteBox, ShowPlay, blockOf } from './Session.jsx';
+import { SpeakerPlay } from './live/Speaker.jsx';
+import { TeachPlay } from './live/Teach.jsx';
 
 const GOOD = '#2f8f5b';
 const BAD = '#c42e2e';
@@ -268,7 +270,10 @@ function BlockView({ state, send, skew }) {
       main = <ShowPlay show={state.show} earned={state.earned} send={send} />;
       break;
     case 'speaker':
-      main = <SpeakerPlay speaker={state.speaker} send={send} />;
+      main = <SpeakerPlay speaker={state.speaker} block={block} send={send} />;
+      break;
+    case 'teach':
+      main = <TeachPlay check={state.check} block={block} send={send} />;
       break;
     case 'close':
       main = (

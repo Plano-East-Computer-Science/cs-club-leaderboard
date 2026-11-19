@@ -89,15 +89,16 @@ function GhostRow({ ms }) {
 
 /* --------------------------------- officer -------------------------------- */
 
-export function DuelSetup({ send, disabled }) {
+/** preset (Wave 6): the duel block's payload from the plan, { set, minutes, rounds, newMode }. */
+export function DuelSetup({ send, disabled, preset }) {
   const [all, setAll] = useState(null);
   const [err, setErr] = useState('');
   const [diff, setDiff] = useState(0);
   const [div, setDiv] = useState('new');
   const [picked, setPicked] = useState({ new: [], comfortable: [], contest: [] });
-  const [minutes, setMinutes] = useState(10);
-  const [rounds, setRounds] = useState(3);
-  const [newMode, setNewMode] = useState('1v1');
+  const [minutes, setMinutes] = useState(preset?.minutes ?? 10);
+  const [rounds, setRounds] = useState(preset?.rounds ?? 3);
+  const [newMode, setNewMode] = useState(preset?.newMode ?? '1v1');
   const [packs, setPacks] = useState(null); // V3-B: live duel packs, played in one tap
   const [hand, setHand] = useState(false);
 
@@ -122,10 +123,21 @@ export function DuelSetup({ send, disabled }) {
   const total = Object.values(picked).flat().length;
   const settings = { minutes: Number(minutes), rounds: Number(rounds), newMode };
   const byHand = hand || (packs && !packs.length);
+  const planned = preset?.set ? packs?.find((p) => p.slug === preset.set) : null;
 
   return (
     <section className="card grid gap-3 p-5" aria-label="Set up a duel">
       {err && <p className="dn text-sm">{err}</p>}
+      {planned && (
+        <div className="duel-planned">
+          <p className="eyebrow">Planned for tonight</p>
+          <button type="button" className="btn btn-primary duel-planned__go" disabled={disabled} onClick={() => send({ t: 'duel_setup', set: planned.slug, minutes: preset.minutes, rounds: preset.rounds, newMode: preset.newMode })}>
+            Open the lobby with {planned.title}
+          </button>
+          <p className="m mono text-xs">{preset.rounds} rounds of {preset.minutes} minutes{preset.newMode === '2v2' ? ', New plays 2v2' : ''}</p>
+        </div>
+      )}
+      {preset?.set && packs && !planned && <p className="dn text-sm">The planned pack ({preset.set}) is not live any more. Pick another below.</p>}
       <p className="eyebrow">Duel: use a pack</p>
       {!packs ? (
         !err && <Spinner label="Loading duel packs" />

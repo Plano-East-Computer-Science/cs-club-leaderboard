@@ -28,6 +28,7 @@ import { parseTs } from '../lib/season.js';
 import { whenLabel } from '../../shared/planner.js';
 import { daysUntil } from '../lib/format.js';
 import ReportButton from '../components/ReportButton.jsx';
+import EarlyAsk from './live/EarlyAsk.jsx';
 import {
   Button,
   Card,
@@ -488,6 +489,7 @@ export default function Today({ user }) {
               action={meetingToday ? <Button to="/room" variant="secondary" icon={CalendarBlank}>Have a code? Join</Button> : null}
             />
           )}
+          <EarlyAsk />
           <Standing s={d.season} firstMeeting={d.meetings === 0} attendPts={pointsOf(club, 'attend')} meeting={m} onClaim={() => setClaimOpen(true)} />
           <nav className="td-quick" aria-label="Your pages">
             <Link to="/quests" className="td-link"><Flag size={16} aria-hidden="true" />Quests, {d.quests.done} of {d.quests.total} done</Link>

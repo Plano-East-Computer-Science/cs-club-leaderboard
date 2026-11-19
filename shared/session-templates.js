@@ -18,12 +18,21 @@
  *   contest (B5): { freeze, penalty } defaults for the setup form: minutes the
  *        board is frozen at the end, minutes of penalty per wrong attempt.
  *        The problem set and teams are chosen live, in the room.
+ *   Wave 6 payloads (v2-spec section 5), prepared in the plan:
+ *   speaker: { name, title, intro, zoomUrl, seedQuestions, openEarlyHours, projector }
+ *        zoomUrl is officer-only, like notes. projector is 'questions' (the
+ *        queue on the projector) or 'zoom' (Zoom on the projector, a small
+ *        "ask at" strip on ours, questions on the moderator phone).
+ *   duel:    { set, minutes, rounds, newMode, spotlight } a live duel pack and its settings.
+ *   teach:   { slides, checks: [{ text, options, answer }] } concept checks:
+ *        vote, talk to your neighbour, revote, reveal. answer is officer-only.
  */
 
-export const BLOCK_TYPES = ['poll', 'hook', 'lab', 'duel', 'contest', 'show', 'speaker', 'break', 'close'];
+export const BLOCK_TYPES = ['poll', 'teach', 'hook', 'lab', 'duel', 'contest', 'show', 'speaker', 'break', 'close'];
 
 export const BLOCK_LABEL = {
   poll: 'Poll',
+  teach: 'Teach',
   hook: 'Hook',
   lab: 'Lab',
   duel: 'Duel',
@@ -93,15 +102,15 @@ export const TEMPLATES = {
       60: [
         b('hook', 'Join and practice', 5, 'Check in, then try the practice problem.'),
         b('hook', 'Tonight: duels', 5, 'Pick your division honestly. It is more fun close.'),
-        b('duel', 'Three rounds', 36, 'Rounds of 10 minutes, a 2-minute spotlight after each.', { notes: 'Set 10-minute rounds. Spotlight one solver for 2 minutes after each round.' }),
+        b('duel', 'Three rounds', 36, 'Rounds of 9 minutes, a 3-minute spotlight after each.', { notes: 'Spotlight one solver after each round.', duel: { minutes: 9, rounds: 3 } }),
         b('close', 'Close', 5, 'Finish the ones you missed at home: they stay open in Practice.'),
       ],
       120: [
         b('hook', 'Join and practice', 10, 'Check in, then try the practice problem.'),
         b('hook', 'Tonight: duels', 10, 'Pick your division honestly. It is more fun close.'),
-        b('duel', 'Three rounds', 45, 'Rounds of 12 minutes, a 3-minute spotlight after each.', { notes: 'Set 12-minute rounds. Spotlight one solver after each round.' }),
+        b('duel', 'Three rounds', 45, 'Rounds of 12 minutes, a 3-minute spotlight after each.', { notes: 'Spotlight one solver after each round.', duel: { minutes: 12, rounds: 3 } }),
         BREAK,
-        b('duel', '2v2 final', 20, 'Pairs race one last problem together.', { notes: 'Pair the room first, then start one round on the final problem.' }),
+        b('duel', '2v2 final', 20, 'Pairs race one last problem together.', { notes: 'Pair the room first, then start one round on the final problem.', duel: { minutes: 15, rounds: 1, newMode: '2v2' } }),
         b('show', 'Upsolve', 15, "Walk through tonight's problems, then finish the ones you missed."),
         b('close', 'Close', 10),
       ],
@@ -182,6 +191,69 @@ function cleanLab(lab) {
   return { pairs: lab?.pairs === true, tiers: tiers.length ? tiers : DEFAULT_TIERS.map((t) => ({ ...t })) };
 }
 
+/** An https address, or '' for anything else (javascript:, http:, junk). */
+function httpsUrl(v, n = 500) {
+  const s = String(v ?? '').trim();
+  if (!s) return '';
+  try {
+    const u = new URL(s);
+    return u.protocol === 'https:' && u.toString().length <= n ? u.toString() : '';
+  } catch {
+    return '';
+  }
+}
+
+const int = (v, d, lo, hi) => {
+  const x = Math.round(Number(v));
+  return v !== '' && v != null && Number.isFinite(x) && x >= lo && x <= hi ? x : d;
+};
+
+export const SPEAKER_MODES = ['questions', 'zoom'];
+export const OPEN_EARLY_HOURS = 24;
+
+function cleanSpeaker(sp) {
+  return {
+    name: str(sp?.name, 80),
+    title: str(sp?.title, 120),
+    intro: String(sp?.intro ?? '').trim().slice(0, 800),
+    zoomUrl: httpsUrl(sp?.zoomUrl),
+    seedQuestions: (Array.isArray(sp?.seedQuestions) ? sp.seedQuestions : []).map((q) => str(q, 200)).filter((q) => q.length >= 3).slice(0, 5),
+    openEarlyHours: int(sp?.openEarlyHours, OPEN_EARLY_HOURS, 0, 72),
+    projector: SPEAKER_MODES.includes(sp?.projector) ? sp.projector : 'questions',
+  };
+}
+
+function cleanDuel(d) {
+  const set = String(d?.set ?? '').trim().toLowerCase();
+  return {
+    set: /^[a-z0-9-]{1,80}$/.test(set) ? set : '',
+    minutes: int(d?.minutes, 10, 1, 60),
+    rounds: int(d?.rounds, 3, 1, 6),
+    newMode: d?.newMode === '2v2' ? '2v2' : '1v1',
+    spotlight: d?.spotlight !== false,
+  };
+}
+
+function cleanTeach(t) {
+  const checks = (Array.isArray(t?.checks) ? t.checks : [])
+    .map((c) => {
+      const options = (Array.isArray(c?.options) ? c.options : []).map((o) => str(o, 120)).filter(Boolean).slice(0, 6);
+      return { text: String(c?.text ?? '').trim().slice(0, 400), options, answer: int(c?.answer, 0, 0, Math.max(0, options.length - 1)) };
+    })
+    .filter((c) => c.text && c.options.length >= 2)
+    .slice(0, 5);
+  return { slides: httpsUrl(t?.slides), checks };
+}
+
+/** The speaker for a run-of-show: the first speaker block with a name, else the first speaker block. */
+export function speakerOf(blocks) {
+  const sp = (blocks ?? []).filter((x) => x?.type === 'speaker' && x.speaker);
+  return (sp.find((x) => x.speaker.name) ?? sp[0])?.speaker ?? null;
+}
+
+/** Minutes a duel payload needs: rounds of play plus a 3-minute spotlight after each when on. */
+export const duelMinutes = (d) => (d ? d.rounds * (d.minutes + (d.spotlight ? 3 : 0)) : 0);
+
 function cleanContest(c) {
   const n = (v, d, max) => (Number.isFinite(Math.round(Number(v))) && Number(v) >= 0 && Number(v) <= max ? Math.round(Number(v)) : d);
   return { freeze: n(c?.freeze, 10, 60), penalty: n(c?.penalty, 20, 120) };
@@ -210,6 +282,9 @@ export function cleanBlocks(blocks) {
     };
     if (x.type === 'lab') out.lab = cleanLab(x.lab);
     if (x.type === 'contest') out.contest = cleanContest(x.contest);
+    if (x.type === 'speaker') out.speaker = cleanSpeaker(x.speaker);
+    if (x.type === 'duel') out.duel = cleanDuel(x.duel);
+    if (x.type === 'teach') out.teach = cleanTeach(x.teach);
     return out;
   });
 }
@@ -235,8 +310,21 @@ export function endWarning({ joined = 0, exits = 0, dropin = false, duelLive = f
   return out;
 }
 
-/** Blocks as a member's laptop may see them: officer notes removed. */
-export const studentBlocks = (blocks) => (blocks ?? []).map(({ notes, ...rest }) => rest);
+/**
+ * Blocks as a member's laptop, the projector and anything else that is not an
+ * officer may see them. An allow-list: officer notes, the Zoom link, concept
+ * check answers and the duel pack stay behind, and a new field is private
+ * until it is added here.
+ */
+export const studentBlocks = (blocks) =>
+  (blocks ?? []).map((b) => {
+    const out = { id: b.id, type: b.type, title: b.title, minutes: b.minutes, screen: b.screen ?? '' };
+    if (b.lab) out.lab = b.lab;
+    if (b.contest) out.contest = b.contest;
+    if (b.speaker) out.speaker = { name: b.speaker.name, title: b.speaker.title, projector: b.speaker.projector };
+    if (b.teach) out.teach = { slides: b.teach.slides, checks: b.teach.checks.length };
+    return out;
+  });
 
 /** A fresh copy of a template's blocks at 60 or 120 minutes, with ids, or [] for a drop-in / unknown id. */
 export function templateBlocks(id, minutes = DEFAULT_LENGTH) {

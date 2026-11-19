@@ -16,7 +16,7 @@ export const safetyRouter = new Hono();
 export const safetyAdminRouter = new Hono();
 
 export const PURGE_GRACE_MS = 7 * 86_400_000;
-export const REPORT_KINDS = ['idea', 'project', 'feed', 'editorial', 'review_request', 'review', 'paper_note'];
+export const REPORT_KINDS = ['idea', 'project', 'feed', 'editorial', 'review_request', 'review', 'paper_note', 'question'];
 const REPORTS_PER_DAY = 10;
 
 /* --------------------------------- reports --------------------------------- */
@@ -31,6 +31,7 @@ async function reportable(db, kind, id) {
     review_request: `SELECT 1 AS x FROM review_requests WHERE id = ? AND status = 'open'`,
     review: `SELECT 1 AS x FROM reviews WHERE id = ? AND status != 'hidden'`,
     paper_note: `SELECT 1 AS x FROM paper_notes WHERE id = ? AND status = 'posted'`,
+    question: `SELECT 1 AS x FROM early_questions WHERE id = ? AND hidden = 0`, // Wave 6: asked early for a speaker night
   }[kind];
   return Boolean(sql && (await db.prepare(sql).bind(id).first()));
 }
@@ -63,6 +64,7 @@ const PREVIEW = `
     WHEN 'review_request' THEN (SELECT ask FROM review_requests WHERE id = r.target_id)
     WHEN 'review' THEN (SELECT comments FROM reviews WHERE id = r.target_id)
     WHEN 'paper_note' THEN (SELECT comment FROM paper_notes WHERE id = r.target_id)
+    WHEN 'question' THEN (SELECT text FROM early_questions WHERE id = r.target_id)
   END AS content,
   CASE r.kind
     WHEN 'idea' THEN (SELECT u.name FROM ideas i JOIN users u ON u.id = i.user_id WHERE i.id = r.target_id)
@@ -72,6 +74,7 @@ const PREVIEW = `
     WHEN 'review_request' THEN (SELECT u.name FROM review_requests q JOIN users u ON u.id = q.user_id WHERE q.id = r.target_id)
     WHEN 'review' THEN (SELECT u.name FROM reviews v JOIN users u ON u.id = v.user_id WHERE v.id = r.target_id)
     WHEN 'paper_note' THEN (SELECT u.name FROM paper_notes n JOIN users u ON u.id = n.user_id WHERE n.id = r.target_id)
+    WHEN 'question' THEN (SELECT u.name FROM early_questions q JOIN users u ON u.id = q.user_id WHERE q.id = r.target_id)
   END AS author`;
 
 safetyAdminRouter.get('/reports', async (c) => {
@@ -104,6 +107,7 @@ async function decide(c, status) {
     review_request: `UPDATE review_requests SET status = 'hidden', snapshot = '' WHERE id = ?`,
     review: `UPDATE reviews SET status = 'hidden' WHERE id = ?`,
     paper_note: `UPDATE paper_notes SET status = 'hidden' WHERE id = ?`,
+    question: `UPDATE early_questions SET hidden = 1 WHERE id = ?`,
   }[rep.kind];
   const mark = db
     .prepare(`UPDATE reports SET status = ?, decided_name = ?, decided_at = datetime('now') WHERE kind = ? AND target_id = ? AND status = 'open'`)
@@ -147,6 +151,7 @@ export async function exportFor(db, user) {
     artifacts: await rows(db, 'SELECT room_code, kind, url, line, result, kudos, shown, created_at FROM artifacts WHERE user_id = ?', id),
     ideas: await rows(db, 'SELECT kind, body, status, created_at FROM ideas WHERE user_id = ?', id),
     idea_votes: await rows(db, 'SELECT idea_id FROM idea_votes WHERE user_id = ?', id),
+    speaker_questions: await rows(db, 'SELECT plan_id, text, hidden, created_at FROM early_questions WHERE user_id = ?', id),
     kudos_given: await rows(db, 'SELECT activity_id, created_at FROM kudos WHERE user_id = ?', id),
     opportunities_marked: await rows(db, 'SELECT opportunity_id FROM opportunity_interest WHERE user_id = ?', id),
     workspaces: await Promise.all(
@@ -234,6 +239,8 @@ export async function purgeUser(db, id) {
   mine(`DELETE FROM reports WHERE kind = 'review_request' AND target_id IN (SELECT id FROM review_requests WHERE user_id = ?)`, id);
   mine(`DELETE FROM reports WHERE kind = 'review' AND target_id IN (SELECT id FROM reviews WHERE user_id = ? OR request_id IN (SELECT id FROM review_requests WHERE user_id = ?))`, id, id);
   mine(`DELETE FROM reports WHERE kind = 'paper_note' AND target_id IN (SELECT id FROM paper_notes WHERE user_id = ?)`, id);
+  mine(`DELETE FROM reports WHERE kind = 'question' AND target_id IN (SELECT id FROM early_questions WHERE user_id = ?)`, id);
+  mine('DELETE FROM early_question_marks WHERE question_id IN (SELECT id FROM early_questions WHERE user_id = ?)', id);
   mine('DELETE FROM reviews WHERE request_id IN (SELECT id FROM review_requests WHERE user_id = ?)', id);
   mine('DELETE FROM reports WHERE reporter_user_id = ?', id);
   mine('DELETE FROM workspace_files WHERE workspace_id IN (SELECT id FROM workspaces WHERE user_id = ?)', id);
@@ -243,6 +250,7 @@ export async function purgeUser(db, id) {
     'daily_results', 'data_submissions', 'rung_progress', 'board_placement', 'duel_results', 'cf_solves', 'cf_challenges', 'record_codes', 'artifacts', 'workspaces', 'ctf_solves', 'contest_attempts',
     'problem_solves', 'editorials', 'ghost_races', 'reviews', 'review_requests', 'portfolio_public', 'portfolio_signoffs',
     'officer_applications', 'paper_notes', 'science_projects', 'alumni_questions', 'pathway_follows', 'pathway_ticks', 'quant_entries',
+    'early_question_marks', 'early_questions',
   ]) {
     mine(`DELETE FROM ${t} WHERE user_id = ?`, id); // t is from the fixed list above, never input
   }

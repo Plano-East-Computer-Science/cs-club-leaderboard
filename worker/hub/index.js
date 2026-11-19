@@ -46,6 +46,7 @@ import { alumniRouter, alumniAdminRouter } from './alumni.js';
 import { pathwaysRouter } from './pathways.js';
 import { quantRouter, quantAdminRouter } from './quant.js';
 import { clubRouter } from './club.js';
+import { liveRouter, liveAdminRouter } from './live.js';
 
 export { Room } from './room-do.js';
 
@@ -82,6 +83,7 @@ hubAdmin.route('/', handoffAdminRouter);
 hubAdmin.route('/', researchAdminRouter);
 hubAdmin.route('/', alumniAdminRouter);
 hubAdmin.route('/', quantAdminRouter);
+hubAdmin.route('/', liveAdminRouter); // Wave 6: speaker link, early questions
 
 /** Call BEFORE the catch-all `/api` and static handlers. */
 export function mountHub(app) {
@@ -124,4 +126,5 @@ export function mountHub(app) {
   app.route('/api', alumniRouter);
   app.route('/api', pathwaysRouter);
   app.route('/api', quantRouter);
+  app.route('/api', liveRouter); // Wave 6: early questions, speaker link, recap
 }

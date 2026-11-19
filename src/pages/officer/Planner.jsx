@@ -179,6 +179,7 @@ export default function Planner() {
             <BlockEditor
               key={form.template}
               blocks={form.blocks}
+              planId={form.id}
               send={(m) => set({ blocks: m.blocks })}
               onDone={() => setEditBlocks(false)}
             />

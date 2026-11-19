@@ -26,6 +26,8 @@ import Problem from './pages/Problem.jsx';
 import SignIn from './pages/SignIn.jsx';
 import Room from './pages/Room.jsx';
 import Host from './pages/Host.jsx';
+import SpeakerLink from './pages/live/SpeakerLink.jsx';
+import Recap from './pages/live/Recap.jsx';
 import Officer from './pages/Officer.jsx';
 import Gateway from './pages/Gateway.jsx';
 import Reader from './pages/Reader.jsx';
@@ -122,12 +124,14 @@ function Shell() {
     if (!location.hash) window.scrollTo(0, 0);
   }, [pathname]);
 
-  // The projector page is full-screen, no site chrome.
-  if (pathname.startsWith('/host/')) {
+  // The projector page is full-screen, no site chrome. So are the moderator phone and the speaker's link (Wave 6).
+  if (pathname.startsWith('/host/') || pathname.startsWith('/speaker/')) {
     return (
       <Routes>
         <Route path="/host/:code" element={<div className="hub"><Host /></div>} />
         <Route path="/host/:code/screen" element={<div className="hub"><Host screen /></div>} />
+        <Route path="/host/:code/mod" element={<div className="hub"><Host mod /></div>} />
+        <Route path="/speaker/:code/:token" element={<SpeakerLink />} />
       </Routes>
     );
   }
@@ -147,6 +151,7 @@ function Shell() {
           </Route>
           <Route path="/standings" element={<Moved to="/compete" />} />
           <Route path="/me" element={<Me />} />
+          <Route path="/recap/:code" element={<Recap />} />
           <Route path="/student/:id" element={<Student />} />
           <Route path="/curriculum" element={<Curriculum />} />
           <Route path="/competitions/:id" element={<Competition />} />
