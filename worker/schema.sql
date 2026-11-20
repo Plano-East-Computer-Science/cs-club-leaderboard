@@ -1015,3 +1015,17 @@ CREATE TABLE IF NOT EXISTS early_question_marks (
   kind        TEXT    NOT NULL DEFAULT 'up' CHECK (kind IN ('up')),
   PRIMARY KEY (question_id, user_id, kind)
 );
+
+/* ============================ next: Future door ============================ */
+-- The student's own tracker of opportunities and applications. One JSON
+-- item per row (validated by shared/next/future/tracker.js), keyed by
+-- (user_id, id) so nobody can touch another member's items. Owned by
+-- worker/hub/future.js.
+CREATE TABLE IF NOT EXISTS future_tracker (
+  user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  id         TEXT    NOT NULL,
+  data       TEXT    NOT NULL,
+  created_at TEXT    NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT    NOT NULL DEFAULT (datetime('now')),
+  PRIMARY KEY (user_id, id)
+);

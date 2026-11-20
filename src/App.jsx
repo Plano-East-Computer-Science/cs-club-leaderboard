@@ -4,7 +4,7 @@ import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from 'rea
 import Home from './next/home/Home.jsx';
 import Leaderboard from './pages/Leaderboard.jsx';
 import Student from './pages/Student.jsx';
-import Opportunities from './pages/Opportunities.jsx';
+import Opportunities from './next/future/Opportunities.jsx';
 import CalendarPage from './pages/Calendar.jsx';
 import Curriculum from './pages/Curriculum.jsx';
 import Competitions from './pages/Competitions.jsx';
@@ -52,6 +52,8 @@ import Meetings from './next/club/Meetings.jsx';
 import Kit from './next/club/Kit.jsx';
 import Playbook from './next/club/Playbook.jsx';
 import AskDock from './next/ask/Ask.jsx';
+const FutureCollege = lazy(() => import('./next/future/College.jsx'));
+const FutureTracker = lazy(() => import('./next/future/Tracker.jsx'));
 import { DataProvider } from './lib/data.jsx';
 import { AppShell, EmptyState, Button, SkeletonList } from './ui/index.js';
 import { oldOfficerTarget } from '../shared/hq.js';
@@ -174,8 +176,8 @@ function Shell() {
 
           <Route element={<DoorLayout door="future" />}>
             <Route path="/future" element={<Opportunities />} />
-            <Route path="/future/college" element={<Soon title="College plan" />} />
-            <Route path="/future/tracker" element={<Soon title="My tracker" />} />
+            <Route path="/future/college" element={<Suspense fallback={null}><FutureCollege /></Suspense>} />
+            <Route path="/future/tracker" element={<Suspense fallback={null}><FutureTracker /></Suspense>} />
             <Route path="/competitions" element={<Competitions />} />
             <Route path="/competitions/:id" element={<Competition />} />
             <Route path="/calendar" element={<CalendarPage />} />
