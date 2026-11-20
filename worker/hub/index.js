@@ -48,13 +48,10 @@ import { quantRouter, quantAdminRouter } from './quant.js';
 import { clubRouter } from './club.js';
 import { hqAdminRouter } from './hq.js';
 import { liveRouter, liveAdminRouter } from './live.js';
-<<<<<<< HEAD
 import { askRouter } from './ask.js';
 import { futureRouter } from './future.js';
 import { playRouter } from './play.js';
-=======
 import { learnNextRouter } from './learn-next.js';
->>>>>>> 8bb08fb (learn: lesson player, course map, catalog, progress API, first lessons)
 
 export { Room } from './room-do.js';
 
@@ -136,11 +133,8 @@ export function mountHub(app) {
   app.route('/api', pathwaysRouter);
   app.route('/api', quantRouter);
   app.route('/api', liveRouter); // Wave 6: early questions, speaker link, recap
-<<<<<<< HEAD
   app.route('/api', askRouter); // next: AI tutor, off without ANTHROPIC_API_KEY
   app.route('/api/future', futureRouter); // next: Future door tracker
   app.route('/api', playRouter); // next: Play door
-=======
   app.route('/api/lessons', learnNextRouter); // next: Learn lesson progress
->>>>>>> 8bb08fb (learn: lesson player, course map, catalog, progress API, first lessons)
 }
