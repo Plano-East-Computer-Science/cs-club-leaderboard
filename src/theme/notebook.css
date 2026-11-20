@@ -1,0 +1,254 @@
+/*
+  "Notebook" theme for next.peshcompsci.org.
+
+  Light: an engineering notebook. Graph-paper page, ballpoint-blue ink as the one
+  primary colour, highlighter lime for marks and selection.
+  Dark: a blueprint. Navy sheet with a faint white grid, highlighter lime as the
+  primary.
+
+  Loaded after every older stylesheet, so redefining the shared tokens here
+  re-skins every existing page (they all read --bg, --s1..3, --t1..3, --gold).
+  --gold keeps its old name but now means "the primary colour".
+  Theme choice: html[data-theme=light|dark]; with no attribute, the OS decides.
+*/
+
+:root {
+  --disp: 'Unbounded Variable', 'Arial Black', system-ui, sans-serif;
+  --sans: 'Figtree Variable', system-ui, 'Segoe UI', sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, Consolas, monospace;
+  --font-display: var(--disp);
+  --font-sans: var(--sans);
+  --r: 10px;
+  --r-lg: 16px;
+  --grid: 24px;
+  color-scheme: light;
+
+  /* notebook (light) */
+  --bg: #f7f9fe;
+  --grid-line: rgb(35 64 217 / 0.065);
+  --s1: #ffffff;
+  --s2: #f0f3fb;
+  --s3: #e3e9f7;
+  --line: #dde3f0;
+  --line-2: #c4cce0;
+  --t1: #121a33;
+  --t2: #3d4664;
+  --t3: #5f6884;
+  --gold: #2340d9;
+  --gold-2: #1a31ae;
+  --on-gold: #ffffff;
+  --ink-soft: rgb(35 64 217 / 0.1);
+  --hl: #d8f74a;
+  --on-hl: #121a33;
+  --pink: #ff6fae;
+  --live: #0b8f55;
+  --ok: #0b8f55;
+  --need: #d93b48;
+  --warn: #b86e00;
+  --tr-contest: #c2410c;
+  --tr-build: #2563eb;
+  --tr-ai: #7c3aed;
+  --tr-data: #0e7c86;
+  --tr-cyber: #d42a3a;
+  --tr-eng: #15803d;
+  --tr-explore: #5f6884;
+  --pop-shadow: 0 18px 50px rgb(18 26 51 / 0.16), 0 2px 6px rgb(18 26 51 / 0.08);
+  --lift: 0 1px 0 rgb(18 26 51 / 0.04), 0 6px 18px -8px rgb(18 26 51 / 0.18);
+  --topbar-bg: rgb(247 249 254 / 0.9);
+
+  /* game tiles */
+  --g-hit: #12a150;
+  --g-near: #e8a400;
+  --g-miss: #8c94ab;
+  --on-g: #ffffff;
+}
+
+/* blueprint (dark): used when the OS asks for dark and nobody picked light, or when picked */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --bg: #0b1736;
+    --grid-line: rgb(170 195 255 / 0.07);
+    --s1: #10204a;
+    --s2: #152858;
+    --s3: #1c3268;
+    --line: #213a78;
+    --line-2: #34509a;
+    --t1: #eef2ff;
+    --t2: #bac5e8;
+    --t3: #93a1cc;
+    --gold: #d8f74a;
+    --gold-2: #c3e52f;
+    --on-gold: #0b1736;
+    --ink-soft: rgb(216 247 74 / 0.12);
+    --hl: #d8f74a;
+    --on-hl: #0b1736;
+    --live: #44e08f;
+    --ok: #44e08f;
+    --need: #ff7f88;
+    --warn: #ffb547;
+    --tr-contest: #ff9a5c;
+    --tr-build: #7fb0ff;
+    --tr-ai: #c4a2ff;
+    --tr-data: #4fd6d0;
+    --tr-cyber: #ff7f88;
+    --tr-eng: #6fdc8c;
+    --tr-explore: #aab6dd;
+    --pop-shadow: 0 18px 50px rgb(0 0 0 / 0.45);
+    --lift: 0 6px 18px -8px rgb(0 0 0 / 0.5);
+    --topbar-bg: rgb(11 23 54 / 0.88);
+    --g-hit: #22b45f;
+    --g-near: #e2a20c;
+    --g-miss: #3a4d82;
+  }
+}
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #0b1736;
+  --grid-line: rgb(170 195 255 / 0.07);
+  --s1: #10204a;
+  --s2: #152858;
+  --s3: #1c3268;
+  --line: #213a78;
+  --line-2: #34509a;
+  --t1: #eef2ff;
+  --t2: #bac5e8;
+  --t3: #93a1cc;
+  --gold: #d8f74a;
+  --gold-2: #c3e52f;
+  --on-gold: #0b1736;
+  --ink-soft: rgb(216 247 74 / 0.12);
+  --hl: #d8f74a;
+  --on-hl: #0b1736;
+  --live: #44e08f;
+  --ok: #44e08f;
+  --need: #ff7f88;
+  --warn: #ffb547;
+  --tr-contest: #ff9a5c;
+  --tr-build: #7fb0ff;
+  --tr-ai: #c4a2ff;
+  --tr-data: #4fd6d0;
+  --tr-cyber: #ff7f88;
+  --tr-eng: #6fdc8c;
+  --tr-explore: #aab6dd;
+  --pop-shadow: 0 18px 50px rgb(0 0 0 / 0.45);
+  --lift: 0 6px 18px -8px rgb(0 0 0 / 0.5);
+  --topbar-bg: rgb(11 23 54 / 0.88);
+  --g-hit: #22b45f;
+  --g-near: #e2a20c;
+  --g-miss: #3a4d82;
+}
+
+/* ------------------------------- page ground ------------------------------- */
+html,
+body {
+  background-color: var(--bg);
+  color: var(--t1);
+  font-family: var(--sans);
+}
+body {
+  background-image:
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+  background-size: var(--grid) var(--grid);
+  background-attachment: fixed;
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+}
+::selection {
+  background: var(--hl);
+  color: var(--on-hl);
+}
+:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
+/* --------------------------- kit re-skin (src/ui) --------------------------- */
+.ui-display-xl,
+.ui-display-l {
+  font-family: var(--disp);
+  font-weight: 700;
+  text-transform: none;
+  letter-spacing: -0.02em;
+  line-height: 1.02;
+}
+.ui-display-xl { font-size: clamp(40px, 5.6vw, 72px); }
+.ui-display-l { font-size: clamp(30px, 3.6vw, 44px); }
+.ui-label {
+  font-family: var(--sans);
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--t3);
+}
+.ui-top {
+  background: var(--topbar-bg);
+  border-bottom-color: var(--line);
+}
+.ui-brand__word {
+  font: 700 17px/1 var(--disp);
+  text-transform: none;
+  letter-spacing: -0.01em;
+}
+.ui-brand__mark {
+  border-radius: 9px;
+}
+.ui-door {
+  font-weight: 600;
+  border-radius: 999px;
+  height: 38px;
+  align-self: center;
+  padding: 0 14px;
+}
+.ui-door[aria-current='page'] {
+  color: var(--t1);
+  background: var(--ink-soft);
+}
+.ui-door[aria-current='page']::after { display: none; }
+.ui-door[aria-current='page'] svg { color: var(--gold); }
+.ui-search {
+  border-radius: 999px;
+  background: var(--s1);
+}
+.ui-live {
+  border-color: color-mix(in srgb, var(--live) 45%, transparent);
+  background: color-mix(in srgb, var(--live) 12%, transparent);
+}
+.ui-btn {
+  border-radius: 999px;
+  font-weight: 600;
+}
+.ui-btn--primary {
+  box-shadow: 0 1px 0 rgb(255 255 255 / 0.25) inset, 0 4px 14px -6px var(--gold);
+}
+.ui-card,
+.ui-section,
+.ui-panel {
+  border-radius: var(--r-lg);
+}
+.ui-card {
+  box-shadow: var(--lift);
+}
+.ui-pill {
+  font-family: var(--sans);
+  text-transform: none;
+  letter-spacing: 0;
+}
+.ui-pill--gold {
+  border-color: color-mix(in srgb, var(--gold) 45%, transparent);
+  background: var(--ink-soft);
+}
+.ui-pill--live {
+  border-color: color-mix(in srgb, var(--live) 45%, transparent);
+  background: color-mix(in srgb, var(--live) 10%, transparent);
+}
+.ui-pill--need {
+  border-color: color-mix(in srgb, var(--need) 45%, transparent);
+  background: color-mix(in srgb, var(--need) 10%, transparent);
+}
+.ui-tabbar {
+  background: var(--topbar-bg);
+  backdrop-filter: saturate(140%) blur(10px);
+}

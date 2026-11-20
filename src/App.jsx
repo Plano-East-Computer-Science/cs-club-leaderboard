@@ -45,10 +45,12 @@ import OfficerApply from './pages/OfficerApply.jsx';
 import Verify from './pages/Verify.jsx';
 import Research from './pages/Research.jsx';
 import Alumni from './pages/Alumni.jsx';
-import Me from './pages/Me.jsx';
+import Me, { MePoints } from './pages/Me.jsx';
+import { DoorLayout } from './next/DoorTabs.jsx';
+import Soon from './next/pages/Soon.jsx';
 import { Boot, Snow } from './components/Chrome.jsx';
 import { DataProvider } from './lib/data.jsx';
-import { AppShell, NavTabs, EmptyState, Button, SkeletonList } from './ui/index.js';
+import { AppShell, EmptyState, Button, SkeletonList } from './ui/index.js';
 import { oldOfficerTarget } from '../shared/hq.js';
 
 // V3-C: try-it page for the editor; lazy so the editor bundle stays off other pages.
@@ -84,24 +86,6 @@ function HubLayout() {
     <div className="hub">
       <Outlet />
     </div>
-  );
-}
-
-/** Compete door: standings first, then club teams, opportunities and the calendar, as tabs. */
-function CompeteLayout() {
-  return (
-    <>
-      <NavTabs
-        label="Compete"
-        items={[
-          { to: '/compete', label: 'Standings', end: true },
-          { to: '/competitions', label: 'Competitions', end: true },
-          { to: '/opportunities', label: 'Opportunities' },
-          { to: '/calendar', label: 'Calendar' },
-        ]}
-      />
-      <Outlet />
-    </>
   );
 }
 
@@ -149,46 +133,64 @@ function Shell() {
       <AppShell footer={!/^\/(admin|officer|hq|signin)/.test(pathname)}>
         <Routes>
           <Route path="/" element={<Home />} />
-          {/* Wave 4 doors. Practice and Compete wrap the existing pages until Wave 7 rebuilds them. */}
-          <Route path="/practice" element={<Arena />} />
-          <Route element={<CompeteLayout />}>
-            <Route path="/compete" element={<Leaderboard />} />
+          <Route path="/play" element={<Soon title="Play" />} />
+          <Route path="/play/:game" element={<Soon title="Play" />} />
+
+          <Route element={<DoorLayout door="learn" />}>
+            <Route path="/learn" element={<Learn />} />
+            <Route path="/practice" element={<Arena />} />
+            <Route path="/daily" element={<Daily />} />
+            <Route path="/build" element={<Build />} />
+            <Route path="/arena" element={<Arena />} />
+            <Route path="/arena/ctf" element={<Ctf />} />
+            <Route path="/arena/data" element={<DataArena />} />
+            <Route path="/arena/data/:id" element={<DataChallenge />} />
+            <Route path="/arena/quant" element={<Quant />} />
+            <Route path="/research" element={<Research />} />
+            <Route path="/curriculum" element={<Curriculum />} />
+            <Route path="/puzzles" element={<Puzzles />} />
+            <Route path="/workspace" element={<Workspace />} />
+            <Route path="/workspace/:id" element={<Workspace />} />
+            <Route path="/build/start/:slug" element={<Starter />} />
+            <Route path="/build/reviews" element={<Reviews />} />
+            <Route path="/build/reviews/:id" element={<Reviews />} />
+          </Route>
+
+          <Route element={<DoorLayout door="future" />}>
+            <Route path="/future" element={<Opportunities />} />
+            <Route path="/future/college" element={<Soon title="College plan" />} />
+            <Route path="/future/tracker" element={<Soon title="My tracker" />} />
             <Route path="/competitions" element={<Competitions />} />
-            <Route path="/opportunities" element={<Opportunities />} />
+            <Route path="/competitions/:id" element={<Competition />} />
             <Route path="/calendar" element={<CalendarPage />} />
+            <Route path="/pathways/:id" element={<Pathway />} />
+            <Route path="/compass" element={<Compass />} />
+            <Route path="/cyber" element={<Cyber />} />
+          </Route>
+          <Route path="/opportunities" element={<Moved to="/future" />} />
+
+          <Route element={<DoorLayout door="club" />}>
+            <Route path="/club" element={<Soon title="Meetings" />} />
+            <Route path="/club/playbook" element={<Soon title="Playbook" />} />
+            <Route path="/compete" element={<Leaderboard />} />
+            <Route path="/student/:id" element={<Student />} />
+            <Route path="/ideas" element={<Ideas />} />
+            <Route path="/about" element={<About />} />
+            <Route path="/alumni" element={<Alumni />} />
           </Route>
           <Route path="/standings" element={<Moved to="/compete" />} />
-          <Route path="/me" element={<Me />} />
           <Route path="/recap/:code" element={<Recap />} />
-          <Route path="/student/:id" element={<Student />} />
-          <Route path="/curriculum" element={<Curriculum />} />
-          <Route path="/competitions/:id" element={<Competition />} />
-          <Route path="/puzzles" element={<Puzzles />} />
           <Route path="/join" element={<Join />} />
-          <Route path="/about" element={<About />} />
-          <Route path="/cyber" element={<Cyber />} />
-          <Route path="/quests" element={<Quests />} />
-          <Route path="/ideas" element={<Ideas />} />
-          <Route path="/research" element={<Research />} />
-          <Route path="/alumni" element={<Alumni />} />
-          <Route path="/daily" element={<Daily />} />
-          <Route path="/arena" element={<Arena />} />
-          <Route path="/arena/ctf" element={<Ctf />} />
-          <Route path="/arena/data" element={<DataArena />} />
-          <Route path="/arena/data/:id" element={<DataChallenge />} />
-          <Route path="/arena/quant" element={<Quant />} />
-          <Route path="/compass" element={<Compass />} />
-          <Route path="/pathways" element={<Pathways />} />
-          <Route path="/pathways/:id" element={<Pathway />} />
-          <Route path="/build" element={<Build />} />
-          <Route path="/workspace" element={<Workspace />} />
-          <Route path="/workspace/:id" element={<Workspace />} />
-          <Route path="/build/start/:slug" element={<Starter />} />
-          <Route path="/build/reviews" element={<Reviews />} />
-          <Route path="/build/reviews/:id" element={<Reviews />} />
+
+          <Route element={<DoorLayout door="me" />}>
+            <Route path="/me" element={<Me />} />
+            <Route path="/me/points" element={<MePoints />} />
+            <Route path="/me/account" element={<div className="hub"><SignIn /></div>} />
+            <Route path="/quests" element={<Quests />} />
+            <Route path="/pathways" element={<Pathways />} />
+          </Route>
           <Route element={<HubLayout />}>
             <Route path="/p/:slug" element={<Problem />} />
-            <Route path="/learn" element={<Learn />} />
             <Route path="/learn/:slug" element={<Course />} />
             <Route path="/signin" element={<SignIn />} />
             <Route path="/room" element={<Room />} />

@@ -23,11 +23,18 @@ import { cx } from './primitives.jsx';
 
 /** Every page, with what it is for. Searched by name and description. */
 export const PAGES = [
-  ['today', '/', 'Your next step, the meeting and this week'],
-  ['practice', '/practice', 'Track ladders, problems and lessons'],
-  ['build', '/build', 'Ship cycles, templates and projects'],
-  ['compete', '/compete', 'Standings, tiers and the prize'],
+  ['home', '/', 'Your games, lessons, deadlines and the next meeting'],
+  ['play', '/play', 'Daily coding games'],
+  ['learn', '/learn', 'Courses with real lessons: AP CSA, Python, USACO'],
+  ['future', '/future', 'Opportunities, summer programs and your college plan'],
+  ['club', '/club', 'Meetings, standings and the officer playbook'],
   ['me', '/me', 'Your portfolio and points record'],
+  ['practice', '/practice', 'Track ladders and problems'],
+  ['build', '/build', 'Ship cycles, templates and projects'],
+  ['college', '/future/college', 'Grade-by-grade plan for a top CS program'],
+  ['tracker', '/future/tracker', 'Applications and deadlines you are tracking'],
+  ['playbook', '/club/playbook', 'How to run every kind of meeting'],
+  ['compete', '/compete', 'Standings, tiers and the prize'],
   ['room', '/room', 'Join the live meeting'],
   ['daily', '/daily', 'One problem a day'],
   ['ctf', '/arena/ctf', 'Capture the flag puzzles and events'],
@@ -54,7 +61,7 @@ export const PAGES = [
   ['privacy', '/privacy', 'What we store and why'],
   ['account', '/signin', 'Sign in, your name and privacy'],
 ];
-const ALIAS = { projects: 'build', opps: 'opportunities', comps: 'competitions', lb: 'standings', board: 'practice', arena: 'practice', learn: 'courses', home: 'today', portfolio: 'me', hq: 'officer' };
+const ALIAS = { projects: 'build', opps: 'opportunities', comps: 'competitions', lb: 'standings', board: 'practice', arena: 'practice', learn: 'courses', today: 'home', portfolio: 'me', hq: 'officer' };
 
 const CMDS = [
   ['join', 'join <code>', 'Enter a meeting room, for example join ABCD', CalendarCheck],

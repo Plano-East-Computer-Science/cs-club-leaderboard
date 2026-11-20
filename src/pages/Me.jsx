@@ -1,12 +1,13 @@
 /**
- * The Me door (Wave 4): the signed-in member's portfolio, with links to the
- * pages that are theirs. Wave 7 folds these into one page; for now they link out.
+ * The Me door. Its tabs (Overview, Points, Quests, Goals, Account) come from the
+ * door layout, so they stay on screen on every Me page.
  */
-import { Files, Flag, Path, Compass, IdentificationBadge, GearSix, SignIn as SignInIcon, UserCircle } from '@phosphor-icons/react';
+import { SignIn as SignInIcon, UserCircle } from '@phosphor-icons/react';
 import Portfolio from './Portfolio.jsx';
+import Student from './Student.jsx';
 import { Button, EmptyState, SkeletonList, useSession } from '../ui/index.js';
 
-export default function Me() {
+function NeedUser({ children }) {
   const { user, loading } = useSession();
   if (loading)
     return (
@@ -18,25 +19,31 @@ export default function Me() {
     return (
       <div className="ui-page">
         <EmptyState icon={UserCircle} action={<Button to="/signin" variant="primary" icon={SignInIcon}>Sign in</Button>}>
-          Sign in to see your portfolio and points record.
+          Sign in to see your page.
         </EmptyState>
       </div>
     );
+  return children(user);
+}
+
+export default function Me() {
+  return <NeedUser>{(user) => <div className="hub"><Portfolio id={user.id} /></div>}</NeedUser>;
+}
+
+export function MePoints() {
   return (
-    <>
-      <nav className="ui-me" aria-label="Your pages">
-        <div className="ui-me__in">
-        <Button variant="ghost" icon={Files} to={user.student_id ? `/student/${user.student_id}` : '/compete'}>Points record</Button>
-        <Button variant="ghost" icon={Flag} to="/quests">Quests</Button>
-        <Button variant="ghost" icon={Path} to="/pathways">Pathways</Button>
-        <Button variant="ghost" icon={Compass} to="/compass">Compass</Button>
-        <Button variant="ghost" icon={IdentificationBadge} to="/officers/apply">Officer application</Button>
-        <Button variant="ghost" icon={GearSix} to="/signin">Account</Button>
-        </div>
-      </nav>
-      <div className="hub">
-        <Portfolio id={user.id} />
-      </div>
-    </>
+    <NeedUser>
+      {(user) =>
+        user.student_id ? (
+          <Student id={String(user.student_id)} />
+        ) : (
+          <div className="ui-page">
+            <EmptyState action={<Button to="/compete" variant="secondary">See the standings</Button>}>
+              Your points record starts at your first club meeting.
+            </EmptyState>
+          </div>
+        )
+      }
+    </NeedUser>
   );
 }

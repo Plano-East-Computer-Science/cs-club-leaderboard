@@ -1,0 +1,41 @@
+# NEXT: the full rework of the site at https://next.peshcompsci.org (branch `next`).
+#
+# .github/workflows/deploy-next.yml deploys this on every push to `next`. Its own
+# Worker, sharing the dev demo database (cs-club-dev): schema changes from `next`
+# must stay additive (new tables, new columns) so dev keeps working. Never the
+# live site, never the live database.
+
+name = "cs-club-next"
+main = "worker/index.js"
+compatibility_date = "2026-08-01"
+
+# Custom domain. Cloudflare creates the DNS record and certificate because the
+# peshcompsci.org zone is on this account. Must stay above the first [table].
+routes = [{ pattern = "next.peshcompsci.org", custom_domain = true }]
+
+[assets]
+directory = "./dist"
+binding = "ASSETS"
+html_handling = "none"
+not_found_handling = "none"
+run_worker_first = ["/api/*", "/gw/*"]
+
+[[durable_objects.bindings]]
+name = "ROOMS"
+class_name = "Room"
+
+[[migrations]]
+tag = "v1-rooms"
+new_sqlite_classes = ["Room"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "cs-club-dev"
+database_id = "1e6693c1-1776-421e-9109-8f2669c3a85b"
+
+[vars]
+# Keeps search engines out of the dev site (see worker/index.js).
+NOINDEX = "1"
+SITE_ORIGIN = "https://next.peshcompsci.org"
+MAIL_FROM = "club@peshcompsci.org"
+ACTIONS_URL = "https://github.com/Plano-East-Computer-Science/cs-club-leaderboard/actions/workflows/scrape-opportunities.yml"

@@ -22,8 +22,9 @@ const ago = (t) => {
   return n <= 0 ? 'today' : n === 1 ? 'yesterday' : `${n}d ago`;
 };
 
-export default function Student() {
-  const { id } = useParams();
+export default function Student({ id: own }) {
+  const params = useParams();
+  const id = own ?? params.id;
   const navigate = useNavigate();
   const { students, events: allEvents, season } = useData();
   const [state, setState] = useState({ data: null, error: null });

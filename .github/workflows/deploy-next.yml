@@ -1,0 +1,115 @@
+# Next deploy: every push to `next` goes to https://next.peshcompsci.org (the full site rework).
+# Same steps as deploy-dev.yml, with wrangler.next.toml. It shares the dev database,
+# so schema changes on `next` must be additive.
+#
+# Tests and build must pass first, so a broken mid-merge commit never reaches the
+# dev site. Uses wrangler.dev.toml only: its own Worker and cs-club-dev database.
+# The live site is deployed by hand with `npm run deploy` and is not touched here.
+#
+# Setup (Settings -> Secrets and variables -> Actions):
+#   CLOUDFLARE_API_TOKEN   secret: token with Workers Scripts:Edit, D1:Edit,
+#                          and Zone:Read + DNS:Edit on peshcompsci.org
+#   CLOUDFLARE_ACCOUNT_ID  secret: the account id (wrangler whoami shows it)
+#
+# Optional, copied onto the next Worker on every run (a blank one is skipped, so
+# a secret set by hand with `wrangler secret put` is left alone):
+#   DEV_SESSION_SECRET, DEV_ADMIN_PASSWORD, DEV_RESEND_API_KEY,
+#   DEV_INGEST_TOKEN, DEV_GOOGLE_CLIENT_ID
+
+name: Deploy next
+
+on:
+  push:
+    branches: [next]
+  workflow_dispatch:
+
+# One deploy at a time; a newer push waits rather than racing an older one.
+concurrency:
+  group: deploy-dev-db
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      # schema.sql only creates what is missing, so a column added to an existing
+      # table comes from a migration. The dev database started from the schema at
+      # migration 009, so only 010 onward run here, one ADD COLUMN at a time, and
+      # "duplicate column name" (already applied) and "no such table" (empty database:
+      # schema.sql creates the table with the column) are the only errors ignored.
+      # ponytail: assumes 010+ migrations are ADD COLUMN only; anything else needs a real migration runner.
+      - name: Apply new column migrations to dev database
+        run: |
+          for f in worker/migrations/*.sql; do
+            n=$(basename "$f" | cut -c1-3)
+            [ "$n" -ge 10 ] || continue
+            grep -E '^ALTER TABLE .* ADD COLUMN' "$f" | while IFS= read -r stmt; do
+              if out=$(npx wrangler d1 execute cs-club-dev --remote --config wrangler.dev.toml --command "$stmt" 2>&1); then
+                echo "applied: $stmt"
+              elif echo "$out" | grep -qE 'duplicate column name|no such table'; then
+                echo "skipped (already there, or schema.sql creates the table): $stmt"
+              else
+                echo "$out"; exit 1
+              fi
+            done
+          done
+
+      - name: Apply schema to dev database
+        run: npx wrangler d1 execute cs-club-dev --remote --config wrangler.dev.toml --file worker/schema.sql
+
+      # Content the dev site needs to be usable: problems, Board rungs, data challenges and
+      # (once V3-B lands it) duel packs. Each file only adds what is missing (INSERT OR IGNORE
+      # on a unique key, or WHERE NOT EXISTS), so it is safe on every push; test/trust.test.js
+      # applies each one twice to check. Problems first: rungs link to /p/ pages.
+      # Not here: seed.sql, seed-demo-standings.sql and seed-cycles.sql. They add made-up
+      # members who would show on the dev leaderboard.
+      - name: Load content seeds into dev database
+        run: |
+          for f in worker/seed-problems.sql worker/seed-rungs.sql worker/seed-data-arena.sql worker/seed-packs.sql; do
+            if [ -f "$f" ]; then
+              npx wrangler d1 execute cs-club-dev --remote --config wrangler.dev.toml --file "$f"
+            else
+              echo "skipped (not in this commit): $f"
+            fi
+          done
+
+      - name: Deploy next Worker
+        run: npx wrangler deploy --config wrangler.next.toml
+
+      # After the deploy, so the Worker exists. Values go in on stdin, never on the command line.
+      - name: Copy secrets to the next Worker
+        env:
+          SESSION_SECRET: ${{ secrets.DEV_SESSION_SECRET }}
+          ADMIN_PASSWORD: ${{ secrets.DEV_ADMIN_PASSWORD }}
+          RESEND_API_KEY: ${{ secrets.DEV_RESEND_API_KEY }}
+          INGEST_TOKEN: ${{ secrets.DEV_INGEST_TOKEN }}
+          GOOGLE_CLIENT_ID: ${{ secrets.DEV_GOOGLE_CLIENT_ID }}
+          ANTHROPIC_API_KEY: ${{ secrets.NEXT_ANTHROPIC_API_KEY }}
+        run: |
+          for name in SESSION_SECRET ADMIN_PASSWORD RESEND_API_KEY INGEST_TOKEN GOOGLE_CLIENT_ID ANTHROPIC_API_KEY; do
+            if [ -n "${!name}" ]; then
+              printf '%s' "${!name}" | npx wrangler secret put "$name" --config wrangler.next.toml
+            else
+              echo "$name: no DEV_$name secret in GitHub, left as is"
+            fi
+          done

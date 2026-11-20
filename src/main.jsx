@@ -10,10 +10,13 @@ import '@fontsource/big-shoulders-display/latin-900';
 import '@fontsource/jetbrains-mono/latin-400';
 import '@fontsource/jetbrains-mono/latin-500';
 import '@fontsource/jetbrains-mono/latin-700';
+import '@fontsource-variable/unbounded';
+import '@fontsource-variable/figtree';
 import App from './App.jsx';
 import './index.css';
 import './ui/ui.css';
 import './pages/v2.css';
+import './theme/notebook.css';
 
 // Production only: a worker in `vite dev` or `wrangler dev` would serve stale files.
 if (import.meta.env.PROD && 'serviceWorker' in navigator) {
