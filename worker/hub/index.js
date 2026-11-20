@@ -51,6 +51,7 @@ import { liveRouter, liveAdminRouter } from './live.js';
 import { askRouter } from './ask.js';
 import { futureRouter } from './future.js';
 import { playRouter } from './play.js';
+import { learnNextRouter } from './learn-next.js';
 
 export { Room } from './room-do.js';
 
@@ -135,4 +136,5 @@ export function mountHub(app) {
   app.route('/api', askRouter); // next: AI tutor, off without ANTHROPIC_API_KEY
   app.route('/api/future', futureRouter); // next: Future door tracker
   app.route('/api', playRouter); // next: Play door
+  app.route('/api/lessons', learnNextRouter); // next: Learn lesson progress
 }
