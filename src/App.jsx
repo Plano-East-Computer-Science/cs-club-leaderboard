@@ -1,7 +1,7 @@
 import { useEffect, lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
 
-import Home from './pages/Home.jsx';
+import Home from './next/home/Home.jsx';
 import Leaderboard from './pages/Leaderboard.jsx';
 import Student from './pages/Student.jsx';
 import Opportunities from './pages/Opportunities.jsx';
