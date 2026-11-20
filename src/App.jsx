@@ -13,7 +13,6 @@ import Puzzles from './pages/Puzzles.jsx';
 import Cyber from './pages/Cyber.jsx';
 import Join from './pages/Join.jsx';
 import About from './pages/About.jsx';
-import Learn from './pages/Learn.jsx';
 import Course from './pages/Course.jsx';
 import Arena from './pages/Arena.jsx';
 import Workspace from './pages/Workspace.jsx';
@@ -60,6 +59,10 @@ import { oldOfficerTarget } from '../shared/hq.js';
 
 // V3-C: try-it page for the editor; lazy so the editor bundle stays off other pages.
 const EditorLab = lazy(() => import('./pages/EditorLab.jsx'));
+// next Learn: lessons are big data, so the three pages load on demand.
+const LearnCatalog = lazy(() => import('./next/learn/Catalog.jsx'));
+const LearnCourse = lazy(() => import('./next/learn/CourseMap.jsx'));
+const LearnPlayer = lazy(() => import('./next/learn/Player.jsx'));
 // Wave 5: Officer HQ. Lazy, so members never download the officer screens.
 const Hq = lazy(() => import('./pages/hq/Hq.jsx'));
 const Play = lazy(() => import('./next/play/Play.jsx'));
@@ -157,7 +160,8 @@ function Shell() {
           <Route path="/play/:game" element={<Suspense fallback={null}><PlayGame /></Suspense>} />
 
           <Route element={<DoorLayout door="learn" />}>
-            <Route path="/learn" element={<Learn />} />
+            <Route path="/learn" element={<Suspense fallback={null}><LearnCatalog /></Suspense>} />
+            <Route path="/learn/:course" element={<Suspense fallback={null}><LearnCourse /></Suspense>} />
             <Route path="/practice" element={<Arena />} />
             <Route path="/daily" element={<Daily />} />
             <Route path="/build" element={<Build />} />
@@ -212,7 +216,7 @@ function Shell() {
           </Route>
           <Route element={<HubLayout />}>
             <Route path="/p/:slug" element={<Problem />} />
-            <Route path="/learn/:slug" element={<Course />} />
+            <Route path="/learn/legacy/:slug" element={<Course />} />
             <Route path="/signin" element={<SignIn />} />
             <Route path="/room" element={<Room />} />
             <Route path="/room/:code" element={<Room />} />
@@ -227,6 +231,7 @@ function Shell() {
             <Route path="/officers/apply" element={<OfficerApply />} />
             <Route path="/verify/:code" element={<Verify />} />
           </Route>
+          <Route path="/learn/:course/:lesson" element={<Suspense fallback={null}><LearnPlayer /></Suspense>} />
           <Route path="/lab/editor" element={<Suspense fallback={null}><EditorLab /></Suspense>} />
           <Route path="/hq/*" element={<Suspense fallback={<div className="ui-page"><SkeletonList rows={5} label="Loading HQ" /></div>}><Hq /></Suspense>} />
           {/* The old officer console: every screen id lands on its place in HQ (shared/hq.js). */}

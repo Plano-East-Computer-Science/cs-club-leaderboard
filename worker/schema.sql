@@ -1016,6 +1016,7 @@ CREATE TABLE IF NOT EXISTS early_question_marks (
   PRIMARY KEY (question_id, user_id, kind)
 );
 
+<<<<<<< HEAD
 /* ============================ next: Future door ============================ */
 -- The student's own tracker of opportunities and applications. One JSON
 -- item per row (validated by shared/next/future/tracker.js), keyed by
@@ -1047,3 +1048,18 @@ CREATE TABLE IF NOT EXISTS play_results (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_play_results_once ON play_results(user_id, game, date);
 CREATE INDEX IF NOT EXISTS idx_play_results_date ON play_results(date);
+=======
+/* ============================ next: Learn (lessons) ============================ */
+-- Where each signed-in student is in each lesson of the new Learn courses
+-- (shared/next/learn/courses/). One row per student per lesson; done_at is set
+-- once and never cleared. Owned by worker/hub/learn-next.js.
+CREATE TABLE IF NOT EXISTS lesson_progress (
+  user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  course     TEXT    NOT NULL,
+  lesson     TEXT    NOT NULL,
+  step       INTEGER NOT NULL DEFAULT 0,
+  done_at    TEXT,
+  updated_at TEXT    NOT NULL DEFAULT (datetime('now')),
+  PRIMARY KEY (user_id, course, lesson)
+);
+>>>>>>> 8bb08fb (learn: lesson player, course map, catalog, progress API, first lessons)
