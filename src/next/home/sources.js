@@ -2,17 +2,18 @@
  * Where Home gets each door's "today" data. Each door owns its own logic and
  * exports one small function; Home only reads them here, so a door can change
  * how it works without Home changing.
- *
- * Until a door lands on `next`, its source returns an empty answer.
  */
+import { getUpcoming } from '../future/upcoming.js';
+import { getContinue } from '../learn/progress.js';
 
 /** Today's daily games, as a hook: [{ slug, name, done, href }]. Play door. */
 export { usePlayToday } from '../play/today.js';
 
-/** The lesson to continue, or null: { course, title, href, progress (0..1) }. Learn door. */
-export const continueLesson = () => null;
-
-import { getUpcoming } from '../future/upcoming.js';
+/** The lesson to continue, or null: { course, title, href, progress (0..1), started }. Learn door. */
+export async function continueLesson() {
+  const c = await getContinue();
+  return c && { course: `${c.courseTitle}, ${c.unitTitle}`, title: c.title, href: c.href, progress: c.total ? c.done / c.total : 0, started: c.started || c.done > 0 };
+}
 
 /** The next few deadlines the student cares about: [{ title, due (YYYY-MM-DD), href }]. Future door. */
 export const upcoming = async (signedIn = true) =>

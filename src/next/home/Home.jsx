@@ -171,7 +171,16 @@ function Deadlines({ user }) {
 function Today({ user }) {
   const club = useApi('/club').data;
   const daily = useApi('/daily').data;
-  const lesson = continueLesson();
+  const [lesson, setLesson] = useState(null);
+  useEffect(() => {
+    let live = true;
+    continueLesson()
+      .then((l) => live && setLesson(l))
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, []);
   const meetDate = club?.next?.date ?? nextWeekday(club?.meeting?.day);
   const meetIn = daysFromToday(meetDate);
   return (
@@ -188,7 +197,7 @@ function Today({ user }) {
       <div className="hm-grid">
         <div className="hm-col">
           <section className="hm-card hm-card--lesson" aria-labelledby="hm-l">
-            <h2 className="hm-h2" id="hm-l">{lesson ? 'Pick up where you left off' : 'Start learning'}</h2>
+            <h2 className="hm-h2" id="hm-l">{lesson?.started ? 'Pick up where you left off' : 'Start learning'}</h2>
             {lesson ? (
               <>
                 <p className="hm-lesson__c">{lesson.course}</p>
@@ -196,7 +205,7 @@ function Today({ user }) {
                 <div className="hm-bar" role="progressbar" aria-valuenow={Math.round(lesson.progress * 100)} aria-valuemin={0} aria-valuemax={100} aria-label="Course progress">
                   <span style={{ width: `${Math.round(lesson.progress * 100)}%` }} />
                 </div>
-                <Button variant="primary" to={lesson.href}>Continue</Button>
+                <Button variant="primary" to={lesson.href}>{lesson.started ? 'Continue' : 'Start the first lesson'}</Button>
               </>
             ) : (
               <>
