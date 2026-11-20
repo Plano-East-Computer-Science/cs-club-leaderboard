@@ -188,7 +188,7 @@ noise|Random variation that hides the signal in data.
 nonce|A number used once, as in a cryptographic protocol.
 numpy|The Python library for fast arrays and numerical math.
 oauth|A standard that lets an app act for a user without seeing their password.
-octal|Base eight.
+octal|Base eight, written with the digits 0 to 7.
 octet|A group of eight bits.
 omega|Big-Omega: a lower bound on how fast something grows.
 onion|Onion routing wraps data in layers of encryption, as Tor does.
