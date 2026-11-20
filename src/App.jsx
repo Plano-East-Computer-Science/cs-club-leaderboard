@@ -119,6 +119,19 @@ function Shell() {
     if (!location.hash) window.scrollTo(0, 0);
   }, [pathname]);
 
+  // Projectors wash out light themes: the projector screen is always the blueprint (dark) theme.
+  const projector = /^\/host\/[^/]+\/screen/.test(pathname);
+  useEffect(() => {
+    if (!projector) return;
+    const root = document.documentElement;
+    const before = root.dataset.theme;
+    root.dataset.theme = 'dark';
+    return () => {
+      if (before) root.dataset.theme = before;
+      else delete root.dataset.theme;
+    };
+  }, [projector]);
+
   // The projector page is full-screen, no site chrome. So are the moderator phone and the speaker's link (Wave 6).
   if (pathname.startsWith('/host/') || pathname.startsWith('/speaker/')) {
     return (
