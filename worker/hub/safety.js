@@ -178,6 +178,7 @@ export async function exportFor(db, user) {
     reviews_written: await rows(db, 'SELECT request_id, comments, status, created_at, accepted_at FROM reviews WHERE user_id = ?', id),
     officer_applications: await rows(db, 'SELECT year, answers, status, created_at, updated_at FROM officer_applications WHERE user_id = ?', id),
     ghost_races: await rows(db, 'SELECT slug, ghost_name, ghost_ms, ms, won, created_at FROM ghost_races WHERE user_id = ?', id),
+    future_tracker: await rows(db, 'SELECT id, data, created_at, updated_at FROM future_tracker WHERE user_id = ?', id),
     ctf_challenges_written: await rows(db, 'SELECT slug, title, category, difficulty, body, file_name, file_data, hint, status, created_at FROM ctf_challenges WHERE author_user_id = ?', id),
     link_request: (await db.prepare('SELECT student_id, created_at FROM link_requests WHERE user_id = ?').bind(id).first()) ?? null,
     reports_filed: await rows(db, 'SELECT kind, target_id, reason, status, created_at FROM reports WHERE reporter_user_id = ?', id),
@@ -251,7 +252,7 @@ export async function purgeUser(db, id) {
     'daily_results', 'data_submissions', 'rung_progress', 'board_placement', 'duel_results', 'cf_solves', 'cf_challenges', 'record_codes', 'artifacts', 'workspaces', 'ctf_solves', 'contest_attempts',
     'problem_solves', 'editorials', 'ghost_races', 'reviews', 'review_requests', 'portfolio_public', 'portfolio_signoffs',
     'officer_applications', 'paper_notes', 'science_projects', 'alumni_questions', 'pathway_follows', 'pathway_ticks', 'quant_entries',
-    'early_question_marks', 'early_questions',
+    'early_question_marks', 'early_questions', 'future_tracker',
   ]) {
     mine(`DELETE FROM ${t} WHERE user_id = ?`, id); // t is from the fixed list above, never input
   }

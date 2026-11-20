@@ -12,5 +12,8 @@ export const playToday = () => [];
 /** The lesson to continue, or null: { course, title, href, progress (0..1) }. Learn door. */
 export const continueLesson = () => null;
 
+import { getUpcoming } from '../future/upcoming.js';
+
 /** The next few deadlines the student cares about: [{ title, due (YYYY-MM-DD), href }]. Future door. */
-export const upcoming = async () => [];
+export const upcoming = async (signedIn = true) =>
+  (await getUpcoming(4, { signedIn })).map((e) => ({ title: e.title, due: e.deadline, href: e.href }));
