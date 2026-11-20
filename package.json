@@ -21,6 +21,7 @@
     "test": "node test/run.js"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^1.11.0",
     "@codemirror/autocomplete": "^6.20.4",
     "@codemirror/commands": "^6.11.1",
     "@codemirror/lang-java": "^6.0.2",

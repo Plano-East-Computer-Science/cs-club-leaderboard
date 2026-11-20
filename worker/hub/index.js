@@ -48,6 +48,7 @@ import { quantRouter, quantAdminRouter } from './quant.js';
 import { clubRouter } from './club.js';
 import { hqAdminRouter } from './hq.js';
 import { liveRouter, liveAdminRouter } from './live.js';
+import { askRouter } from './ask.js';
 
 export { Room } from './room-do.js';
 
@@ -129,4 +130,5 @@ export function mountHub(app) {
   app.route('/api', pathwaysRouter);
   app.route('/api', quantRouter);
   app.route('/api', liveRouter); // Wave 6: early questions, speaker link, recap
+  app.route('/api', askRouter); // next: AI tutor, off without ANTHROPIC_API_KEY
 }

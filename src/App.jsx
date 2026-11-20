@@ -51,6 +51,7 @@ import Soon from './next/pages/Soon.jsx';
 import Meetings from './next/club/Meetings.jsx';
 import Kit from './next/club/Kit.jsx';
 import Playbook from './next/club/Playbook.jsx';
+import AskDock from './next/ask/Ask.jsx';
 import { DataProvider } from './lib/data.jsx';
 import { AppShell, EmptyState, Button, SkeletonList } from './ui/index.js';
 import { oldOfficerTarget } from '../shared/hq.js';
@@ -216,6 +217,7 @@ function Shell() {
           <Route path="/admin" element={<Navigate to="/hq" replace />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
+        <AskDock />
       </AppShell>
     </>
   );

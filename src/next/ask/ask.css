@@ -1,0 +1,44 @@
+/* Ask, the tutor panel (`next`). Prefix ak-. */
+.ak-fab {
+  position: fixed; right: 20px; bottom: 20px; z-index: 45;
+  display: inline-flex; align-items: center; gap: 8px; height: 48px; padding: 0 18px 0 14px;
+  border-radius: 999px; border: 1.5px solid var(--t1); background: var(--hl); color: var(--on-hl);
+  font: 700 15px var(--sans); cursor: pointer; box-shadow: 3px 3px 0 var(--t1);
+  transition: transform 0.12s, box-shadow 0.12s;
+}
+.ak-fab:hover { transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--t1); }
+.ak-fab:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--t1); }
+@media (max-width: 899px) { .ak-fab { bottom: calc(var(--tabbar-h) + 14px); right: 14px; } }
+
+.ak-panel {
+  position: fixed; right: 16px; bottom: 16px; z-index: 46;
+  width: min(420px, calc(100vw - 32px)); height: min(620px, calc(100dvh - var(--topbar-h) - 32px));
+  display: grid; grid-template-rows: auto 1fr auto;
+  background: var(--s1); border: 1.5px solid var(--t1); border-radius: var(--r-lg);
+  box-shadow: var(--pop-shadow); overflow: hidden;
+}
+@media (max-width: 640px) {
+  .ak-panel { inset: auto 0 0 0; width: 100%; height: min(78dvh, 640px); border-radius: var(--r-lg) var(--r-lg) 0 0; border-bottom: 0; }
+}
+.ak-h { display: flex; justify-content: space-between; gap: 12px; padding: 14px 14px 12px 18px; border-bottom: 1px solid var(--line); }
+.ak-h h2 { margin: 0; font: 700 17px/1.2 var(--disp); letter-spacing: -0.02em; color: var(--t1); }
+.ak-h p { margin: 4px 0 0; color: var(--t3); font-size: 14px; }
+.ak-x { width: 36px; height: 36px; display: grid; place-items: center; border: 0; border-radius: 999px; background: none; color: var(--t2); cursor: pointer; }
+.ak-x:hover { background: var(--s2); color: var(--t1); }
+.ak-log { overflow-y: auto; padding: 16px 18px; display: grid; align-content: start; gap: 14px; }
+.ak-empty p { margin: 0 0 12px; color: var(--t2); line-height: 1.55; }
+.ak-starters { display: flex; flex-wrap: wrap; gap: 8px; }
+.ak-starters button { border: 1px solid var(--line-2); background: var(--s2); color: var(--t1); border-radius: 999px; padding: 7px 12px; font: 600 14px var(--sans); cursor: pointer; }
+.ak-starters button:hover { border-color: var(--gold); }
+.ak-q { justify-self: end; max-width: 85%; margin: 0; padding: 10px 14px; border-radius: 16px 16px 4px 16px; background: var(--gold); color: var(--on-gold); line-height: 1.5; white-space: pre-wrap; }
+.ak-ans { color: var(--t1); line-height: 1.6; font-size: 15px; display: grid; gap: 10px; }
+.ak-ans p { margin: 0; white-space: pre-wrap; }
+.ak-ans pre { margin: 0; padding: 12px; background: var(--s2); border: 1px solid var(--line); border-radius: var(--r); overflow-x: auto; font: 13.5px/1.5 var(--mono); }
+.ak-think { margin: 0; color: var(--t3); font-style: italic; }
+.ak-err { margin: 0; color: var(--need); }
+.ak-form { display: flex; gap: 8px; padding: 12px; border-top: 1px solid var(--line); background: var(--s1); }
+.ak-form textarea { flex: 1; resize: none; border: 1px solid var(--line-2); border-radius: 12px; background: var(--s2); color: var(--t1); padding: 10px 12px; font: 15px/1.4 var(--sans); }
+.ak-form textarea:focus { outline: 2px solid var(--gold); outline-offset: 0; }
+.ak-send { width: 44px; border: 0; border-radius: 12px; background: var(--gold); color: var(--on-gold); display: grid; place-items: center; cursor: pointer; }
+.ak-send:disabled { opacity: 0.45; cursor: default; }
+.ak-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
