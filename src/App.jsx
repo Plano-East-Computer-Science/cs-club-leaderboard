@@ -48,7 +48,9 @@ import Alumni from './pages/Alumni.jsx';
 import Me, { MePoints } from './pages/Me.jsx';
 import { DoorLayout } from './next/DoorTabs.jsx';
 import Soon from './next/pages/Soon.jsx';
-import { Boot, Snow } from './components/Chrome.jsx';
+import Meetings from './next/club/Meetings.jsx';
+import Kit from './next/club/Kit.jsx';
+import Playbook from './next/club/Playbook.jsx';
 import { DataProvider } from './lib/data.jsx';
 import { AppShell, EmptyState, Button, SkeletonList } from './ui/index.js';
 import { oldOfficerTarget } from '../shared/hq.js';
@@ -170,8 +172,9 @@ function Shell() {
           <Route path="/opportunities" element={<Moved to="/future" />} />
 
           <Route element={<DoorLayout door="club" />}>
-            <Route path="/club" element={<Soon title="Meetings" />} />
-            <Route path="/club/playbook" element={<Soon title="Playbook" />} />
+            <Route path="/club" element={<Meetings />} />
+            <Route path="/club/kits/:id" element={<Kit />} />
+            <Route path="/club/playbook" element={<Playbook />} />
             <Route path="/compete" element={<Leaderboard />} />
             <Route path="/student/:id" element={<Student />} />
             <Route path="/ideas" element={<Ideas />} />
@@ -214,8 +217,6 @@ function Shell() {
           <Route path="*" element={<NotFound />} />
         </Routes>
       </AppShell>
-      <Boot />
-      <Snow />
     </>
   );
 }

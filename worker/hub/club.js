@@ -11,6 +11,7 @@ import { loadRules } from './ledger.js';
 import { pointsTable } from '../../shared/points.js';
 import { kindName } from '../../shared/planner.js';
 import { chicagoDate } from '../../shared/daily.js';
+import { upcomingPublicPlans } from './planner.js';
 
 export const clubRouter = new Hono();
 
@@ -54,4 +55,13 @@ export async function clubInfo(db, today = chicagoDate()) {
 clubRouter.get('/club', async (c) => {
   const body = await clubInfo(c.env.DB);
   return c.json(body, 200, { 'Cache-Control': 'public, max-age=300' });
+});
+
+/**
+ * GET /api/club/schedule (`next` Club door): the next planned meetings that have
+ * not been held, member-safe form only (shared/planner.js publicPlan).
+ */
+clubRouter.get('/club/schedule', async (c) => {
+  const plans = await upcomingPublicPlans(c.env.DB);
+  return c.json({ upcoming: plans.filter((p) => !p.held).slice(0, 8) });
 });
