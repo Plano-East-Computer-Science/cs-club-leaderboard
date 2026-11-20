@@ -37,7 +37,7 @@
   --gold: #2340d9;
   --gold-2: #1a31ae;
   --on-gold: #ffffff;
-  --ink-soft: rgb(35 64 217 / 0.1);
+  --tint: rgb(35 64 217 / 0.1);
   --hl: #d8f74a;
   --on-hl: #121a33;
   --pink: #ff6fae;
@@ -80,7 +80,7 @@
     --gold: #d8f74a;
     --gold-2: #c3e52f;
     --on-gold: #0b1736;
-    --ink-soft: rgb(216 247 74 / 0.12);
+    --tint: rgb(216 247 74 / 0.12);
     --hl: #d8f74a;
     --on-hl: #0b1736;
     --live: #44e08f;
@@ -117,7 +117,7 @@
   --gold: #d8f74a;
   --gold-2: #c3e52f;
   --on-gold: #0b1736;
-  --ink-soft: rgb(216 247 74 / 0.12);
+  --tint: rgb(216 247 74 / 0.12);
   --hl: #d8f74a;
   --on-hl: #0b1736;
   --live: #44e08f;
@@ -204,7 +204,7 @@ body {
 }
 .ui-door[aria-current='page'] {
   color: var(--t1);
-  background: var(--ink-soft);
+  background: var(--tint);
 }
 .ui-door[aria-current='page']::after { display: none; }
 .ui-door[aria-current='page'] svg { color: var(--gold); }
@@ -238,7 +238,7 @@ body {
 }
 .ui-pill--gold {
   border-color: color-mix(in srgb, var(--gold) 45%, transparent);
-  background: var(--ink-soft);
+  background: var(--tint);
 }
 .ui-pill--live {
   border-color: color-mix(in srgb, var(--live) 45%, transparent);
