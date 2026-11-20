@@ -1029,7 +1029,6 @@ CREATE TABLE IF NOT EXISTS future_tracker (
   updated_at TEXT    NOT NULL DEFAULT (datetime('now')),
   PRIMARY KEY (user_id, id)
 );
-=======
 /* ============================ next: Play door (pl-) ============================ */
 -- Finished daily games (Keyword, Trace, Buckets, Order Up, Squash, Bit Flip)
 -- for signed-in players. One row per game per Chicago date per player. score
