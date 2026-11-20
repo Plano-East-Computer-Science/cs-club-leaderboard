@@ -8,7 +8,7 @@ import { Link } from 'react-router-dom';
 import { GameController, BookOpenText, Lightning, CalendarBlank, RocketLaunch, CheckCircle, ArrowRight } from '@phosphor-icons/react';
 import { Button, Skeleton, useSession } from '../../ui/index.js';
 import { useApi } from '../../lib/ui.js';
-import { playToday, continueLesson, upcoming } from './sources.js';
+import { usePlayToday, continueLesson, upcoming } from './sources.js';
 import { chicagoToday, nextWeekday, weekdayOf, monthDay, shortDay, daysFromToday } from '../club/dates.js';
 import './home.css';
 
@@ -101,7 +101,7 @@ function FrontDoor() {
 }
 
 function GamesRow() {
-  const games = playToday();
+  const games = usePlayToday();
   if (!games.length)
     return (
       <Link to="/play" className="hm-games hm-games--one">
@@ -131,17 +131,17 @@ function GamesRow() {
   );
 }
 
-function Deadlines() {
+function Deadlines({ user }) {
   const [list, setList] = useState(null);
   useEffect(() => {
     let live = true;
-    upcoming()
+    upcoming(Boolean(user))
       .then((l) => live && setList(l))
       .catch(() => live && setList([]));
     return () => {
       live = false;
     };
-  }, []);
+  }, [user]);
   return (
     <section className="hm-card" aria-labelledby="hm-d">
       <h2 className="hm-h2" id="hm-d">Deadlines</h2>
@@ -227,7 +227,7 @@ function Today({ user }) {
               {club?.next?.title ? `. ${club.next.title}` : ''}
             </span>
           </Link>
-          <Deadlines />
+          <Deadlines user={user} />
         </div>
       </div>
     </div>

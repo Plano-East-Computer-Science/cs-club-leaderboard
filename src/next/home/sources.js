@@ -6,8 +6,8 @@
  * Until a door lands on `next`, its source returns an empty answer.
  */
 
-/** Today's daily games: [{ slug, name, done, href }]. Play door. */
-export const playToday = () => [];
+/** Today's daily games, as a hook: [{ slug, name, done, href }]. Play door. */
+export { usePlayToday } from '../play/today.js';
 
 /** The lesson to continue, or null: { course, title, href, progress (0..1) }. Learn door. */
 export const continueLesson = () => null;
