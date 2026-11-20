@@ -49,6 +49,8 @@ import { clubRouter } from './club.js';
 import { hqAdminRouter } from './hq.js';
 import { liveRouter, liveAdminRouter } from './live.js';
 
+import { playRouter } from './play.js';
+
 export { Room } from './room-do.js';
 
 /** Officer-only hub controls (rooms, gateway codes, team). Same guard as the admin panel. */
@@ -129,4 +131,5 @@ export function mountHub(app) {
   app.route('/api', pathwaysRouter);
   app.route('/api', quantRouter);
   app.route('/api', liveRouter); // Wave 6: early questions, speaker link, recap
+  app.route('/api', playRouter); // Play: daily coding games
 }
