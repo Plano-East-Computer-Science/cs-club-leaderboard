@@ -24,6 +24,7 @@ import { cx } from './primitives.jsx';
 /** Every page, with what it is for. Searched by name and description. */
 export const PAGES = [
   ['today', '/', 'Your next step, the meeting and this week'],
+  ['play', '/play', 'Daily coding games: Keyword, Trace, Buckets and more'],
   ['practice', '/practice', 'Track ladders, problems and lessons'],
   ['build', '/build', 'Ship cycles, templates and projects'],
   ['compete', '/compete', 'Standings, tiers and the prize'],

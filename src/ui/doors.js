@@ -1,13 +1,14 @@
 /**
- * The five member doors (v2-spec section 3) and which old routes live behind
+ * The member doors (v2-spec section 3) and which old routes live behind
  * each one, so the right door lights up on every existing page.
  */
-import { House, Code, Hammer, Trophy, UserCircle } from '@phosphor-icons/react';
+import { House, GameController, Code, Hammer, Trophy, UserCircle } from '@phosphor-icons/react';
 
 const under = (p, list) => list.some((x) => p === x || p.startsWith(`${x}/`));
 
 export const DOORS = [
   { id: 'today', label: 'Today', to: '/', icon: House, match: (p) => p === '/' },
+  { id: 'play', label: 'Play', to: '/play', icon: GameController, match: (p) => under(p, ['/play']) },
   {
     id: 'practice',
     label: 'Practice',

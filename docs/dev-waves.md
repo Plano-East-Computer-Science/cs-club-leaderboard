@@ -145,3 +145,19 @@ Test on dev (officer laptop + phone, two student phones):
 Verified only by tests, not yet by hand: teach concept checks, the stuck list, a planned duel pack opening the lobby.
 
 Roll back: Revert this PR. New tables (early questions) stay, unused.
+
+## Wave 7: daily coding games (2026-11-20)
+
+| PR | What |
+| --- | --- |
+| this PR | A new Play tab with six daily games, the same puzzle for everyone each Chicago day: Keyword (guess the CS term in six tries, 370 answers with definitions), Trace (type exactly what the Java prints, 102 snippets), Buckets (sort 16 terms into four groups, 67 boards), Order Up (60-second Big-O sprint, 81 snippets), Squash (find the buggy line, pick the fix, 45 puzzles) and Bit Flip. Each has a how-to, a share text, and unlimited practice rounds. The Play page shows today's games, a streak, a countdown and a weekly top 10 for signed-in members. Built on the `next` branch and brought over as is. |
+
+Test on dev (phone and laptop, signed out then signed in):
+1. Tap Play in the bar. Six tiles, 0 of 6 done.
+2. Play Keyword on the phone keyboard and the on-screen keys; a wrong word shakes; finish and copy the share text.
+3. Play Buckets and Trace once each. The Play page now shows them done.
+4. Sign in on a second device: today's results are already there, and your name is on the weekly board.
+
+Points: game scores never touch season points.
+
+Roll back: Revert this PR. New table `play_results` stays, unused.

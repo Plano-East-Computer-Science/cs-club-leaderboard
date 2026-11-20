@@ -55,6 +55,9 @@ import { oldOfficerTarget } from '../shared/hq.js';
 const EditorLab = lazy(() => import('./pages/EditorLab.jsx'));
 // Wave 5: Officer HQ. Lazy, so members never download the officer screens.
 const Hq = lazy(() => import('./pages/hq/Hq.jsx'));
+// Play: daily coding games. Lazy, so the word lists load only on the games.
+const Play = lazy(() => import('./next/play/Play.jsx'));
+const PlayGame = lazy(() => import('./next/play/GamePage.jsx'));
 
 document.documentElement.classList.add('js');
 
@@ -149,6 +152,8 @@ function Shell() {
       <AppShell footer={!/^\/(admin|officer|hq|signin)/.test(pathname)}>
         <Routes>
           <Route path="/" element={<Home />} />
+          <Route path="/play" element={<Suspense fallback={null}><Play /></Suspense>} />
+          <Route path="/play/:game" element={<Suspense fallback={null}><PlayGame /></Suspense>} />
           {/* Wave 4 doors. Practice and Compete wrap the existing pages until Wave 7 rebuilds them. */}
           <Route path="/practice" element={<Arena />} />
           <Route element={<CompeteLayout />}>
