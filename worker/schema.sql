@@ -1029,3 +1029,21 @@ CREATE TABLE IF NOT EXISTS future_tracker (
   updated_at TEXT    NOT NULL DEFAULT (datetime('now')),
   PRIMARY KEY (user_id, id)
 );
+/* ============================ next: Play door (pl-) ============================ */
+-- Finished daily games (Keyword, Trace, Buckets, Order Up, Squash, Bit Flip)
+-- for signed-in players. One row per game per Chicago date per player. score
+-- is 0-100 for the weekly play board only; it never feeds season points.
+-- Owned by worker/hub/play.js.
+CREATE TABLE IF NOT EXISTS play_results (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  game       TEXT    NOT NULL,
+  date       TEXT    NOT NULL,                       -- YYYY-MM-DD, America/Chicago
+  score      INTEGER NOT NULL,
+  guesses    INTEGER,
+  ms         INTEGER,
+  detail     TEXT,                                   -- the share grid, so a fresh device can show it
+  created_at TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_play_results_once ON play_results(user_id, game, date);
+CREATE INDEX IF NOT EXISTS idx_play_results_date ON play_results(date);
