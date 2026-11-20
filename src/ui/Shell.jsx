@@ -7,7 +7,7 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import * as RTooltip from '@radix-ui/react-tooltip';
-import { MagnifyingGlass, Gauge, UserCircle, GearSix, SignOut, Files } from '@phosphor-icons/react';
+import { MagnifyingGlass, Gauge, UserCircle, GearSix, SignOut, Files, Sun, Moon } from '@phosphor-icons/react';
 import { api } from '../lib/api.js';
 import { useData } from '../lib/data.jsx';
 import { initials } from '../lib/format.js';
@@ -97,6 +97,29 @@ function AccountMenu({ user, onSignOut }) {
   );
 }
 
+/** Light (notebook) or dark (blueprint). The choice is remembered; with none, the OS decides. */
+function ThemeToggle() {
+  const sysDark = () => window.matchMedia?.('(prefers-color-scheme: dark)').matches;
+  const [dark, setDark] = useState(() => {
+    const t = document.documentElement.dataset.theme;
+    return t ? t === 'dark' : sysDark();
+  });
+  const flip = () => {
+    const next = dark ? 'light' : 'dark';
+    document.documentElement.dataset.theme = next;
+    try {
+      localStorage.setItem('next:theme', next);
+    } catch {}
+    setDark(!dark);
+  };
+  const Icon = dark ? Sun : Moon;
+  return (
+    <button type="button" className="ui-search ui-theme" onClick={flip} aria-label={dark ? 'Switch to light theme' : 'Switch to dark theme'}>
+      <Icon size={18} aria-hidden="true" />
+    </button>
+  );
+}
+
 const isOfficerRole = (u) => u?.role === 'officer' || u?.role === 'lead';
 
 /* --------------------------------- TopBar --------------------------------- */
@@ -127,6 +150,7 @@ export function TopBar({ onSearch }) {
         </nav>
         <div className="ui-top__end">
           <LivePill live={live} />
+          <ThemeToggle />
           <button type="button" className="ui-search" onClick={onSearch} aria-label="Search and commands (Ctrl K)" aria-keyshortcuts="Control+K /">
             <MagnifyingGlass size={18} aria-hidden="true" />
             <span className="ui-search__t">Search</span>

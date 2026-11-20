@@ -13,6 +13,12 @@ import '@fontsource/jetbrains-mono/latin-700';
 import '@fontsource-variable/unbounded';
 import '@fontsource-variable/figtree';
 import App from './App.jsx';
+
+// Apply a remembered theme before the first paint (see ThemeToggle in src/ui/Shell.jsx).
+try {
+  const t = localStorage.getItem('next:theme');
+  if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+} catch {}
 import './index.css';
 import './ui/ui.css';
 import './pages/v2.css';

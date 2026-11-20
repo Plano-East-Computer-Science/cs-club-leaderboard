@@ -252,3 +252,9 @@ body {
   background: var(--topbar-bg);
   backdrop-filter: saturate(140%) blur(10px);
 }
+.ui-theme {
+  width: 36px;
+  padding: 0;
+  justify-content: center;
+  flex: none;
+}
