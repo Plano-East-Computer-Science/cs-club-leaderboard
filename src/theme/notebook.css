@@ -258,3 +258,17 @@ body {
   justify-content: center;
   flex: none;
 }
+
+/* ------------------- older pages: tame the all-caps display type ------------------- */
+:is(.ap-body h2,.ap-box h1,.ar-place h2,.ar-tier h3,.ar-title,.ar-tracks .nm,.cc h2,.cell b,.cf h3,.cmp-h,.cmp-path,.cmp-q h1,.ctf-det h2,.cy-h,.detail h3,.xin h3,.display,.dt h2,.dt-title,.duel-col h3,.duel-divs button b,.duel-done b,.duel-partner b,.duel-spot b,.hero h1,.lab-head h1,.lrow .tn,.mh,.mnav h2,.od h3,.dsi h3,.of h3,.of-row b,.ofc-main h2,.ofc-main .ofc-h,.ofc-title,.oh h1,.pc h2,.pc h3,.pf-hero h1,.pf-tier h3,.phd h1,.rule b,.sec h2,.ses-big h1,.ses-title,.ses-gallery b,.ses-lab-tier h3,.ses-pair b,.si-title,.step h3,.stp h2,.tk .tt,.tk h2,.tl b,.top3 h3,.tpl-opt b,.track .tn,.ws-title .field) {
+  text-transform: none;
+  letter-spacing: -0.03em;
+}
+:is(.hero h1, .ar-title, .pf-hero h1, .oh h1, .phd h1, .display, .ap-box h1, .lab-head h1, .cmp-q h1) {
+  font-size: clamp(32px, 4.4vw, 54px);
+  line-height: 1.02;
+  font-weight: 800;
+}
+:is(.sec h2, .dt h2, .tk h2, .cc h2, .stp h2, .ar-place h2, .ctf-det h2) {
+  font-size: clamp(22px, 2.4vw, 30px);
+}
