@@ -388,7 +388,7 @@ function useTier(source, ids) {
         ? api.get(`/learn/${rest}`).then((c) =>
             ids.map((id) => {
               const s = c.steps.find((x) => x.id === id);
-              return { id, title: s?.title ?? id, body: s?.body ?? '', starter: c.progress?.[id]?.code || s?.starter || '', cases: s?.cases ?? [], course: rest };
+              return { id, title: s?.title ?? id, python: true, body: s?.body ?? '', starter: c.progress?.[id]?.code || s?.starter || '', cases: s?.cases ?? [], course: rest };
             })
           )
         : Promise.all(ids.map((slug) => api.get(`/problems/${slug}`).then((p) => ({ id: slug, title: p.title, body: p.body, starter: p.starter ?? '', cases: p.cases }))));
@@ -416,7 +416,7 @@ function PairRole({ partner, seat, startedAt, skew }) {
 }
 
 function Checkpoint({ item, passed, onPass, onNext }) {
-  const [code, setCode] = useState(item.starter);
+  const [code, setCode] = useState('');
   return (
     <div className="ses-cp">
       <article className="duel-statement">
@@ -430,7 +430,7 @@ function Checkpoint({ item, passed, onPass, onNext }) {
             {onNext && <button type="button" className="btn btn-primary" onClick={onNext}>Next checkpoint</button>}
           </div>
         )}
-        <CodeRunner id={`lab-${item.id}`} cases={item.cases} value={code} onChange={setCode} playground={false} onResults={(_, ok) => ok && onPass(code)} />
+        <CodeRunner id={`lab-${item.id}`} cases={item.cases} starter={item.starter} langs={item.python ? ['python'] : undefined} onChange={setCode} playground={false} onResults={(_, ok) => ok && onPass(code)} />
       </div>
     </div>
   );

@@ -14,7 +14,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../lib/api.js';
-import { runCases, warmUp } from '../lib/pyrunner.js';
+import { judge } from '../lib/run/index.js';
 import CodeRunner from '../components/CodeRunner.jsx';
 import Editorials from '../components/Editorials.jsx';
 import { Spinner } from '../components/bits.jsx';
@@ -434,20 +434,19 @@ function Arena({ duel, match, send, skew }) {
   const [prob, setProb] = useState(null);
   const [err, setErr] = useState('');
   const [code, setCode] = useState('');
+  const [lang, setLang] = useState('java');
   const [busy, setBusy] = useState(false);
   const [last, setLast] = useState(null);
   const mine = match.sides[match.me];
   const team = mine.names.length > 1;
 
   useEffect(() => {
-    warmUp();
     setProb(null);
     setLast(null);
     api
       .get(`/problems/${encodeURIComponent(match.slug)}`)
       .then((p) => {
         setProb(p);
-        setCode(p.starter || '');
       })
       .catch((e) => setErr(e.message));
   }, [match.slug, duel.round]);
@@ -455,9 +454,9 @@ function Arena({ duel, match, send, skew }) {
   async function doSubmit() {
     setBusy(true);
     try {
-      const res = await runCases(code, prob.cases);
-      const passed = res.length > 0 && res.every((r) => r.ok);
-      setLast({ passed, n: res.filter((r) => r.ok).length, of: res.length });
+      const res = await judge({ lang, source: code, cases: prob.cases });
+      const passed = res.passed;
+      setLast({ passed, n: res.results.filter((r) => r.ok).length, of: res.results.length });
       send({ t: 'duel_submit', round: duel.round, slug: match.slug, passed, code });
     } catch (e) {
       setErr(e.message);
@@ -498,7 +497,7 @@ function Arena({ duel, match, send, skew }) {
               </div>
             ) : (
               <>
-                <CodeRunner id="duel" cases={prob.cases} value={code} onChange={setCode} runLabel="Run tests" playground={false} />
+                <CodeRunner key={`${match.slug}-${duel.round}`} id="duel" cases={prob.cases} starter={prob.starter} onChange={(c, l) => { setCode(c); setLang(l); }} runLabel="Run tests" playground={false} />
                 <button type="button" className="btn btn-primary duel-submit" disabled={busy || !code.trim()} onClick={doSubmit}>
                   {busy ? 'Judging...' : 'Submit'}
                 </button>
