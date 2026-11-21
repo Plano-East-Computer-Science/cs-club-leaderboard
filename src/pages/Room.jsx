@@ -116,7 +116,7 @@ function CodeInput({ label, value, onChange, autoFocus }) {
   );
 }
 
-const RULE = 'The check-in word on the screen changes every five minutes, so you have to be in the room to join.';
+const RULE = 'The check-in word on the screen changes every minute, so you have to be looking at the screen to join.';
 
 function Enter() {
   const nav = useNavigate();
@@ -280,6 +280,9 @@ function BlockView({ state, send, skew }) {
         <>
           <Waiting title={block.title}>{block.screen}</Waiting>
           <NoteBox send={send} exit={state.exit} />
+          <p className="text-sm">
+            What should we run next? <a className="underline" href="/ideas">Vote on the ideas board</a>.
+          </p>
         </>
       );
       break;

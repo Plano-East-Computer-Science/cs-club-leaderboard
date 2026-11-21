@@ -79,14 +79,14 @@ export const TEMPLATES = {
     lengths: {
       60: [
         b('poll', 'Join and warm-up poll', 5, 'Check in, find your partner, answer the poll.'),
-        b('hook', "Last week's best", 5, '', { notes: 'A member demos what they built. Ask them before the meeting.' }),
+        b('hook', "Last week's best", 5, "Two members show what they built or solved last week, one minute each.", { notes: 'A member demos what they built. Ask them before the meeting.' }),
         b('lab', 'Build in pairs', 35, PAIRS, LAB),
         b('show', 'Show', 10, 'Three or four pairs, 60 seconds each.'),
         b('close', 'Close', 5, 'Next week: tell us what you want to build.'),
       ],
       120: [
         b('poll', 'Warm-up poll', 10, 'Join, find your partner, answer the poll.'),
-        b('hook', "Last week's best", 10, '', { notes: 'A member demos what they built. Ask them before the meeting.' }),
+        b('hook', "Last week's best", 10, "Two members show what they built or solved last week, one minute each.", { notes: 'A member demos what they built. Ask them before the meeting.' }),
         b('lab', 'Build in pairs', 40, PAIRS, LAB),
         BREAK,
         b('lab', 'Second round: swap roles', 30, 'Same pairs, roles swapped. Pick up a tier, or try the next one.', LAB),
@@ -140,14 +140,14 @@ export const TEMPLATES = {
     lengths: {
       60: [
         b('hook', 'Join', 5, 'Check in and find a seat.'),
-        b('hook', 'Welcome', 3, '', { notes: 'Introduce the speaker.' }),
+        b('hook', 'Welcome', 3, "Tonight's guest. Send questions from your phone any time during the talk.", { notes: 'Introduce the speaker.' }),
         b('speaker', 'Talk', 30, 'Send questions any time. Upvote the ones you want answered.'),
         b('speaker', 'Questions', 15, 'Most votes first. Keep sending them.'),
         b('close', 'Close', 7),
       ],
       120: [
         b('poll', 'Warm-up poll', 10, 'Check in and answer the poll.'),
-        b('hook', 'Welcome', 5, '', { notes: 'Introduce the speaker.' }),
+        b('hook', 'Welcome', 5, "Tonight's guest. Send questions from your phone any time during the talk.", { notes: 'Introduce the speaker.' }),
         b('speaker', 'Talk', 45, 'Send questions any time. Upvote the ones you want answered.'),
         BREAK,
         b('speaker', 'Questions', 35, 'Most votes first. Keep sending them.'),

@@ -8,6 +8,8 @@
  * Wave 6 moved the projector, the speaker screens and concept checks to src/pages/live/.
  */
 import { useEffect, useMemo, useState } from 'react';
+import { exitNoteError } from '../../shared/live.js';
+import { findCourse } from '../../shared/courses.js';
 import { api } from '../lib/api.js';
 import CodeRunner from '../components/CodeRunner.jsx';
 import { Spinner } from '../components/bits.jsx';
@@ -82,6 +84,11 @@ export function useCheckin(code) {
 export function RunOfShow({ state, send, skew, onEdit }) {
   const sess = state.session;
   const cur = sess.cur;
+  // A running duel round or team contest must not end by a slip of the thumb on the big yellow button.
+  const live = state.duel?.phase === 'live' || state.contest?.phase === 'live';
+  const leave = (fn) => () => {
+    if (!live || window.confirm('A round is still running. Leave this block anyway?')) fn();
+  };
   return (
     <section className="ses-ros card p-5" aria-label="Run of show">
       <div className="ses-ros-head">
@@ -90,7 +97,7 @@ export function RunOfShow({ state, send, skew, onEdit }) {
       </div>
       <ol className="ses-blocks">
         <li>
-          <button type="button" aria-current={cur === -1 ? 'step' : undefined} onClick={() => send({ t: 'block_go', i: -1 })}>
+          <button type="button" aria-current={cur === -1 ? 'step' : undefined} onClick={leave(() => send({ t: 'block_go', i: -1 }))}>
             <span className="mono">00</span>
             <span>Join screen</span>
             <span className="m">check-in</span>
@@ -98,7 +105,7 @@ export function RunOfShow({ state, send, skew, onEdit }) {
         </li>
         {sess.blocks.map((b, i) => (
           <li key={b.id}>
-            <button type="button" aria-current={cur === i ? 'step' : undefined} onClick={() => send({ t: 'block_go', i })}>
+            <button type="button" aria-current={cur === i ? 'step' : undefined} onClick={leave(() => send({ t: 'block_go', i }))}>
               <span className="mono">{String(i + 1).padStart(2, '0')}</span>
               <span>{b.title}</span>
               <span className="m">{BLOCK_LABEL[b.type]}{b.minutes ? `, ${b.minutes} min` : ''}</span>
@@ -107,9 +114,9 @@ export function RunOfShow({ state, send, skew, onEdit }) {
         ))}
       </ol>
       <div className="ses-ctl">
-        <button type="button" className="btn btn-ghost" disabled={cur < 0} onClick={() => send({ t: 'block_prev' })}>Back</button>
-        <button type="button" className="btn btn-primary" disabled={cur >= sess.blocks.length - 1} onClick={() => send({ t: 'block_next' })}>
-          {cur < 0 ? 'Start the meeting' : `Next: ${sess.blocks[cur + 1]?.title ?? 'end'}`}
+        <button type="button" className="btn btn-ghost" disabled={cur < 0} onClick={leave(() => send({ t: 'block_prev' }))}>Back</button>
+        <button type="button" className={live ? 'btn btn-ghost' : 'btn btn-primary'} disabled={cur >= sess.blocks.length - 1} onClick={leave(() => send({ t: 'block_next' }))}>
+          {cur < 0 ? 'Start the meeting' : `Next: ${sess.blocks[cur + 1]?.title ?? 'end'}${live ? ' (round running)' : ''}`}
         </button>
         {sess.endsAt > 0 && (
           <>
@@ -322,18 +329,23 @@ const EXIT_LABEL = {
 
 /** B4, V3-A: the attendance rule, stated plainly, with where this member stands. */
 export function ExitCard({ exit, dropin }) {
+  // One calm line on every block; the full rules sit one tap away so they do not push the task off a phone screen.
   return (
-    <section className={`ses-exit ${exit ? 'ok' : ''}`} aria-label="Attendance" role="status">
+    <section className={`ses-exit ${exit ? "ok" : ""}`} aria-label="Attendance" role="status">
       {exit ? (
-        <p><b>Attendance: counts, plus a bonus.</b> You checked in and {EXIT_LABEL[exit] ?? 'did something'}. Both are paid when the room closes.</p>
+        <p><b>Checked in, bonus earned.</b> You {EXIT_LABEL[exit] ?? "did something"}. Paid when the room closes.</p>
       ) : (
-        <p>
-          <b>Attendance: counts.</b> You are checked in, so it is paid when the room closes.{' '}
-          {dropin
-            ? 'Write one line about what you did, or help someone, for a small bonus.'
-            : 'Do one thing here for a small bonus: answer a poll, pass a lab checkpoint, try a duel or contest problem, share in show, help someone, or write one line at the close.'}
-        </p>
+        <p><b>Checked in.</b> {dropin ? "Write one line about what you did for a small bonus." : "Do one thing here for a small bonus."}</p>
       )}
+      <details className="mt-1">
+        <summary className="mono text-xs">How attendance works</summary>
+        <p className="mt-1 text-sm">
+          Checking in counts. {dropin
+            ? "A real line about what you did, or helping someone, adds a small bonus."
+            : "For a small bonus, answer a poll, pass a lab checkpoint, try a duel or contest problem, share in show, help someone, or write a real line at the close."}{" "}
+          Both are paid when the room closes.
+        </p>
+      </details>
     </section>
   );
 }
@@ -351,10 +363,10 @@ export function NoteBox({ send, exit }) {
         setSent(true);
       }}
     >
-      <label className="eyebrow" htmlFor="note-box">One line: what did you do today?</label>
+      <label className="eyebrow" htmlFor="note-box">One line: what did you do today? (four words or more)</label>
       <div className="flex gap-2">
         <input id="note-box" className="field" maxLength={140} value={text} onChange={(e) => setText(e.target.value)} placeholder="Got the ASCII box working with my partner" />
-        <button className="btn btn-primary" disabled={text.trim().length < 3}>Save</button>
+        <button className="btn btn-primary" disabled={Boolean(exitNoteError(text))}>Save</button>
       </div>
       {sent && exit && <p className="mono text-xs up" role="status">Saved.</p>}
     </form>
@@ -424,6 +436,13 @@ function Checkpoint({ item, passed, onPass, onNext }) {
   );
 }
 
+/** What a tier is, in words, so a member does not pick one blind: the course behind it, its level and length. */
+function tierBlurb(x) {
+  const slug = String(x.source ?? '').startsWith('course:') ? x.source.slice(7) : '';
+  const c = slug ? findCourse(slug) : null;
+  return c ? [c.title.replace(/^Lab: /, ''), c.level, c.minutes ? `about ${c.minutes} min` : ''].filter(Boolean).join(', ') : '';
+}
+
 /** B3: a member picks a tier and works checkpoint by checkpoint. */
 export function LabPlay({ lab, block, partner, session, send, skew }) {
   const tier = lab.tier;
@@ -443,6 +462,7 @@ export function LabPlay({ lab, block, partner, session, send, skew }) {
           {lab.tiers.map((x, i) => (
             <button key={i} type="button" onClick={() => send({ t: 'lab_tier', tier: i })}>
               <b>{x.name}</b>
+              {tierBlurb(x) && <span>{tierBlurb(x)}</span>}
               <span>{x.checkpoints} checkpoints</span>
             </button>
           ))}

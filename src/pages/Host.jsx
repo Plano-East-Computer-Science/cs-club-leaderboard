@@ -400,7 +400,7 @@ function CurrentBlock({ state, send, skew, code }) {
       <section className="card p-5">
         <p className="eyebrow">join screen</p>
         <p className="mt-2">
-          The projector shows the room code and a check-in word that changes every five minutes. Members type both, so a code
+          The projector shows the room code and a check-in word that changes every minute. Members type both, so a code
           shared in a group chat stops working. Press Start when the room is ready.
         </p>
       </section>

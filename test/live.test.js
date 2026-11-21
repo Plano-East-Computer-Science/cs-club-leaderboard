@@ -14,7 +14,7 @@ import { signValue, signSession, COOKIE } from '../worker/auth.js';
 import { USER_COOKIE } from '../worker/hub/users.js';
 import { cleanBlocks, studentBlocks, speakerOf, templateBlocks, duelMinutes } from '../shared/session-templates.js';
 import { publicPlan } from '../shared/planner.js';
-import { champions, earlyWindow, isStuck, meetingStart, parseMeetingTime } from '../shared/live.js';
+import { champions, earlyWindow, exitNoteError, isStuck, meetingStart, parseMeetingTime } from '../shared/live.js';
 import { chicagoDate } from '../shared/daily.js';
 import * as S from '../worker/hub/session.js';
 import * as T from '../worker/hub/teach.js';
@@ -432,6 +432,37 @@ await check('room socket: a client cannot send its own x- headers to the room', 
   assert.equal(seen.get('x-role'), 'student');
   assert.equal(seen.get('x-uid'), '1', 'the uid comes from the session, not the client');
   assert.equal(seen.get('x-blocks'), null, 'an unplanned room never takes blocks from the client');
+});
+
+await check("the close note has to be a real sentence, not a tap", () => {
+  for (const bad of ["abc", "did stuff", "asdf asdf asdf asdf", "a a a a a a a a", "", null, "....... ,,,,, !!!!"]) {
+    assert.ok(exitNoteError(bad), `rejected: ${JSON.stringify(bad)}`);
+  }
+  assert.equal(exitNoteError("Built a number guessing game in Java"), "");
+  assert.equal(exitNoteError("  Fixed   my   loop with Priya  "), "", "extra spaces do not count against a real line");
+});
+
+await check('a lab in pairs pairs the room when it starts, and a later lab keeps the pairs', async () => {
+  const lab = { pairs: true, tiers: [{ name: 'Guided', source: 'course:lab-madlibs' }] };
+  const blocks = cleanBlocks([
+    { type: 'lab', title: 'Build in pairs', minutes: 20, lab },
+    { type: 'poll', title: 'Poll', minutes: 5 },
+    { type: 'lab', title: 'Swap roles', minutes: 20, lab },
+  ]);
+  const host = new Ws({ role: 'host', uid: 'host' });
+  const a = new Ws({ role: 'student', uid: '1', name: 'Ana' });
+  const b = new Ws({ role: 'student', uid: '2', name: 'Ben' });
+  const room = await makeRoom({ DB: db }, [host, a, b]);
+  room.s.session = S.newSession({ template: 'build', blocks });
+  const send = (ws, m) => room.webSocketMessage(ws, JSON.stringify(m));
+  assert.equal(room.s.pairs, null, 'nobody is paired before the lab');
+  await send(host, { t: 'block_go', i: 0 });
+  assert.equal(room.s.pairs.length, 1, 'two members become one pair as the lab opens');
+  assert.equal(a.sent.at(-1).pairs.length, 1, 'Ana is told who her partner is');
+  const first = JSON.stringify(room.s.pairs);
+  await send(host, { t: 'block_go', i: 1 });
+  await send(host, { t: 'block_go', i: 2 });
+  assert.equal(JSON.stringify(room.s.pairs), first, 'the swap-roles lab keeps the same pairs');
 });
 
 console.log(`live: ${passed} checks passed`);

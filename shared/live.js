@@ -81,3 +81,13 @@ export const isStuck = (p, now, minutes = STUCK_MINUTES) => Boolean(p && !p.done
 
 /** "Ask at club.org/room, code ABCD": what the Zoom strip and the speaker screens say. */
 export const askLine = (host, code) => `Ask at ${host}/room, code ${code}`;
+
+/** The close-block "what I did" line earns an attendance bonus, so it has to be a real sentence and not a tap. */
+export const MIN_NOTE_WORDS = 4;
+export function exitNoteError(raw) {
+  const text = String(raw ?? '').replace(/\s+/g, ' ').trim();
+  const words = text.split(' ').filter((w) => /[a-z0-9]/i.test(w));
+  if (words.length < MIN_NOTE_WORDS || text.length < 16) return `Write a real line: at least ${MIN_NOTE_WORDS} words about what you did.`;
+  if (new Set(words.map((w) => w.toLowerCase())).size < 3) return 'Say something a little more specific than that.';
+  return '';
+}

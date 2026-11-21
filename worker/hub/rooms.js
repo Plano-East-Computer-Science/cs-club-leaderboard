@@ -1,11 +1,11 @@
 /**
  * Meeting rooms. Officers create and close them (officer guard); students check
- * in with the room code plus a short token that rotates every five minutes on
+ * in with the room code plus a short token that rotates every minute on
  * the projector (B4), and the WebSocket is handed to the room's Durable Object.
  *
  * The room code is the stable id. The token is an HMAC of the code and the
- * current five-minute slot, so the Worker checks it without asking the DO, and
- * a token pasted into a group chat stops working within five minutes.
+ * current one-minute slot, so the Worker checks it without asking the DO, and
+ * a token pasted into a group chat stops working within about ninety seconds.
  */
 import { Hono } from 'hono';
 
@@ -34,12 +34,12 @@ const normCode = (s) => String(s ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '').
 
 /* ----------------------------- B4 check-in token ---------------------------- */
 
-export const CHECKIN_MS = 5 * 60_000;
+export const CHECKIN_MS = 60_000;
 // Someone typing as the token flips still gets in; a photo from the slot before does not.
-const GRACE_MS = 45_000;
+const GRACE_MS = 35_000;
 const enc = (t) => new TextEncoder().encode(t);
 
-/** The 4-character token for a room in one five-minute slot. Same alphabet as room codes. */
+/** The 4-character token for a room in one one-minute slot. Same alphabet as room codes. */
 export async function checkinToken(secret, code, slot) {
   const key = await crypto.subtle.importKey('raw', enc(String(secret)), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
   const sig = new Uint8Array(await crypto.subtle.sign('HMAC', key, enc(`checkin:${code}:${slot}`)));
@@ -52,7 +52,7 @@ export async function currentToken(secret, code, now = Date.now()) {
   return { token: await checkinToken(secret, code, slot), rotatesAt: (slot + 1) * CHECKIN_MS };
 }
 
-// ponytail: no per-user attempt limit; 31^4 tokens per five minutes is plenty for a club. Add a counter if guessing shows up.
+// ponytail: no per-user attempt limit; 31^4 tokens per minute is plenty for a club. Add a counter if guessing shows up.
 export async function tokenOk(secret, code, token, now = Date.now()) {
   const t = normCode(token);
   if (t.length !== 4 || !secret) return false;

@@ -78,7 +78,7 @@ function BigJoin({ code, tok }) {
           <b className="lp-gold">{tok?.token ?? '....'}</b>
         </div>
       </div>
-      <p className="lp-small">The word changes every five minutes.</p>
+      <p className="lp-small">The word changes every minute.</p>
     </div>
   );
 }
@@ -253,6 +253,16 @@ export default function Projector({ state, code, skew, tok }) {
         <p className="lp-k">{BLOCK_LABEL[block.type]}</p>
         <h1 className="lp-title">{block.title}</h1>
         {block.screen && <p className="lp-sub">{block.screen}</p>}
+        {block.type === 'hook' && (
+          <ol className="lp-plan" aria-label="Tonight">
+            {sess.blocks.map((b, i) => (
+              <li key={b.id} aria-current={i === sess.cur ? 'step' : undefined} style={i < sess.cur ? { opacity: 0.4 } : undefined}>
+                <span>{b.title}</span>
+                <span className="lp-plan__m">{b.minutes ? `${b.minutes} min` : ''}</span>
+              </li>
+            ))}
+          </ol>
+        )}
         {block.type === 'show' && <p className="lp-sub">Share a link or today's result from your laptop. {state.show.items.length} shared so far.</p>}
         {block.type === 'close' && <p className="lp-sub lp-gold">Before you go: write one line about what you did today.</p>}
         {block.type === 'teach' && block.teach?.slides && <p className="lp-small">Slides are on the officer laptop.</p>}

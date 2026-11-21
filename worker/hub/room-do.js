@@ -35,6 +35,7 @@ import { findCourse } from '../../shared/courses.js';
 import * as S from './session.js';
 import * as C from '../../shared/contest.js';
 import { studentBlocks, speakerOf } from '../../shared/session-templates.js';
+import { exitNoteError } from '../../shared/live.js';
 import * as T from './teach.js';
 
 const PULSE = ['fast', 'slow', 'lost', 'great'];
@@ -217,6 +218,14 @@ export class Room {
           s.q = null;
         }
         if (!r?.error) s.check = null; // so does a concept check
+        // A lab in pairs starts with pairs: nobody should have to be told to press a button first. A later lab keeps them.
+        if (!r?.error) {
+          const entered = S.currentBlock(sess);
+          if (entered?.type === 'lab' && entered.lab?.pairs && !s.pairs) {
+            s.pairs = makePairs(this.present(), { mode: 'random', levels: {}, avoid: s.pairAvoid ?? [] });
+            s.pairAvoid = groupKeys(s.pairs);
+          }
+        }
         break;
       }
       case 'block_time':
@@ -373,7 +382,8 @@ export class Room {
       case 'note': {
         if (type !== 'close' && s.session.kind !== 'dropin') return 'The exit line opens at the close.';
         const text = String(m.text ?? '').replace(/\s+/g, ' ').trim().slice(0, 140);
-        if (text.length < 3) return 'Write one line about what you did.';
+        const noteError = exitNoteError(text);
+        if (noteError) return noteError;
         await this.exit(uid, 'note', text);
         break;
       }

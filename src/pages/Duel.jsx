@@ -72,9 +72,10 @@ function Timer({ duel, skew, big }) {
   );
 }
 
-function SideStatus({ s, over }) {
+/** Attempt counts are private: the projector and other players see only working / solved, never who is struggling. */
+function SideStatus({ s, over, showTries = true }) {
   if (s.solved) return <span className={`duel-st ok ${s.won ? 'won' : ''}`}>{s.won ? 'won ' : 'solved '}{clock(s.ms)}</span>;
-  if (s.attempts) return <span className="duel-st try">{s.attempts} {s.attempts === 1 ? 'try' : 'tries'}</span>;
+  if (s.attempts && showTries) return <span className="duel-st try">{s.attempts} {s.attempts === 1 ? 'try' : 'tries'}</span>;
   return <span className="duel-st">{over ? 'no submit' : 'working'}</span>;
 }
 
@@ -310,7 +311,7 @@ export function DuelBoard({ duel, send, skew, readOnly = false }) {
                     {m.sides.map((s, i) => (
                       <li key={i} className={`duel-side ${s.won ? 'won' : ''}`}>
                         <span className="duel-nm">{s.names.join(' + ')}</span>
-                        <SideStatus s={s} over={over} />
+                        <SideStatus s={s} over={over} showTries={!readOnly} />
                       </li>
                     ))}
                     {m.ghost && <GhostRow ms={m.ghostMs} />}
@@ -421,7 +422,7 @@ function Versus({ match, over }) {
       {match.sides.map((s, i) => (
         <li key={i} className={`duel-side ${s.won ? 'won' : ''} ${i === match.me ? 'me' : ''}`}>
           <span className="duel-nm">{i === match.me ? (s.names.length > 1 ? 'Your team' : 'You') : s.names.join(' + ')}</span>
-          <SideStatus s={s} over={over} />
+          <SideStatus s={s} over={over} showTries={i === match.me} />
         </li>
       ))}
       {match.ghost && <GhostRow ms={match.ghostMs} />}
