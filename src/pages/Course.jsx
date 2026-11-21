@@ -3,6 +3,8 @@ import { Link, useParams } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { Spinner, ErrorNote } from '../components/bits.jsx';
 import { runCases, warmUp, isReady } from '../lib/pyrunner.js';
+import Editor, { MOD } from '../components/Editor.jsx';
+import '../components/code-runner.css';
 
 const GOOD = '#2f8f5b';
 const BAD = '#c42e2e';
@@ -443,27 +445,12 @@ function CodeStep({ step, done, initial, onCode, check, onPassed }) {
   const [results, setResults] = useState(null);
   const [running, setRunning] = useState(false);
   const [err, setErr] = useState(null);
-  const escaped = useRef(false); // Esc then Tab leaves the editor (keyboard trap otherwise)
 
   const change = (v) => {
     setCode(v);
     onCode(step.id, v);
   };
 
-  const onKeyDown = (e) => {
-    if (e.key === 'Escape') {
-      escaped.current = true;
-      return;
-    }
-    if (e.key === 'Tab' && !e.shiftKey && !escaped.current) {
-      e.preventDefault();
-      const t = e.target;
-      const { selectionStart: a, selectionEnd: b } = t;
-      change(code.slice(0, a) + '    ' + code.slice(b));
-      requestAnimationFrame(() => t.setSelectionRange(a + 4, a + 4));
-    }
-    if (e.key !== 'Tab') escaped.current = false;
-  };
 
   const run = async () => {
     setRunning(true);
@@ -489,45 +476,40 @@ function CodeStep({ step, done, initial, onCode, check, onPassed }) {
   return (
     <div>
       <Passed done={done} />
-      <label className="eyebrow mb-1 block" htmlFor={`code-${step.id}`}>Your code (Python)</label>
-      <textarea
-        id={`code-${step.id}`}
-        className="mono w-full rounded border p-3 text-[0.85rem] leading-relaxed"
-        style={{ background: 'var(--card)', color: 'var(--ink)', minHeight: '14rem', tabSize: 4 }}
-        value={code}
-        onChange={(e) => change(e.target.value)}
-        onKeyDown={onKeyDown}
-        onBlur={() => (escaped.current = false)}
-        spellCheck={false}
-        autoCapitalize="off"
-        autoCorrect="off"
-        rows={Math.min(24, Math.max(10, code.split('\n').length + 2))}
-        aria-describedby={`code-hint-${step.id}`}
-      />
-      <p id={`code-hint-${step.id}`} className="mono mt-1 text-[0.68rem]" style={{ color: 'var(--ink-faint)' }}>
-        Tab indents. Press Esc, then Tab, to move on.
-      </p>
-
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        <button className="btn btn-primary" onClick={run} disabled={running}>
-          {running ? 'Running…' : 'Run tests'}
-        </button>
-        <button
-          className="btn btn-ghost"
-          onClick={() => {
-            change(step.starter ?? '');
-            setResults(null);
-          }}
-          disabled={running}
-        >
-          Reset to starter
-        </button>
-        {running && !isReady() && (
-          <span className="mono text-xs" style={{ color: 'var(--ink-faint)' }} role="status">
-            Loading Python (first run only)...
+      <section className={`cr cr-${running ? 'busy' : results ? (failing ? 'bad' : 'ok') : 'idle'}`} aria-label="Code workbench">
+        <header className="cr-head">
+          <div className="cr-tabs">
+            <span className="cr-tab cr-python on"><i aria-hidden="true" />solution.py</span>
+          </div>
+          <div className="cr-head-r">
+            <button
+              type="button"
+              className="cr-ghost cr-reset"
+              onClick={() => {
+                change(step.starter ?? '');
+                setResults(null);
+              }}
+              disabled={running}
+            >
+              Reset
+            </button>
+            <button type="button" className="cr-run" onClick={run} disabled={running}>
+              <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M4 2.5v11l9-5.5z" fill="currentColor" /></svg>
+              <span className="cr-run-long">{running ? 'Running' : 'Run tests'}</span>
+              <span className="cr-run-short">{running ? '...' : 'Run'}</span>
+              <kbd>{MOD}+Enter</kbd>
+            </button>
+          </div>
+        </header>
+        <Editor value={code} onChange={change} lang="python" onRun={run} label="Your code (Python)" minHeight="12rem" maxHeight="28rem" />
+        <footer className="cr-bar" role="status" aria-live="polite">
+          <span className="cr-state">
+            <i aria-hidden="true" />
+            {running ? (isReady() ? 'Running...' : 'Loading Python (first run only)...') : results ? (failing ? `${nPass} of ${results.length} tests passed` : `All ${results.length} tests passed`) : 'Ready'}
           </span>
-        )}
-      </div>
+          <span className="cr-keys hide-xs">Tab indents &middot; Esc, Tab leaves</span>
+        </footer>
+      </section>
 
       {err && <Verdict ok={false}>{err}</Verdict>}
 

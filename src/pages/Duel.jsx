@@ -14,7 +14,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../lib/api.js';
-import { runCases, warmUp } from '../lib/pyrunner.js';
+import { judge } from '../lib/run/index.js';
 import CodeRunner from '../components/CodeRunner.jsx';
 import Editorials from '../components/Editorials.jsx';
 import { Spinner } from '../components/bits.jsx';
@@ -72,9 +72,10 @@ function Timer({ duel, skew, big }) {
   );
 }
 
-function SideStatus({ s, over }) {
+/** Attempt counts are private: the projector and other players see only working / solved, never who is struggling. */
+function SideStatus({ s, over, showTries = true }) {
   if (s.solved) return <span className={`duel-st ok ${s.won ? 'won' : ''}`}>{s.won ? 'won ' : 'solved '}{clock(s.ms)}</span>;
-  if (s.attempts) return <span className="duel-st try">{s.attempts} {s.attempts === 1 ? 'try' : 'tries'}</span>;
+  if (s.attempts && showTries) return <span className="duel-st try">{s.attempts} {s.attempts === 1 ? 'try' : 'tries'}</span>;
   return <span className="duel-st">{over ? 'no submit' : 'working'}</span>;
 }
 
@@ -310,7 +311,7 @@ export function DuelBoard({ duel, send, skew, readOnly = false }) {
                     {m.sides.map((s, i) => (
                       <li key={i} className={`duel-side ${s.won ? 'won' : ''}`}>
                         <span className="duel-nm">{s.names.join(' + ')}</span>
-                        <SideStatus s={s} over={over} />
+                        <SideStatus s={s} over={over} showTries={!readOnly} />
                       </li>
                     ))}
                     {m.ghost && <GhostRow ms={m.ghostMs} />}
@@ -421,7 +422,7 @@ function Versus({ match, over }) {
       {match.sides.map((s, i) => (
         <li key={i} className={`duel-side ${s.won ? 'won' : ''} ${i === match.me ? 'me' : ''}`}>
           <span className="duel-nm">{i === match.me ? (s.names.length > 1 ? 'Your team' : 'You') : s.names.join(' + ')}</span>
-          <SideStatus s={s} over={over} />
+          <SideStatus s={s} over={over} showTries={i === match.me} />
         </li>
       ))}
       {match.ghost && <GhostRow ms={match.ghostMs} />}
@@ -433,20 +434,19 @@ function Arena({ duel, match, send, skew }) {
   const [prob, setProb] = useState(null);
   const [err, setErr] = useState('');
   const [code, setCode] = useState('');
+  const [lang, setLang] = useState('java');
   const [busy, setBusy] = useState(false);
   const [last, setLast] = useState(null);
   const mine = match.sides[match.me];
   const team = mine.names.length > 1;
 
   useEffect(() => {
-    warmUp();
     setProb(null);
     setLast(null);
     api
       .get(`/problems/${encodeURIComponent(match.slug)}`)
       .then((p) => {
         setProb(p);
-        setCode(p.starter || '');
       })
       .catch((e) => setErr(e.message));
   }, [match.slug, duel.round]);
@@ -454,9 +454,9 @@ function Arena({ duel, match, send, skew }) {
   async function doSubmit() {
     setBusy(true);
     try {
-      const res = await runCases(code, prob.cases);
-      const passed = res.length > 0 && res.every((r) => r.ok);
-      setLast({ passed, n: res.filter((r) => r.ok).length, of: res.length });
+      const res = await judge({ lang, source: code, cases: prob.cases });
+      const passed = res.passed;
+      setLast({ passed, n: res.results.filter((r) => r.ok).length, of: res.results.length });
       send({ t: 'duel_submit', round: duel.round, slug: match.slug, passed, code });
     } catch (e) {
       setErr(e.message);
@@ -497,7 +497,7 @@ function Arena({ duel, match, send, skew }) {
               </div>
             ) : (
               <>
-                <CodeRunner id="duel" cases={prob.cases} value={code} onChange={setCode} runLabel="Run tests" playground={false} />
+                <CodeRunner key={`${match.slug}-${duel.round}`} id="duel" cases={prob.cases} starter={prob.starter} onChange={(c, l) => { setCode(c); setLang(l); }} runLabel="Run tests" playground={false} />
                 <button type="button" className="btn btn-primary duel-submit" disabled={busy || !code.trim()} onClick={doSubmit}>
                   {busy ? 'Judging...' : 'Submit'}
                 </button>

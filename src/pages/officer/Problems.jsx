@@ -207,7 +207,7 @@ function Editor({ start, onDone }) {
           <div className="card p-3">
             <Body text={f.body} />
             <div className="mt-4">
-              <CodeRunner id="pb-prev" cases={f.cases} initial={parseStarter(f.starter).python} runLabel="Run tests as a student" />
+              <CodeRunner id="pb-prev" cases={f.cases} starter={f.starter} runLabel="Run tests as a student" />
             </div>
           </div>
         ) : (
@@ -247,7 +247,8 @@ function Editor({ start, onDone }) {
         <CodeRunner
           id="pb-sol"
           cases={f.cases}
-          value={f.solution}
+          starter={f.solution}
+          langs={['python']}
           onChange={(v) => set('solution', v)}
           onResults={(_, ok) => setPassedKey(ok ? keyOf(f) : null)}
           runLabel="Check solution"

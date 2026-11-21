@@ -12,7 +12,7 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '../lib/api.js';
-import { runCases, warmUp } from '../lib/pyrunner.js';
+import { judge } from '../lib/run/index.js';
 import CodeRunner from '../components/CodeRunner.jsx';
 import { Spinner } from '../components/bits.jsx';
 import { Body } from './Course.jsx';
@@ -329,12 +329,12 @@ function Work({ c, slug, index, cell, send }) {
   const [prob, setProb] = useState(null);
   const [err, setErr] = useState('');
   const [code, setCode] = useState('');
+  const [lang, setLang] = useState('java');
   const [busy, setBusy] = useState(false);
   const [last, setLast] = useState(null);
   const open = c.phase === 'live';
 
   useEffect(() => {
-    warmUp();
     setProb(null);
     setLast(null);
     setErr('');
@@ -342,7 +342,6 @@ function Work({ c, slug, index, cell, send }) {
       .get(`/problems/${encodeURIComponent(slug)}`)
       .then((p) => {
         setProb(p);
-        setCode(p.starter || '');
       })
       .catch((e) => setErr(e.message));
   }, [slug]);
@@ -350,9 +349,9 @@ function Work({ c, slug, index, cell, send }) {
   async function doSubmit() {
     setBusy(true);
     try {
-      const res = await runCases(code, prob.cases);
-      const passed = res.length > 0 && res.every((r) => r.ok);
-      setLast({ passed, n: res.filter((r) => r.ok).length, of: res.length });
+      const res = await judge({ lang, source: code, cases: prob.cases });
+      const passed = res.passed;
+      setLast({ passed, n: res.results.filter((r) => r.ok).length, of: res.results.length });
       // The browser judges; the room records the attempt, its time and this code for spot checks.
       send({ t: 'contest_submit', team: c.team.id, slug, passed, code });
     } catch (e) {
@@ -376,7 +375,7 @@ function Work({ c, slug, index, cell, send }) {
           </div>
         ) : prob ? (
           <>
-            <CodeRunner id={`contest-${slug}`} cases={prob.cases} value={code} onChange={setCode} runLabel="Run tests" playground={false} />
+            <CodeRunner key={slug} id={`contest-${slug}`} cases={prob.cases} starter={prob.starter} onChange={(c, l) => { setCode(c); setLang(l); }} runLabel="Run tests" playground={false} />
             <button type="button" className="btn btn-primary duel-submit" disabled={busy || !code.trim() || !open} onClick={doSubmit}>
               {busy ? 'Judging...' : open ? 'Submit for the team' : 'The contest is over'}
             </button>

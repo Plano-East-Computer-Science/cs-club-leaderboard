@@ -90,7 +90,7 @@ export default function Daily() {
                   )}
                 </div>
               </Pane>
-              <Pane file="solve.py" meta="runs in your browser">
+              <Pane file="solution" meta="runs in your browser">
                 <div className="pn-b">
                   <CodeRunner id="daily" cases={p.cases} initial={p.starter} onResults={onResults} playground={false} />
                   {saveError && <p className="mono mt-2 text-xs" style={{ color: 'var(--down)' }} role="alert">{saveError}</p>}
