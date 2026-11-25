@@ -1,6 +1,7 @@
 import { useEffect, lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
 
+import { pageMeta } from '../shared/seo.js';
 import Home from './pages/Home.jsx';
 import Leaderboard from './pages/Leaderboard.jsx';
 import Student from './pages/Student.jsx';
@@ -132,6 +133,7 @@ function Shell() {
   const { pathname } = useLocation();
   useEffect(() => {
     document.body.dataset.page = pageKey(pathname);
+    if (!pathname.startsWith('/verify/')) document.title = pageMeta(pathname).title; // Verify sets its own
     if (!location.hash) window.scrollTo(0, 0);
   }, [pathname]);
 

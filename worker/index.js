@@ -18,6 +18,7 @@ import { refreshRepoStats } from './hub/github.js';
 import { purgeDeleted } from './hub/safety.js';
 import { pruneHits } from './hub/ratelimit.js';
 import { autoCloseRooms } from './hub/rooms.js';
+import { withMeta, sitemapXml, robotsTxt } from '../shared/seo.js';
 
 // Durable Object classes must be exported from the Worker's entry module.
 export { Room } from './hub/index.js';
@@ -41,12 +42,23 @@ app.all('/api/*', (c) => c.json({ error: 'No such endpoint.' }, 404));
  * not_found_handling, because that setting would also swallow unmatched /api
  * paths and hand them an HTML page instead of a JSON error.
  */
+app.get('/robots.txt', (c) => c.text(robotsTxt(new URL(c.req.url).origin, c.env.NOINDEX === '1')));
+app.get('/sitemap.xml', (c) => c.body(sitemapXml(new URL(c.req.url).origin), 200, { 'Content-Type': 'application/xml; charset=utf-8' }));
+
 app.get('*', async (c) => {
-  const res = await c.env.ASSETS.fetch(c.req.raw);
-  if (res.status !== 404) return res;
+  let res = await c.env.ASSETS.fetch(c.req.raw);
   const url = new URL(c.req.url);
-  url.pathname = '/index.html';
-  return c.env.ASSETS.fetch(new Request(url, c.req.raw));
+  if (res.status === 404) {
+    const shell = new URL(url);
+    shell.pathname = '/index.html';
+    res = await c.env.ASSETS.fetch(new Request(shell, c.req.raw));
+  }
+  // The app shell gets this page's title and share card, because link previews and crawlers do not run the app.
+  if (!(res.headers.get('Content-Type') || '').includes('text/html')) return res;
+  const headers = new Headers(res.headers);
+  headers.delete('Content-Length');
+  headers.delete('ETag');
+  return new Response(withMeta(await res.text(), url.origin, url.pathname), { status: res.status, headers });
 });
 
 app.onError((err, c) => {
